@@ -20,39 +20,59 @@
 
 <body>
 
-<div class="app" id="app">
+<div class="app">
 
     <!-- =====================================================
          SIDEBAR
-         ===================================================== -->
+    ====================================================== -->
 
     <aside class="sidebar">
 
-        <div class="brand">
-            <div class="brand-logo">
-                <i class="fa-solid fa-comments"></i>
+        <!-- BRAND -->
+
+        <div class="app-header">
+
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+
+                <span>MegChatBox</span>
             </div>
 
-            <div class="brand-text">
-                <strong>MegChatBox</strong>
-                <span>V2.1</span>
-            </div>
+            <button
+                class="icon-btn"
+                id="settingsBtn"
+                type="button"
+                title="Settings"
+            >
+                <i class="fa-solid fa-gear"></i>
+            </button>
+
         </div>
 
 
-        <!-- PROFILE -->
+        <!-- MY PROFILE -->
 
         <div
-            class="my-profile"
-            id="myProfileBtn"
+            class="sidebar-profile"
+            id="myProfileCard"
         >
 
-            <div
-                class="avatar avatar-large"
-                id="myAvatar"
-            ></div>
+            <div class="avatar avatar-medium">
+                <img
+                    id="myAvatar"
+                    src=""
+                    alt=""
+                    style="display:none;"
+                >
 
-            <div class="profile-main">
+                <span id="myAvatarInitial">
+                    ?
+                </span>
+            </div>
+
+            <div class="sidebar-profile-info">
 
                 <div class="profile-name-row">
 
@@ -76,8 +96,6 @@
 
             </div>
 
-            <i class="fa-solid fa-chevron-right"></i>
-
         </div>
 
 
@@ -88,11 +106,19 @@
             <i class="fa-solid fa-magnifying-glass"></i>
 
             <input
-                id="searchInput"
                 type="text"
-                placeholder="Search users..."
+                id="searchInput"
+                placeholder="Search people, groups or channels..."
                 autocomplete="off"
             >
+
+            <button
+                id="clearSearchBtn"
+                type="button"
+                style="display:none;"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
 
         </div>
 
@@ -102,91 +128,128 @@
         <div class="sidebar-tabs">
 
             <button
-                type="button"
                 class="sidebar-tab active"
-                data-tab="chats"
+                data-tab="contacts"
+                type="button"
             >
                 <i class="fa-solid fa-user-group"></i>
                 <span>Contacts</span>
-                <b id="contactCount">0</b>
+                <span
+                    class="tab-count"
+                    id="contactCount"
+                >
+                    0
+                </span>
             </button>
 
+
             <button
-                type="button"
                 class="sidebar-tab"
                 data-tab="groups"
+                type="button"
             >
                 <i class="fa-solid fa-users"></i>
                 <span>Groups</span>
-                <b id="groupCount">0</b>
+                <span
+                    class="tab-count"
+                    id="groupCount"
+                >
+                    0
+                </span>
             </button>
 
+
             <button
-                type="button"
                 class="sidebar-tab"
                 data-tab="channels"
+                type="button"
             >
                 <i class="fa-solid fa-bullhorn"></i>
                 <span>Channels</span>
-                <b id="channelCount">0</b>
+                <span
+                    class="tab-count"
+                    id="channelCount"
+                >
+                    0
+                </span>
             </button>
 
         </div>
 
 
-        <!-- =================================================
-             CONTACTS
-             ================================================= -->
+        <!-- CONTACTS -->
 
-        <section
-            class="tab-content active"
+        <div
+            class="sidebar-list"
             id="chatsTab"
         >
 
             <div
-                class="list-header"
+                class="list-section-header"
                 id="contactsHeader"
             >
                 <span>Contacts</span>
             </div>
 
-            <div
-                class="chat-list"
-                id="userList"
-            ></div>
+            <div id="userList"></div>
 
-        </section>
+            <!-- SAVED MESSAGES -->
+
+            <button
+                class="saved-chat-item"
+                id="savedMessagesChat"
+                type="button"
+            >
+
+                <div class="chat-avatar saved-avatar">
+                    <i class="fa-solid fa-bookmark"></i>
+                </div>
+
+                <div class="chat-item-info">
+
+                    <div class="chat-item-top">
+                        <strong>Saved Messages</strong>
+                    </div>
+
+                    <span>
+                        Your saved messages
+                    </span>
+
+                </div>
+
+            </button>
+
+        </div>
 
 
-        <!-- =================================================
-             GROUPS
-             ================================================= -->
+        <!-- GROUPS -->
 
-        <section
-            class="tab-content"
+        <div
+            class="sidebar-list"
             id="groupsTab"
+            style="display:none;"
         >
 
-            <div class="list-header">
+            <div class="list-section-header">
 
                 <span>Groups</span>
 
-                <div class="list-header-actions">
+                <div class="section-actions">
 
                     <button
                         type="button"
-                        class="icon-btn small"
-                        id="joinGroupModalBtn"
-                        title="Join group"
+                        id="joinGroupOpenBtn"
+                        class="small-icon-btn"
+                        title="Join Group"
                     >
                         <i class="fa-solid fa-link"></i>
                     </button>
 
                     <button
                         type="button"
-                        class="icon-btn small"
                         id="createGroupBtn"
-                        title="Create group"
+                        class="small-icon-btn"
+                        title="Create Group"
                     >
                         <i class="fa-solid fa-plus"></i>
                     </button>
@@ -195,43 +258,39 @@
 
             </div>
 
-            <div
-                class="chat-list"
-                id="groupsList"
-            ></div>
+            <div id="groupsList"></div>
 
-        </section>
+        </div>
 
 
-        <!-- =================================================
-             CHANNELS
-             ================================================= -->
+        <!-- CHANNELS -->
 
-        <section
-            class="tab-content"
+        <div
+            class="sidebar-list"
             id="channelsTab"
+            style="display:none;"
         >
 
-            <div class="list-header">
+            <div class="list-section-header">
 
                 <span>Channels</span>
 
-                <div class="list-header-actions">
+                <div class="section-actions">
 
                     <button
                         type="button"
-                        class="icon-btn small"
-                        id="joinChannelModalBtn"
-                        title="Join channel"
+                        id="joinChannelOpenBtn"
+                        class="small-icon-btn"
+                        title="Join Channel"
                     >
                         <i class="fa-solid fa-link"></i>
                     </button>
 
                     <button
                         type="button"
-                        class="icon-btn small"
                         id="createChannelBtn"
-                        title="Create channel"
+                        class="small-icon-btn"
+                        title="Create Channel"
                     >
                         <i class="fa-solid fa-plus"></i>
                     </button>
@@ -240,31 +299,19 @@
 
             </div>
 
-            <div
-                class="chat-list"
-                id="channelsList"
-            ></div>
+            <div id="channelsList"></div>
 
-        </section>
+        </div>
 
 
-        <!-- SIDEBAR BOTTOM -->
+        <!-- LOGOUT -->
 
         <div class="sidebar-bottom">
 
             <button
-                type="button"
-                class="sidebar-action"
-                id="settingsBtn"
-            >
-                <i class="fa-solid fa-gear"></i>
-                <span>Settings</span>
-            </button>
-
-            <button
-                type="button"
-                class="sidebar-action logout-action"
                 id="logoutBtn"
+                class="logout-btn"
+                type="button"
             >
                 <i class="fa-solid fa-right-from-bracket"></i>
                 <span>Logout</span>
@@ -276,36 +323,36 @@
 
 
     <!-- =====================================================
-         CHAT AREA
-         ===================================================== -->
+         MAIN CHAT
+    ====================================================== -->
 
     <main class="chat-area">
 
         <!-- EMPTY -->
 
-        <section
-            class="chat-empty"
+        <div
             id="chatEmpty"
+            class="chat-empty"
         >
 
-            <div class="empty-logo">
+            <div class="chat-empty-icon">
                 <i class="fa-solid fa-comments"></i>
             </div>
 
             <h2>Welcome to MegChatBox</h2>
 
             <p>
-                Select a chat and start messaging.
+                Select a contact, group or channel to start chatting.
             </p>
 
-        </section>
+        </div>
 
 
         <!-- ACTIVE CHAT -->
 
         <section
-            class="active-chat"
             id="activeChat"
+            class="active-chat"
             style="display:none;"
         >
 
@@ -315,24 +362,27 @@
 
                 <button
                     type="button"
-                    class="mobile-back"
-                    id="mobileBackBtn"
-                >
-                    <i class="fa-solid fa-arrow-left"></i>
-                </button>
-
-                <button
-                    type="button"
-                    class="chat-avatar-button"
                     id="chatAvatarButton"
+                    class="chat-header-avatar-button"
                 >
 
-                    <div
-                        class="avatar avatar-chat"
-                        id="chatAvatar"
-                    ></div>
+                    <div class="chat-avatar chat-header-avatar">
+
+                        <img
+                            id="chatAvatar"
+                            src=""
+                            alt=""
+                            style="display:none;"
+                        >
+
+                        <span id="chatAvatarInitial">
+                            ?
+                        </span>
+
+                    </div>
 
                 </button>
+
 
                 <div class="chat-header-info">
 
@@ -353,53 +403,61 @@
                     </div>
 
                     <span id="chatStatus">
-                        Offline
+                        offline
                     </span>
 
                 </div>
 
-                <button
-                    type="button"
-                    class="icon-btn"
-                    id="chatMoreBtn"
-                >
-                    <i class="fa-solid fa-ellipsis-vertical"></i>
-                </button>
+
+                <div class="chat-header-actions">
+
+                    <button
+                        type="button"
+                        id="chatMoreBtn"
+                        class="icon-btn"
+                        title="More"
+                    >
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+
+                </div>
 
             </header>
 
 
-            <!-- CONTACT REQUEST -->
+            <!-- CONTACT ACTIONS -->
 
             <div
-                class="contact-actions"
                 id="contactActions"
+                class="contact-actions"
+                style="display:none;"
             >
 
                 <button
+                    id="addContactBtn"
                     type="button"
                     class="primary-btn"
-                    id="addContactBtn"
-                    style="display:none;"
                 >
                     <i class="fa-solid fa-user-plus"></i>
                     Add Contact
                 </button>
 
+
                 <button
+                    id="acceptContactBtn"
                     type="button"
                     class="primary-btn"
-                    id="acceptContactBtn"
                     style="display:none;"
                 >
                     <i class="fa-solid fa-check"></i>
                     Accept
                 </button>
 
+
                 <button
+                    id="declineContactBtn"
                     type="button"
                     class="danger-btn"
-                    id="declineContactBtn"
                     style="display:none;"
                 >
                     <i class="fa-solid fa-xmark"></i>
@@ -412,22 +470,22 @@
             <!-- MESSAGES -->
 
             <div
-                class="messages"
                 id="messages"
+                class="messages"
             ></div>
 
 
-            <!-- MESSAGE FORM -->
+            <!-- MESSAGE INPUT -->
 
             <form
-                class="message-form"
                 id="messageForm"
+                class="message-form"
             >
 
                 <button
                     type="button"
-                    class="message-tool"
                     id="imageBtn"
+                    class="message-tool-btn"
                     title="Image"
                 >
                     <i class="fa-solid fa-image"></i>
@@ -440,38 +498,40 @@
                     hidden
                 >
 
+
                 <button
                     type="button"
-                    class="message-tool"
                     id="emojiBtn"
+                    class="message-tool-btn"
                     title="Emoji"
                 >
                     <i class="fa-regular fa-face-smile"></i>
                 </button>
 
+
                 <button
                     type="button"
-                    class="message-tool"
                     id="stickerBtn"
+                    class="message-tool-btn"
                     title="Sticker"
                 >
-                    <i class="fa-solid fa-note-sticky"></i>
+                    <i class="fa-regular fa-note-sticky"></i>
                 </button>
 
-                <div class="message-input-wrap">
 
-                    <textarea
-                        id="messageInput"
-                        rows="1"
-                        placeholder="Write a message..."
-                    ></textarea>
+                <input
+                    type="text"
+                    id="messageInput"
+                    placeholder="Write a message..."
+                    autocomplete="off"
+                >
 
-                </div>
 
                 <button
                     type="submit"
-                    class="send-button"
                     id="sendButton"
+                    class="send-btn"
+                    title="Send"
                 >
                     <i class="fa-solid fa-paper-plane"></i>
                 </button>
@@ -479,22 +539,27 @@
             </form>
 
 
-            <!-- EMOJI -->
+            <!-- EMOJI PANEL -->
 
             <div
-                class="emoji-panel"
                 id="emojiPanel"
-            ></div>
-
-            <!-- STICKERS -->
-
-            <div
-                class="sticker-panel"
-                id="stickerPanel"
+                class="emoji-panel"
+                style="display:none;"
             >
-                <div class="sticker-empty">
-                    Stickers coming soon
-                </div>
+
+                <button type="button">😀</button>
+                <button type="button">😂</button>
+                <button type="button">😍</button>
+                <button type="button">😎</button>
+                <button type="button">😭</button>
+                <button type="button">😡</button>
+                <button type="button">👍</button>
+                <button type="button">👎</button>
+                <button type="button">❤️</button>
+                <button type="button">🔥</button>
+                <button type="button">🎉</button>
+                <button type="button">💀</button>
+
             </div>
 
         </section>
@@ -504,116 +569,169 @@
 </div>
 
 
-<!-- =========================================================
-     SETTINGS
-     ========================================================= -->
+<!-- =====================================================
+     SETTINGS MODAL
+====================================================== -->
 
 <div
-    class="modal-overlay"
+    class="modal"
     id="settingsModal"
 >
 
-    <div class="modal">
+    <div class="modal-content settings-modal">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="settingsModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
 
         <div class="modal-header">
-
-            <h2>
-                <i class="fa-solid fa-gear"></i>
-                Settings
-            </h2>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close="settingsModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
+            <h2>Settings</h2>
         </div>
+
 
         <div class="settings-list">
 
             <button
-                type="button"
-                class="settings-item"
                 id="profileSettingsBtn"
+                class="settings-item"
+                type="button"
             >
                 <i class="fa-solid fa-user"></i>
-                <span>Profile</span>
+                <span>
+                    <strong>Profile</strong>
+                    <small>Edit your profile</small>
+                </span>
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
+
             <button
-                type="button"
-                class="settings-item"
                 id="privacySettingsBtn"
+                class="settings-item"
+                type="button"
             >
                 <i class="fa-solid fa-shield-halved"></i>
-                <span>Privacy</span>
+                <span>
+                    <strong>Privacy</strong>
+                    <small>Online and last seen</small>
+                </span>
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
+
             <button
-                type="button"
-                class="settings-item"
                 id="appearanceSettingsBtn"
+                class="settings-item"
+                type="button"
             >
                 <i class="fa-solid fa-palette"></i>
-                <span>Appearance</span>
+                <span>
+                    <strong>Appearance</strong>
+                    <small>Theme and density</small>
+                </span>
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
+
             <button
-                type="button"
-                class="settings-item"
                 id="languageSettingsBtn"
+                class="settings-item"
+                type="button"
             >
                 <i class="fa-solid fa-language"></i>
-                <span>Language</span>
+                <span>
+                    <strong>Language</strong>
+                    <small>English / Uzbek / Russian</small>
+                </span>
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
+
             <button
-                type="button"
+                id="savedMessagesBtn"
                 class="settings-item"
+                type="button"
+            >
+                <i class="fa-solid fa-bookmark"></i>
+                <span>
+                    <strong>Saved Messages</strong>
+                    <small>Your saved messages</small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+
+
+            <button
                 id="updatesSettingsBtn"
+                class="settings-item"
+                type="button"
             >
                 <i class="fa-solid fa-bullhorn"></i>
-                <span>Tips & Features</span>
+                <span>
+                    <strong>Tips & Features</strong>
+                    <small>What's new in MegChatBox</small>
+                </span>
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
+
             <button
-                type="button"
-                class="settings-item owner-setting"
                 id="ownerPanelButton"
+                class="settings-item owner-setting"
+                type="button"
                 style="display:none;"
             >
                 <i class="fa-solid fa-crown"></i>
-                <span>Owner Tools</span>
+                <span>
+                    <strong>Owner Tools</strong>
+                    <small>Manage MegChatBox</small>
+                </span>
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
+
             <button
-                type="button"
-                class="settings-item admin-setting"
                 id="adminPanelButton"
+                class="settings-item"
+                type="button"
                 style="display:none;"
             >
                 <i class="fa-solid fa-user-shield"></i>
-                <span>Admin Tools</span>
+                <span>
+                    <strong>Admin Tools</strong>
+                    <small>Moderation tools</small>
+                </span>
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
+
             <button
-                type="button"
+                id="settingsLogoutBtn"
                 class="settings-item danger-setting"
-                id="deleteAccountBtn"
+                type="button"
             >
-                <i class="fa-solid fa-user-xmark"></i>
-                <span>Delete Account</span>
-                <i class="fa-solid fa-chevron-right"></i>
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>
+                    <strong>Logout</strong>
+                    <small>Sign out of your account</small>
+                </span>
+            </button>
+
+
+            <button
+                id="deleteAccountBtn"
+                class="settings-item danger-setting"
+                type="button"
+            >
+                <i class="fa-solid fa-trash"></i>
+                <span>
+                    <strong>Delete Account</strong>
+                    <small>Permanently delete your account</small>
+                </span>
             </button>
 
         </div>
@@ -623,47 +741,56 @@
 </div>
 
 
-<!-- =========================================================
-     PROFILE
-     ========================================================= -->
+<!-- =====================================================
+     PROFILE SETTINGS
+====================================================== -->
 
 <div
-    class="modal-overlay"
+    class="modal"
     id="profileModal"
 >
 
-    <div class="modal">
+    <div class="modal-content">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="profileModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
 
         <div class="modal-header">
-
             <h2>Edit Profile</h2>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close="profileModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
         </div>
+
 
         <form id="profileForm">
 
-            <div class="profile-editor-avatar">
+            <div class="profile-edit-avatar">
 
                 <div
-                    class="avatar avatar-profile-edit"
-                    id="profileAvatar"
-                ></div>
+                    class="avatar avatar-large"
+                    id="profileAvatarPreview"
+                >
+                    <img
+                        id="profileAvatarImage"
+                        src=""
+                        alt=""
+                        style="display:none;"
+                    >
 
-                <button
-                    type="button"
-                    class="avatar-edit-button"
-                    id="changeAvatarBtn"
+                    <span id="profileAvatarInitial">
+                        ?
+                    </span>
+                </div>
+
+                <label
+                    for="profileAvatarInput"
+                    class="avatar-edit-btn"
                 >
                     <i class="fa-solid fa-camera"></i>
-                </button>
+                </label>
 
                 <input
                     type="file"
@@ -674,36 +801,63 @@
 
             </div>
 
-            <label>
-                Full Name
+
+            <div class="form-group">
+
+                <label for="profileFullName">
+                    Full name
+                </label>
+
                 <input
                     id="profileFullName"
                     type="text"
+                    maxlength="50"
                     required
                 >
-            </label>
 
-            <label>
-                Username
-                <input
-                    id="profileUsername"
-                    type="text"
-                    required
-                >
-            </label>
+            </div>
 
-            <label>
-                Bio
+
+            <div class="form-group">
+
+                <label for="profileUsername">
+                    Username
+                </label>
+
+                <div class="username-input">
+                    <span>@</span>
+
+                    <input
+                        id="profileUsername"
+                        type="text"
+                        maxlength="32"
+                        pattern="[a-z0-9_]{3,32}"
+                        required
+                    >
+                </div>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="profileBio">
+                    Bio
+                </label>
+
                 <textarea
                     id="profileBio"
                     rows="4"
                     maxlength="160"
+                    placeholder="Tell people about yourself..."
                 ></textarea>
-            </label>
+
+            </div>
+
 
             <button
                 type="submit"
-                class="primary-btn full"
+                class="primary-btn"
             >
                 Save Changes
             </button>
@@ -715,100 +869,101 @@
 </div>
 
 
-<!-- =========================================================
+<!-- =====================================================
      PRIVACY
-     ========================================================= -->
+====================================================== -->
 
 <div
-    class="modal-overlay"
+    class="modal"
     id="privacyModal"
 >
 
-    <div class="modal">
+    <div class="modal-content">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="privacyModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
 
         <div class="modal-header">
-
             <h2>Privacy</h2>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close="privacyModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
         </div>
 
-        <div class="toggle-list">
 
-            <label class="toggle-item">
+        <div class="privacy-settings-list">
+
+            <label class="toggle-setting">
 
                 <div>
                     <strong>Show Online Status</strong>
-                    <span>Allow contacts to see when you are online.</span>
+                    <small>
+                        Let contacts see when you are online.
+                    </small>
                 </div>
 
                 <input
                     type="checkbox"
                     id="showOnlineToggle"
+                    checked
                 >
+
+                <span class="toggle-slider"></span>
 
             </label>
 
-            <label class="toggle-item">
+
+            <label class="toggle-setting">
 
                 <div>
                     <strong>Show Last Seen</strong>
-                    <span>Allow contacts to see your last activity.</span>
+                    <small>
+                        Let contacts see your last active time.
+                    </small>
                 </div>
 
                 <input
                     type="checkbox"
                     id="showLastSeenToggle"
+                    checked
                 >
+
+                <span class="toggle-slider"></span>
 
             </label>
 
         </div>
-
-        <button
-            type="button"
-            class="primary-btn full"
-            id="savePrivacyBtn"
-        >
-            Save
-        </button>
 
     </div>
 
 </div>
 
 
-<!-- =========================================================
+<!-- =====================================================
      APPEARANCE
-     ========================================================= -->
+====================================================== -->
 
 <div
-    class="modal-overlay"
+    class="modal"
     id="appearanceModal"
 >
 
-    <div class="modal">
+    <div class="modal-content">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="appearanceModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
 
         <div class="modal-header">
-
             <h2>Appearance</h2>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close="appearanceModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
         </div>
+
 
         <div class="appearance-section">
 
@@ -818,12 +973,13 @@
 
                 <button
                     type="button"
-                    class="appearance-option"
+                    class="appearance-option selected"
                     data-theme="dark"
                 >
                     <i class="fa-solid fa-moon"></i>
                     <span>Dark</span>
                 </button>
+
 
                 <button
                     type="button"
@@ -833,6 +989,7 @@
                     <i class="fa-solid fa-sun"></i>
                     <span>Light</span>
                 </button>
+
 
                 <button
                     type="button"
@@ -847,19 +1004,19 @@
 
         </div>
 
+
         <div class="appearance-section">
 
-            <h3>Chat Density</h3>
+            <h3>Message density</h3>
 
             <div class="appearance-options">
 
                 <button
                     type="button"
-                    class="appearance-option"
+                    class="appearance-option selected"
                     data-density="comfortable"
                 >
-                    <i class="fa-solid fa-expand"></i>
-                    <span>Comfortable</span>
+                    Comfortable
                 </button>
 
                 <button
@@ -867,8 +1024,7 @@
                     class="appearance-option"
                     data-density="compact"
                 >
-                    <i class="fa-solid fa-compress"></i>
-                    <span>Compact</span>
+                    Compact
                 </button>
 
             </div>
@@ -880,58 +1036,59 @@
 </div>
 
 
-<!-- =========================================================
+<!-- =====================================================
      LANGUAGE
-     ========================================================= -->
+====================================================== -->
 
 <div
-    class="modal-overlay"
+    class="modal"
     id="languageModal"
 >
 
-    <div class="modal">
+    <div class="modal-content">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="languageModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
 
         <div class="modal-header">
-
             <h2>Language</h2>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close="languageModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
         </div>
 
-        <div class="language-list">
+
+        <div class="language-options">
 
             <button
-                type="button"
-                class="language-option"
+                class="language-option selected"
                 data-language="en"
+                type="button"
             >
-                <span>🇬🇧 English</span>
-                <i class="fa-solid fa-check"></i>
+                <span>🇬🇧</span>
+                <strong>English</strong>
             </button>
 
+
             <button
-                type="button"
                 class="language-option"
                 data-language="uz"
+                type="button"
             >
-                <span>🇺🇿 O‘zbekcha</span>
-                <i class="fa-solid fa-check"></i>
+                <span>🇺🇿</span>
+                <strong>O'zbek</strong>
             </button>
 
+
             <button
-                type="button"
                 class="language-option"
                 data-language="ru"
+                type="button"
             >
-                <span>🇷🇺 Русский</span>
-                <i class="fa-solid fa-check"></i>
+                <span>🇷🇺</span>
+                <strong>Русский</strong>
             </button>
 
         </div>
@@ -941,252 +1098,202 @@
 </div>
 
 
-<!-- =========================================================
-     USER PROFILE POPUP
-     ========================================================= -->
+<!-- =====================================================
+     CREATE GROUP
+====================================================== -->
 
 <div
-    class="modal-overlay"
-    id="userProfileModal"
->
-
-    <div class="modal profile-popup-modal">
-
-        <div class="profile-popup-header">
-
-            <span>Profile</span>
-
-            <div class="profile-popup-header-actions">
-
-                <button
-                    type="button"
-                    class="icon-btn"
-                    id="userProfileMenuBtn"
-                    title="More"
-                >
-                    <i class="fa-solid fa-ellipsis-vertical"></i>
-                </button>
-
-                <button
-                    type="button"
-                    class="modal-close"
-                    data-close="userProfileModal"
-                >
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-
-            </div>
-
-        </div>
-
-
-        <div class="profile-popup-body">
-
-            <div
-                class="avatar avatar-popup"
-                id="userProfileAvatar"
-            ></div>
-
-            <div class="profile-popup-name-row">
-
-                <h2 id="userProfileName">
-                    User
-                </h2>
-
-                <span
-                    class="verified-badge"
-                    id="userProfileVerified"
-                    style="display:none;"
-                >
-                    ✓
-                </span>
-
-            </div>
-
-            <div
-                class="profile-popup-username"
-                id="userProfileUsername"
-            >
-                @username
-            </div>
-
-            <p
-                class="profile-popup-bio"
-                id="userProfileBio"
-            >
-                No bio yet.
-            </p>
-
-            <div
-                class="profile-popup-status"
-                id="userProfileStatus"
-            >
-                Offline
-            </div>
-
-        </div>
-
-
-        <!-- PROFILE 3 DOT MENU -->
-
-        <div
-            class="profile-popup-menu"
-            id="userProfileMenu"
-        >
-
-            <button
-                type="button"
-                id="editNicknameBtn"
-            >
-                <i class="fa-solid fa-pen"></i>
-                Edit Nickname
-            </button>
-
-            <button
-                type="button"
-                id="removeNicknameBtn"
-            >
-                <i class="fa-solid fa-user-pen"></i>
-                Remove Nickname
-            </button>
-
-            <button
-                type="button"
-                id="blockUserBtn"
-            >
-                <i class="fa-solid fa-ban"></i>
-                Block
-            </button>
-
-            <button
-                type="button"
-                class="danger-menu-item"
-                id="reportUserBtn"
-            >
-                <i class="fa-solid fa-flag"></i>
-                Report
-            </button>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<!-- =========================================================
-     NICKNAME
-     ========================================================= -->
-
-<div
-    class="modal-overlay"
-    id="nicknameModal"
->
-
-    <div class="modal small-modal">
-
-        <div class="modal-header">
-
-            <h2>Contact Nickname</h2>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close="nicknameModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-        <input
-            id="nicknameInput"
-            type="text"
-            maxlength="50"
-            placeholder="Nickname"
-        >
-
-        <div class="modal-actions">
-
-            <button
-                type="button"
-                class="secondary-btn"
-                id="removeNicknameBtn2"
-            >
-                Remove
-            </button>
-
-            <button
-                type="button"
-                class="primary-btn"
-                id="saveNicknameBtn"
-            >
-                Save
-            </button>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<!-- =========================================================
-     GROUP CREATE
-     ========================================================= -->
-
-<div
-    class="modal-overlay"
+    class="modal"
     id="createGroupModal"
 >
 
-    <div class="modal">
+    <div class="modal-content create-community-modal">
+
+        <button
+            class="modal-close"
+            type="button"
+            id="closeGroupBtn"
+            data-close-modal="createGroupModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
 
         <div class="modal-header">
 
-            <h2>Create Group</h2>
+            <div>
+                <h2>Create Group</h2>
 
-            <button
-                type="button"
-                class="modal-close"
-                data-close="createGroupModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
+                <p>
+                    Create a new community for your friends.
+                </p>
+            </div>
 
         </div>
 
+
         <form id="groupForm">
 
-            <label>
-                Group Name
+            <!-- AVATAR -->
+
+            <div class="community-avatar-picker">
+
+                <div
+                    id="groupAvatarPreview"
+                    class="community-avatar-preview"
+                >
+                    <i class="fa-solid fa-users"></i>
+                </div>
+
+                <label
+                    for="groupAvatarInput"
+                    class="community-avatar-button"
+                >
+                    <i class="fa-solid fa-camera"></i>
+                    <span id="groupAvatarText">
+                        Add photo
+                    </span>
+                </label>
+
                 <input
+                    type="file"
+                    id="groupAvatarInput"
+                    accept="image/*"
+                    hidden
+                >
+
+            </div>
+
+
+            <!-- NAME -->
+
+            <div class="form-group">
+
+                <label for="groupName">
+                    Group name
+                </label>
+
+                <input
+                    type="text"
                     id="groupName"
+                    placeholder="My Group"
+                    maxlength="50"
                     required
                 >
-            </label>
 
-            <label>
-                Username
-                <input
-                    id="groupUsername"
-                    placeholder="my_group"
-                    required
-                >
-            </label>
+            </div>
 
-            <label>
-                Bio
+
+            <!-- USERNAME -->
+
+            <div class="form-group">
+
+                <label for="groupUsername">
+                    Username
+                </label>
+
+                <div class="username-input">
+
+                    <span>@</span>
+
+                    <input
+                        type="text"
+                        id="groupUsername"
+                        placeholder="mygroup"
+                        maxlength="32"
+                        pattern="[a-z0-9_]{3,32}"
+                        required
+                    >
+
+                </div>
+
+                <small>
+                    Lowercase letters, numbers and underscores only.
+                </small>
+
+            </div>
+
+
+            <!-- BIO -->
+
+            <div class="form-group">
+
+                <label for="groupBio">
+                    Bio
+                </label>
+
                 <textarea
                     id="groupBio"
-                    rows="4"
+                    placeholder="Tell people about this group..."
+                    maxlength="160"
+                    rows="3"
                 ></textarea>
-            </label>
+
+            </div>
+
+
+            <!-- PRIVACY -->
+
+            <div class="community-privacy">
+
+                <label class="privacy-option">
+
+                    <input
+                        type="radio"
+                        name="groupPrivacy"
+                        value="public"
+                        checked
+                    >
+
+                    <div class="privacy-option-icon">
+                        <i class="fa-solid fa-earth-americas"></i>
+                    </div>
+
+                    <div class="privacy-option-text">
+
+                        <strong>Public</strong>
+
+                        <span>
+                            Anyone can find and join this group.
+                        </span>
+
+                    </div>
+
+                </label>
+
+
+                <label class="privacy-option">
+
+                    <input
+                        type="radio"
+                        name="groupPrivacy"
+                        value="private"
+                    >
+
+                    <div class="privacy-option-icon">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+
+                    <div class="privacy-option-text">
+
+                        <strong>Private</strong>
+
+                        <span>
+                            People can join only with an invite link.
+                        </span>
+
+                    </div>
+
+                </label>
+
+            </div>
+
 
             <button
                 type="submit"
-                class="primary-btn full"
+                class="primary-btn community-create-btn"
             >
+                <i class="fa-solid fa-users"></i>
                 Create Group
             </button>
 
@@ -1197,62 +1304,202 @@
 </div>
 
 
-<!-- =========================================================
-     CHANNEL CREATE
-     ========================================================= -->
+<!-- =====================================================
+     CREATE CHANNEL
+====================================================== -->
 
 <div
-    class="modal-overlay"
+    class="modal"
     id="createChannelModal"
 >
 
-    <div class="modal">
+    <div class="modal-content create-community-modal">
+
+        <button
+            class="modal-close"
+            type="button"
+            id="closeChannelBtn"
+            data-close-modal="createChannelModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
 
         <div class="modal-header">
 
-            <h2>Create Channel</h2>
+            <div>
+                <h2>Create Channel</h2>
 
-            <button
-                type="button"
-                class="modal-close"
-                data-close="createChannelModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
+                <p>
+                    Create a channel to share updates.
+                </p>
+            </div>
 
         </div>
 
+
         <form id="channelForm">
 
-            <label>
-                Channel Name
+            <!-- AVATAR -->
+
+            <div class="community-avatar-picker">
+
+                <div
+                    id="channelAvatarPreview"
+                    class="community-avatar-preview"
+                >
+                    <i class="fa-solid fa-bullhorn"></i>
+                </div>
+
+                <label
+                    for="channelAvatarInput"
+                    class="community-avatar-button"
+                >
+                    <i class="fa-solid fa-camera"></i>
+                    <span id="channelAvatarText">
+                        Add photo
+                    </span>
+                </label>
+
                 <input
+                    type="file"
+                    id="channelAvatarInput"
+                    accept="image/*"
+                    hidden
+                >
+
+            </div>
+
+
+            <!-- NAME -->
+
+            <div class="form-group">
+
+                <label for="channelName">
+                    Channel name
+                </label>
+
+                <input
+                    type="text"
                     id="channelName"
+                    placeholder="My Channel"
+                    maxlength="50"
                     required
                 >
-            </label>
 
-            <label>
-                Username
-                <input
-                    id="channelUsername"
-                    placeholder="my_channel"
-                    required
-                >
-            </label>
+            </div>
 
-            <label>
-                Bio
+
+            <!-- USERNAME -->
+
+            <div class="form-group">
+
+                <label for="channelUsername">
+                    Username
+                </label>
+
+                <div class="username-input">
+
+                    <span>@</span>
+
+                    <input
+                        type="text"
+                        id="channelUsername"
+                        placeholder="mychannel"
+                        maxlength="32"
+                        pattern="[a-z0-9_]{3,32}"
+                        required
+                    >
+
+                </div>
+
+                <small>
+                    Lowercase letters, numbers and underscores only.
+                </small>
+
+            </div>
+
+
+            <!-- BIO -->
+
+            <div class="form-group">
+
+                <label for="channelBio">
+                    Bio
+                </label>
+
                 <textarea
                     id="channelBio"
-                    rows="4"
+                    placeholder="Tell people about this channel..."
+                    maxlength="160"
+                    rows="3"
                 ></textarea>
-            </label>
+
+            </div>
+
+
+            <!-- PRIVACY -->
+
+            <div class="community-privacy">
+
+                <label class="privacy-option">
+
+                    <input
+                        type="radio"
+                        name="channelPrivacy"
+                        value="public"
+                        checked
+                    >
+
+                    <div class="privacy-option-icon">
+                        <i class="fa-solid fa-earth-americas"></i>
+                    </div>
+
+                    <div class="privacy-option-text">
+
+                        <strong>Public</strong>
+
+                        <span>
+                            Anyone can find and join this channel.
+                        </span>
+
+                    </div>
+
+                </label>
+
+
+                <label class="privacy-option">
+
+                    <input
+                        type="radio"
+                        name="channelPrivacy"
+                        value="private"
+                    >
+
+                    <div class="privacy-option-icon">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+
+                    <div class="privacy-option-text">
+
+                        <strong>Private</strong>
+
+                        <span>
+                            People can join only with an invite link.
+                        </span>
+
+                    </div>
+
+                </label>
+
+            </div>
+
 
             <button
                 type="submit"
-                class="primary-btn full"
+                class="primary-btn community-create-btn"
             >
+                <i class="fa-solid fa-bullhorn"></i>
                 Create Channel
             </button>
 
@@ -1263,85 +1510,393 @@
 </div>
 
 
-<!-- =========================================================
+<!-- =====================================================
      JOIN GROUP
-     ========================================================= -->
+====================================================== -->
 
 <div
-    class="modal-overlay"
+    class="modal"
     id="joinGroupModal"
 >
 
-    <div class="modal small-modal">
+    <div class="modal-content">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="joinGroupModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
 
         <div class="modal-header">
-
             <h2>Join Group</h2>
+            <p>Enter an invite link or invite code.</p>
+        </div>
+
+        <div class="join-form">
+
+            <input
+                id="groupInviteInput"
+                type="text"
+                placeholder="Invite code"
+                autocomplete="off"
+            >
 
             <button
+                id="joinGroupBtn"
                 type="button"
-                class="modal-close"
-                data-close="joinGroupModal"
+                class="primary-btn"
             >
-                <i class="fa-solid fa-xmark"></i>
+                <i class="fa-solid fa-right-to-bracket"></i>
+                Join Group
             </button>
 
         </div>
-
-        <input
-            id="groupInviteInput"
-            placeholder="Invite code"
-        >
-
-        <button
-            type="button"
-            class="primary-btn full"
-            id="joinGroupBtn"
-        >
-            Join Group
-        </button>
 
     </div>
 
 </div>
 
 
-<!-- =========================================================
+<!-- =====================================================
      JOIN CHANNEL
-     ========================================================= -->
+====================================================== -->
 
 <div
-    class="modal-overlay"
+    class="modal"
     id="joinChannelModal"
 >
 
-    <div class="modal small-modal">
+    <div class="modal-content">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="joinChannelModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
 
         <div class="modal-header">
-
             <h2>Join Channel</h2>
+            <p>Enter an invite link or invite code.</p>
+        </div>
+
+        <div class="join-form">
+
+            <input
+                id="channelInviteInput"
+                type="text"
+                placeholder="Invite code"
+                autocomplete="off"
+            >
 
             <button
+                id="joinChannelBtn"
                 type="button"
-                class="modal-close"
-                data-close="joinChannelModal"
+                class="primary-btn"
             >
-                <i class="fa-solid fa-xmark"></i>
+                <i class="fa-solid fa-right-to-bracket"></i>
+                Join Channel
             </button>
 
         </div>
 
-        <input
-            id="channelInviteInput"
-            placeholder="Invite code"
-        >
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     USER PROFILE
+====================================================== -->
+
+<div
+    class="modal"
+    id="userProfileModal"
+>
+
+    <div class="modal-content user-profile-modal">
 
         <button
+            class="modal-close"
             type="button"
-            class="primary-btn full"
-            id="joinChannelBtn"
+            data-close-modal="userProfileModal"
+            id="closeUserProfileBtn"
         >
-            Join Channel
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+
+        <!-- THREE DOT MENU -->
+
+        <div class="profile-popup-menu-wrapper">
+
+            <button
+                id="userProfileMenuBtn"
+                class="profile-popup-menu-btn"
+                type="button"
+                title="More"
+            >
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+            </button>
+
+
+            <div
+                id="userProfileMenu"
+                class="user-profile-menu"
+                style="display:none;"
+            >
+
+                <button
+                    id="editNicknameBtn"
+                    type="button"
+                >
+                    <i class="fa-solid fa-pen"></i>
+                    Edit nickname
+                </button>
+
+
+                <button
+                    id="removeNicknameBtn"
+                    type="button"
+                >
+                    <i class="fa-solid fa-trash"></i>
+                    Delete nickname
+                </button>
+
+
+                <button
+                    id="blockUserBtn"
+                    type="button"
+                >
+                    <i class="fa-solid fa-ban"></i>
+                    Block
+                </button>
+
+
+                <button
+                    id="reportUserBtn"
+                    type="button"
+                >
+                    <i class="fa-solid fa-flag"></i>
+                    Report
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- PROFILE -->
+
+        <div class="profile-popup">
+
+            <div class="profile-popup-avatar-wrap">
+
+                <img
+                    id="userProfileAvatar"
+                    src=""
+                    alt=""
+                    style="display:none;"
+                >
+
+                <span id="userProfileAvatarInitial">
+                    ?
+                </span>
+
+            </div>
+
+
+            <div class="profile-popup-name-row">
+
+                <h2 id="userProfileName">
+                    User
+                </h2>
+
+                <span
+                    id="userProfileVerified"
+                    class="verified-badge"
+                    style="display:none;"
+                >
+                    ✓
+                </span>
+
+            </div>
+
+
+            <p id="userProfileUsername">
+                @username
+            </p>
+
+
+            <p
+                id="userProfileBio"
+                class="profile-popup-bio"
+            >
+                No bio
+            </p>
+
+
+            <div
+                id="userProfileStatus"
+                class="profile-popup-status"
+            >
+                Offline
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     NICKNAME
+====================================================== -->
+
+<div
+    class="modal"
+    id="nicknameModal"
+>
+
+    <div class="modal-content">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="nicknameModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="modal-header">
+            <h2>Edit Nickname</h2>
+        </div>
+
+        <div class="nickname-form">
+
+            <input
+                id="nicknameInput"
+                type="text"
+                placeholder="Nickname"
+                maxlength="50"
+            >
+
+            <button
+                id="saveNicknameBtn"
+                type="button"
+                class="primary-btn"
+            >
+                Save
+            </button>
+
+            <button
+                id="removeNicknameBtnModal"
+                type="button"
+                class="danger-btn"
+            >
+                Delete Nickname
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     REPORT
+====================================================== -->
+
+<div
+    class="modal"
+    id="reportModal"
+>
+
+    <div class="modal-content">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="reportModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="modal-header">
+
+            <h2>Report User</h2>
+
+            <p>
+                Tell us why you are reporting this account.
+            </p>
+
+        </div>
+
+
+        <div class="report-options">
+
+            <label>
+                <input
+                    type="radio"
+                    name="reportReason"
+                    value="spam"
+                    checked
+                >
+                Spam
+            </label>
+
+
+            <label>
+                <input
+                    type="radio"
+                    name="reportReason"
+                    value="harassment"
+                >
+                Harassment
+            </label>
+
+
+            <label>
+                <input
+                    type="radio"
+                    name="reportReason"
+                    value="fake_account"
+                >
+                Fake account
+            </label>
+
+
+            <label>
+                <input
+                    type="radio"
+                    name="reportReason"
+                    value="other"
+                >
+                Other
+            </label>
+
+        </div>
+
+
+        <textarea
+            id="reportDescription"
+            rows="4"
+            maxlength="500"
+            placeholder="Additional information..."
+        ></textarea>
+
+
+        <button
+            id="submitReportBtn"
+            type="button"
+            class="danger-btn"
+        >
+            Submit Report
         </button>
 
     </div>
@@ -1349,74 +1904,215 @@
 </div>
 
 
-<!-- =========================================================
-     GROUP INFO
-     ========================================================= -->
+<!-- =====================================================
+     SAVED MESSAGES
+====================================================== -->
 
 <div
-    class="modal-overlay"
-    id="groupInfoModal"
+    class="modal"
+    id="savedMessagesModal"
 >
 
-    <div class="modal">
+    <div class="modal-content saved-messages-modal">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="savedMessagesModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
 
         <div class="modal-header">
 
-            <h2>Group Info</h2>
+            <h2>
+                <i class="fa-solid fa-bookmark"></i>
+                Saved Messages
+            </h2>
+
+        </div>
+
+        <div
+            id="savedMessagesList"
+            class="saved-messages-list"
+        ></div>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     TIPS & FEATURES
+====================================================== -->
+
+<div
+    class="modal"
+    id="updatesModal"
+>
+
+    <div class="modal-content updates-modal">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="updatesModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="modal-header">
+
+            <h2>
+                <i class="fa-solid fa-lightbulb"></i>
+                Tips & Features
+            </h2>
+
+            <p>
+                Discover MegChatBox features and updates.
+            </p>
+
+        </div>
+
+
+        <!-- OWNER / ADMIN CREATE UPDATE -->
+
+        <div
+            id="updateCreateSection"
+            class="update-create-section"
+            style="display:none;"
+        >
+
+            <select id="updateType">
+
+                <option value="features">
+                    Features
+                </option>
+
+                <option value="tips">
+                    Tips
+                </option>
+
+            </select>
+
+
+            <input
+                id="updateTitle"
+                type="text"
+                placeholder="Title"
+                maxlength="100"
+            >
+
+
+            <textarea
+                id="updateContent"
+                rows="4"
+                placeholder="Update content..."
+                maxlength="1000"
+            ></textarea>
+
 
             <button
+                id="publishUpdateBtn"
                 type="button"
-                class="modal-close"
-                data-close="groupInfoModal"
+                class="primary-btn"
             >
-                <i class="fa-solid fa-xmark"></i>
+                Publish
             </button>
 
         </div>
 
-        <div class="info-card">
+
+        <div id="updatesList"></div>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     GROUP INFO
+====================================================== -->
+
+<div
+    class="modal"
+    id="groupInfoModal"
+>
+
+    <div class="modal-content">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="groupInfoModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+
+        <div class="group-info-content">
+
+            <div
+                id="groupInfoAvatar"
+                class="community-info-avatar"
+            >
+                <i class="fa-solid fa-users"></i>
+            </div>
+
 
             <h2 id="groupInfoName">
                 Group
             </h2>
 
-            <span id="groupInfoUsername">
-                @group
-            </span>
 
-            <p id="groupInfoBio">
-                No bio.
+            <p id="groupInfoUsername">
+                @group
             </p>
 
-        </div>
 
-        <div class="info-actions">
+            <p id="groupInfoBio">
+                No bio
+            </p>
 
-            <button
-                type="button"
-                class="secondary-btn"
-                id="groupInviteBtn"
-            >
-                <i class="fa-solid fa-link"></i>
-                Invite
-            </button>
 
-            <button
-                type="button"
-                class="secondary-btn"
-                id="groupMembersBtn"
-            >
-                <i class="fa-solid fa-users"></i>
-                Members
-            </button>
+            <div
+                id="groupInfoPrivacy"
+                class="community-privacy-label"
+            ></div>
 
-            <button
-                type="button"
-                class="danger-btn"
-                id="leaveGroupBtn"
-            >
-                Leave Group
-            </button>
+
+            <div class="info-actions">
+
+                <button
+                    id="groupInviteBtn"
+                    type="button"
+                    class="secondary-btn"
+                >
+                    <i class="fa-solid fa-link"></i>
+                    Invite
+                </button>
+
+
+                <button
+                    id="groupMembersBtn"
+                    type="button"
+                    class="secondary-btn"
+                >
+                    <i class="fa-solid fa-users"></i>
+                    Members
+                </button>
+
+
+                <button
+                    id="leaveGroupBtn"
+                    type="button"
+                    class="danger-btn"
+                >
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    Leave
+                </button>
+
+            </div>
 
         </div>
 
@@ -1425,74 +2121,89 @@
 </div>
 
 
-<!-- =========================================================
+<!-- =====================================================
      CHANNEL INFO
-     ========================================================= -->
+====================================================== -->
 
 <div
-    class="modal-overlay"
+    class="modal"
     id="channelInfoModal"
 >
 
-    <div class="modal">
+    <div class="modal-content">
 
-        <div class="modal-header">
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="channelInfoModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
 
-            <h2>Channel Info</h2>
 
-            <button
-                type="button"
-                class="modal-close"
-                data-close="channelInfoModal"
+        <div class="channel-info-content">
+
+            <div
+                id="channelInfoAvatar"
+                class="community-info-avatar"
             >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
+                <i class="fa-solid fa-bullhorn"></i>
+            </div>
 
-        </div>
-
-        <div class="info-card">
 
             <h2 id="channelInfoName">
                 Channel
             </h2>
 
-            <span id="channelInfoUsername">
-                @channel
-            </span>
 
-            <p id="channelInfoBio">
-                No bio.
+            <p id="channelInfoUsername">
+                @channel
             </p>
 
-        </div>
 
-        <div class="info-actions">
+            <p id="channelInfoBio">
+                No bio
+            </p>
 
-            <button
-                type="button"
-                class="secondary-btn"
-                id="channelInviteBtn"
-            >
-                <i class="fa-solid fa-link"></i>
-                Invite
-            </button>
 
-            <button
-                type="button"
-                class="secondary-btn"
-                id="channelMembersBtn"
-            >
-                <i class="fa-solid fa-users"></i>
-                Members
-            </button>
+            <div
+                id="channelInfoPrivacy"
+                class="community-privacy-label"
+            ></div>
 
-            <button
-                type="button"
-                class="danger-btn"
-                id="leaveChannelBtn"
-            >
-                Leave Channel
-            </button>
+
+            <div class="info-actions">
+
+                <button
+                    id="channelInviteBtn"
+                    type="button"
+                    class="secondary-btn"
+                >
+                    <i class="fa-solid fa-link"></i>
+                    Invite
+                </button>
+
+
+                <button
+                    id="channelMembersBtn"
+                    type="button"
+                    class="secondary-btn"
+                >
+                    <i class="fa-solid fa-users"></i>
+                    Members
+                </button>
+
+
+                <button
+                    id="leaveChannelBtn"
+                    type="button"
+                    class="danger-btn"
+                >
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    Leave
+                </button>
+
+            </div>
 
         </div>
 
@@ -1501,16 +2212,25 @@
 </div>
 
 
-<!-- =========================================================
+<!-- =====================================================
      MEMBERS
-     ========================================================= -->
+====================================================== -->
 
 <div
-    class="modal-overlay"
+    class="modal"
     id="membersModal"
 >
 
-    <div class="modal">
+    <div class="modal-content">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="membersModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
 
         <div class="modal-header">
 
@@ -1518,15 +2238,8 @@
                 Members
             </h2>
 
-            <button
-                type="button"
-                class="modal-close"
-                data-close="membersModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
         </div>
+
 
         <div id="membersList"></div>
 
@@ -1535,94 +2248,74 @@
 </div>
 
 
-<!-- =========================================================
-     TIPS / FEATURES
-     ========================================================= -->
+<!-- =====================================================
+     DELETE ACCOUNT
+====================================================== -->
 
 <div
-    class="modal-overlay"
-    id="updatesModal"
+    class="modal"
+    id="deleteAccountModal"
 >
 
-    <div class="modal wide-modal">
+    <div class="modal-content">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="deleteAccountModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+
+        <div class="danger-modal-icon">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+
 
         <div class="modal-header">
 
-            <div>
-                <span class="eyebrow">
-                    MegChatBox
-                </span>
-                <h2>Tips & Features</h2>
-            </div>
+            <h2>Delete Account</h2>
 
-            <button
-                type="button"
-                class="modal-close"
-                data-close="updatesModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
+            <p>
+                This action cannot be undone.
+            </p>
 
         </div>
 
 
-        <div
-            class="update-create-section"
-            id="updateCreateSection"
-            style="display:none;"
+        <button
+            id="confirmDeleteAccountBtn"
+            type="button"
+            class="danger-btn"
         >
-
-            <select id="updateType">
-                <option value="features">
-                    Features
-                </option>
-                <option value="tips">
-                    Tips
-                </option>
-            </select>
-
-            <input
-                id="updateTitle"
-                placeholder="Title"
-            >
-
-            <textarea
-                id="updateContent"
-                placeholder="Content"
-                rows="4"
-            ></textarea>
-
-            <button
-                type="button"
-                class="primary-btn"
-                id="publishUpdateBtn"
-            >
-                Publish
-            </button>
-
-        </div>
-
-
-        <div
-            class="updates-list"
-            id="updatesList"
-        ></div>
+            Delete My Account
+        </button>
 
     </div>
 
 </div>
 
 
-<!-- =========================================================
-     OWNER
-     ========================================================= -->
+<!-- =====================================================
+     OWNER PANEL
+====================================================== -->
 
 <div
-    class="modal-overlay"
+    class="modal"
     id="ownerModal"
 >
 
-    <div class="modal wide-modal">
+    <div class="modal-content owner-modal">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="ownerModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
 
         <div class="modal-header">
 
@@ -1631,46 +2324,44 @@
                 Owner Tools
             </h2>
 
-            <button
-                type="button"
-                class="modal-close"
-                data-close="ownerModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
         </div>
+
+
+        <!-- OWNER TABS -->
 
         <div class="owner-tabs">
 
             <button
-                type="button"
                 class="owner-tab active"
                 data-owner-tab="verified"
+                type="button"
             >
                 Verified
             </button>
 
+
             <button
-                type="button"
                 class="owner-tab"
                 data-owner-tab="moderation"
+                type="button"
             >
                 Moderation
             </button>
 
+
             <button
-                type="button"
                 class="owner-tab"
                 data-owner-tab="admins"
+                type="button"
             >
                 Admins
             </button>
 
+
             <button
-                type="button"
                 class="owner-tab"
                 data-owner-tab="reports"
+                type="button"
             >
                 Reports
             </button>
@@ -1681,28 +2372,63 @@
         <!-- VERIFIED -->
 
         <div
-            class="owner-panel"
-            data-owner-panel="verified"
+            id="ownerVerifiedPanel"
+            class="owner-panel-section"
         >
 
-            <div class="owner-search">
+            <div class="owner-search-row">
 
                 <input
                     id="ownerVerifiedUsername"
+                    type="text"
                     placeholder="@username"
                 >
 
                 <button
+                    id="ownerVerifiedSearchBtn"
                     type="button"
                     class="primary-btn"
-                    id="ownerVerifiedSearchBtn"
                 >
                     Search
                 </button>
 
             </div>
 
+
             <div id="ownerVerifiedResult"></div>
+
+
+            <div class="form-group">
+
+                <label for="verifiedDuration">
+                    Duration
+                </label>
+
+                <select id="verifiedDuration">
+
+                    <option value="0">
+                        Permanent
+                    </option>
+
+                    <option value="1">
+                        1 day
+                    </option>
+
+                    <option value="7">
+                        7 days
+                    </option>
+
+                    <option value="30">
+                        30 days
+                    </option>
+
+                    <option value="90">
+                        90 days
+                    </option>
+
+                </select>
+
+            </div>
 
         </div>
 
@@ -1710,27 +2436,29 @@
         <!-- MODERATION -->
 
         <div
-            class="owner-panel"
-            data-owner-panel="moderation"
+            id="ownerModerationPanel"
+            class="owner-panel-section"
             style="display:none;"
         >
 
-            <div class="owner-search">
+            <div class="owner-search-row">
 
                 <input
                     id="ownerModerationUsername"
+                    type="text"
                     placeholder="@username"
                 >
 
                 <button
+                    id="ownerModerationSearchBtn"
                     type="button"
                     class="primary-btn"
-                    id="ownerModerationSearchBtn"
                 >
                     Search
                 </button>
 
             </div>
+
 
             <div id="ownerModerationResult"></div>
 
@@ -1740,29 +2468,39 @@
         <!-- ADMINS -->
 
         <div
-            class="owner-panel"
-            data-owner-panel="admins"
+            id="ownerAdminsPanel"
+            class="owner-panel-section"
             style="display:none;"
         >
 
-            <div class="owner-search">
+            <div class="owner-search-row">
 
                 <input
                     id="ownerAdminUsername"
+                    type="text"
                     placeholder="@username"
                 >
 
                 <button
+                    id="ownerAdminSearchBtn"
                     type="button"
                     class="primary-btn"
-                    id="ownerAdminSearchBtn"
                 >
                     Search
                 </button>
 
             </div>
 
+
             <div id="ownerAdminResult"></div>
+
+
+            <div class="owner-admin-list-title">
+                Current Admins
+            </div>
+
+
+            <div id="ownerAdminList"></div>
 
         </div>
 
@@ -1770,8 +2508,8 @@
         <!-- REPORTS -->
 
         <div
-            class="owner-panel"
-            data-owner-panel="reports"
+            id="ownerReportsPanel"
+            class="owner-panel-section"
             style="display:none;"
         >
 
@@ -1784,16 +2522,25 @@
 </div>
 
 
-<!-- =========================================================
-     ADMIN
-     ========================================================= -->
+<!-- =====================================================
+     ADMIN PANEL
+====================================================== -->
 
 <div
-    class="modal-overlay"
+    class="modal"
     id="adminModal"
 >
 
-    <div class="modal">
+    <div class="modal-content">
+
+        <button
+            class="modal-close"
+            type="button"
+            data-close-modal="adminModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
 
         <div class="modal-header">
 
@@ -1802,52 +2549,48 @@
                 Admin Tools
             </h2>
 
-            <button
-                type="button"
-                class="modal-close"
-                data-close="adminModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
         </div>
+
 
         <div class="admin-tools">
 
             <button
-                type="button"
-                class="admin-tool"
                 id="openAdminReportsBtn"
+                type="button"
+                class="settings-item"
             >
                 <i class="fa-solid fa-flag"></i>
-                <span>Reports</span>
+                Reports
             </button>
 
+
             <button
-                type="button"
-                class="admin-tool"
                 id="openAdminUsersBtn"
+                type="button"
+                class="settings-item"
             >
                 <i class="fa-solid fa-users"></i>
-                <span>Users</span>
+                Users
             </button>
 
+
             <button
-                type="button"
-                class="admin-tool"
                 id="openAdminGroupsBtn"
+                type="button"
+                class="settings-item"
             >
-                <i class="fa-solid fa-user-group"></i>
-                <span>Groups</span>
+                <i class="fa-solid fa-users"></i>
+                Groups
             </button>
 
+
             <button
-                type="button"
-                class="admin-tool"
                 id="openAdminChannelsBtn"
+                type="button"
+                class="settings-item"
             >
                 <i class="fa-solid fa-bullhorn"></i>
-                <span>Channels</span>
+                Channels
             </button>
 
         </div>
@@ -1857,65 +2600,33 @@
 </div>
 
 
-<!-- =========================================================
-     DELETE ACCOUNT
-     ========================================================= -->
+<!-- =====================================================
+     TOAST
+====================================================== -->
 
 <div
-    class="modal-overlay"
-    id="deleteAccountModal"
->
-
-    <div class="modal small-modal">
-
-        <div class="modal-header">
-
-            <h2>Delete Account</h2>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close="deleteAccountModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-        <p class="warning-text">
-            This action cannot be undone.
-        </p>
-
-        <button
-            type="button"
-            class="danger-btn full"
-            id="confirmDeleteAccountBtn"
-        >
-            Delete My Account
-        </button>
-
-    </div>
-
-</div>
-
-
-<!-- TOAST -->
-
-<div
-    class="toast"
     id="toast"
+    class="toast"
+    style="display:none;"
 >
-    <span id="toastMessage"></span>
+
+    <i class="fa-solid fa-circle-info"></i>
+
+    <span id="toastMessage">
+        Message
+    </span>
+
 </div>
 
 
-<!-- =========================================================
-     SCRIPTS
-     ========================================================= -->
+<!-- =====================================================
+     SUPABASE
+====================================================== -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script src="supabase.js"></script>
+
 <script src="dashboard.js"></script>
 
 </body>
