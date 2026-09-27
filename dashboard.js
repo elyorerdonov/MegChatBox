@@ -1,155 +1,314 @@
-/* =========================================================
-   MSGBOX V2 — DASHBOARD.JS
-   ========================================================= */
-
 const supabase = supabaseClient;
-
-/* =========================================================
-   GLOBAL STATE
-   ========================================================= */
 
 let currentUser = null;
 let currentProfile = null;
-
 let selectedUser = null;
-let selectedContactStatus = null;
-let selectedContactRequest = null;
-
-let realtimeChannel = null;
-let searchTimer = null;
-
 let currentTab = "chats";
+let currentLanguage = localStorage.getItem("msgboxLanguage") || "en";
 
-const $ = (id) => document.getElementById(id);
+let messageChannel = null;
+let contactChannel = null;
 
 
 /* =========================================================
-   DOM HELPERS
-   ========================================================= */
+   TRANSLATIONS
+========================================================= */
 
-function show(el) {
-    if (el) el.style.display = "";
+const translations = {
+
+    en: {
+        chats: "Chats",
+        groups: "Groups",
+        channels: "Channels",
+        searchToChat: "Search for a user to start chatting",
+        createGroup: "Create Group",
+        createChannel: "Create Channel",
+        logout: "Logout",
+        settings: "Settings",
+        profile: "Profile",
+        profileDescription: "Name, username, bio and avatar",
+        privacy: "Privacy",
+        privacyDescription: "Privacy and account settings",
+        appearance: "Appearance",
+        appearanceDescription: "Customize MsgBox",
+        language: "Language",
+        ownerPanel: "Owner Panel",
+        ownerPanelDescription: "Manage MsgBox",
+        adminPanel: "Admin Panel",
+        adminPanelDescription: "Moderation tools",
+        addContact: "Add Contact",
+        accept: "Accept",
+        decline: "Decline",
+        welcome: "Welcome to MsgBox",
+        verified: "Verified",
+        users: "Users",
+        admins: "Admins",
+        reports: "Reports",
+        verifiedBadge: "Verified Badge",
+        verifiedDescription: "Give or remove the verified badge.",
+        duration: "Duration",
+        userControl: "User Control",
+        administrators: "Administrators",
+        noReports: "No reports yet.",
+        searchUsername: "Search username...",
+        typeMessage: "Type a message...",
+        online: "Online",
+        offline: "Offline",
+        contactAccepted: "Contact accepted",
+        requestSent: "Contact request sent",
+        requestDeclined: "Contact request declined",
+        noUser: "User not found",
+        image: "Image",
+        edited: "edited",
+        deletedMessage: "Message deleted",
+        saveChanges: "Save Changes",
+        changePhoto: "Change photo"
+    },
+
+    uz: {
+        chats: "Chatlar",
+        groups: "Guruhlar",
+        channels: "Kanallar",
+        searchToChat: "Suhbatni boshlash uchun foydalanuvchini qidiring",
+        createGroup: "Guruh yaratish",
+        createChannel: "Kanal yaratish",
+        logout: "Chiqish",
+        settings: "Sozlamalar",
+        profile: "Profil",
+        profileDescription: "Ism, username, bio va avatar",
+        privacy: "Maxfiylik",
+        privacyDescription: "Maxfiylik va akkaunt sozlamalari",
+        appearance: "Ko‘rinish",
+        appearanceDescription: "MsgBox ko‘rinishini sozlash",
+        language: "Til",
+        ownerPanel: "Owner Panel",
+        ownerPanelDescription: "MsgBox boshqaruvi",
+        adminPanel: "Admin Panel",
+        adminPanelDescription: "Moderatsiya vositalari",
+        addContact: "Kontakt qo‘shish",
+        accept: "Qabul qilish",
+        decline: "Rad etish",
+        welcome: "MsgBox'ga xush kelibsiz",
+        verified: "Tasdiqlangan",
+        users: "Foydalanuvchilar",
+        admins: "Adminlar",
+        reports: "Shikoyatlar",
+        verifiedBadge: "Tasdiqlangan belgi",
+        verifiedDescription: "Tasdiqlangan belgini berish yoki olib tashlash.",
+        duration: "Muddat",
+        userControl: "Foydalanuvchi nazorati",
+        administrators: "Administratorlar",
+        noReports: "Hozircha shikoyatlar yo‘q.",
+        searchUsername: "Username qidiring...",
+        typeMessage: "Xabar yozing...",
+        online: "Online",
+        offline: "Offline",
+        contactAccepted: "Kontakt qabul qilindi",
+        requestSent: "Kontakt so‘rovi yuborildi",
+        requestDeclined: "Kontakt so‘rovi rad etildi",
+        noUser: "Foydalanuvchi topilmadi",
+        image: "Rasm",
+        edited: "tahrirlangan",
+        deletedMessage: "Xabar o‘chirildi",
+        saveChanges: "Saqlash",
+        changePhoto: "Rasmni almashtirish"
+    },
+
+    ru: {
+        chats: "Чаты",
+        groups: "Группы",
+        channels: "Каналы",
+        searchToChat: "Найдите пользователя, чтобы начать чат",
+        createGroup: "Создать группу",
+        createChannel: "Создать канал",
+        logout: "Выйти",
+        settings: "Настройки",
+        profile: "Профиль",
+        profileDescription: "Имя, username, биография и аватар",
+        privacy: "Конфиденциальность",
+        privacyDescription: "Настройки конфиденциальности и аккаунта",
+        appearance: "Внешний вид",
+        appearanceDescription: "Настройка MsgBox",
+        language: "Язык",
+        ownerPanel: "Панель владельца",
+        ownerPanelDescription: "Управление MsgBox",
+        adminPanel: "Панель администратора",
+        adminPanelDescription: "Инструменты модерации",
+        addContact: "Добавить контакт",
+        accept: "Принять",
+        decline: "Отклонить",
+        welcome: "Добро пожаловать в MsgBox",
+        verified: "Подтверждён",
+        users: "Пользователи",
+        admins: "Администраторы",
+        reports: "Жалобы",
+        verifiedBadge: "Подтверждённый значок",
+        verifiedDescription: "Выдать или убрать подтверждённый значок.",
+        duration: "Срок",
+        userControl: "Управление пользователем",
+        administrators: "Администраторы",
+        noReports: "Жалоб пока нет.",
+        searchUsername: "Поиск username...",
+        typeMessage: "Введите сообщение...",
+        online: "Онлайн",
+        offline: "Оффлайн",
+        contactAccepted: "Контакт принят",
+        requestSent: "Запрос отправлен",
+        requestDeclined: "Запрос отклонён",
+        noUser: "Пользователь не найден",
+        image: "Изображение",
+        edited: "изменено",
+        deletedMessage: "Сообщение удалено",
+        saveChanges: "Сохранить",
+        changePhoto: "Изменить фото"
+    }
+};
+
+
+function t(key) {
+    return translations[currentLanguage]?.[key]
+        || translations.en[key]
+        || key;
 }
 
-function hide(el) {
-    if (el) el.style.display = "none";
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function $(id) {
+    return document.getElementById(id);
 }
 
-function setText(id, value) {
-    const el = $(id);
-    if (el) el.textContent = value ?? "";
+
+function showToast(message) {
+    const toast = $("toast");
+
+    if (!toast) return;
+
+    toast.textContent = message;
+    toast.classList.add("show");
+
+    setTimeout(() => {
+        toast.classList.remove("show");
+    }, 2500);
 }
 
-function escapeHtml(value = "") {
-    return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+
+function openModal(id) {
+    const modal = $(id);
+
+    if (modal) {
+        modal.classList.add("active");
+    }
 }
 
-function formatTime(date) {
-    if (!date) return "";
 
-    return new Date(date).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit"
+function closeModal(id) {
+    const modal = $(id);
+
+    if (modal) {
+        modal.classList.remove("active");
+    }
+}
+
+
+function getInitial(name) {
+    return (name || "?").trim().charAt(0).toUpperCase();
+}
+
+
+function escapeHtml(value) {
+
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+/* =========================================================
+   LANGUAGE
+========================================================= */
+
+function applyLanguage() {
+
+    document.documentElement.lang = currentLanguage;
+
+    document.querySelectorAll("[data-i18n]").forEach(element => {
+
+        const key = element.dataset.i18n;
+
+        if (translations[currentLanguage]?.[key]) {
+            element.textContent = translations[currentLanguage][key];
+        }
+
+    });
+
+
+    $("searchInput")?.setAttribute(
+        "placeholder",
+        t("searchUsername")
+    );
+
+    $("messageInput")?.setAttribute(
+        "placeholder",
+        t("typeMessage")
+    );
+
+
+    $("currentLanguageText").textContent =
+        currentLanguage === "en"
+            ? "English"
+            : currentLanguage === "uz"
+                ? "O‘zbek"
+                : "Русский";
+
+
+    document.querySelectorAll(".language-check").forEach(check => {
+        check.style.display =
+            check.dataset.check === currentLanguage
+                ? "block"
+                : "none";
     });
 }
 
-function formatLastSeen(date) {
-    if (!date) return "Offline";
 
-    const d = new Date(date);
-    const diff = Date.now() - d.getTime();
+function setLanguage(language) {
 
-    if (diff < 60 * 1000) return "online";
+    if (!translations[language]) return;
 
-    if (diff < 60 * 60 * 1000) {
-        return `${Math.floor(diff / 60000)} min ago`;
-    }
+    currentLanguage = language;
 
-    if (diff < 24 * 60 * 60 * 1000) {
-        return `${Math.floor(diff / 3600000)}h ago`;
-    }
+    localStorage.setItem(
+        "msgboxLanguage",
+        language
+    );
 
-    return d.toLocaleDateString();
-}
+    applyLanguage();
 
-function showToast(message, type = "normal") {
-    const toast = $("toast");
+    closeModal("languageModal");
 
-    if (!toast) {
-        console.log(message);
-        return;
-    }
-
-    toast.textContent = message;
-    toast.className = `toast ${type}`;
-
-    show(toast);
-
-    clearTimeout(showToast.timer);
-
-    showToast.timer = setTimeout(() => {
-        hide(toast);
-    }, 3000);
+    showToast(
+        language === "uz"
+            ? "Til o‘zgartirildi"
+            : language === "ru"
+                ? "Язык изменён"
+                : "Language changed"
+    );
 }
 
 
 /* =========================================================
-   AVATAR
-   ========================================================= */
+   AUTH
+========================================================= */
 
-function avatarHtml(user, className = "avatar") {
-    if (!user) {
-        return `<div class="${className}">?</div>`;
-    }
+async function loadSession() {
 
-    const name = user.full_name || user.username || "?";
-    const letter = escapeHtml(name.charAt(0).toUpperCase());
-
-    if (user.avatar_url) {
-        return `
-            <div class="${className}">
-                <img
-                    src="${escapeHtml(user.avatar_url)}"
-                    alt="${escapeHtml(name)}"
-                >
-            </div>
-        `;
-    }
-
-    return `
-        <div class="${className}">
-            ${letter}
-        </div>
-    `;
-}
-
-
-/* =========================================================
-   VERIFIED BADGE
-   ========================================================= */
-
-function verifiedBadge(user) {
-    if (!user?.is_verified) return "";
-
-    return `
-        <span class="verified-badge" title="Verified">
-            ✓
-        </span>
-    `;
-}
-
-
-/* =========================================================
-   SESSION
-   ========================================================= */
-
-async function checkSession() {
-    const { data, error } = await supabase.auth.getSession();
+    const { data, error } =
+        await supabase.auth.getSession();
 
     if (error || !data.session) {
         window.location.href = "index.html";
@@ -163,543 +322,472 @@ async function checkSession() {
 
 
 /* =========================================================
-   LOAD PROFILE
-   ========================================================= */
+   PROFILE
+========================================================= */
 
 async function loadMyProfile() {
+
     const { data, error } = await supabase
         .from("profiles")
-        .select(`
-            id,
-            username,
-            full_name,
-            bio,
-            avatar_url,
-            role,
-            is_verified,
-            verified_until,
-            last_seen,
-            account_blocked,
-            account_blocked_until,
-            messaging_blocked,
-            messaging_blocked_until
-        `)
+        .select("*")
         .eq("id", currentUser.id)
         .single();
 
-    if (error) {
-        console.error(error);
-        showToast("Profile yuklanmadi", "error");
-        return;
+    if (error || !data) {
+
+        console.error("Profile error:", error);
+
+        showToast("Profile could not be loaded");
+
+        return false;
     }
 
     currentProfile = data;
 
-    if (isCurrentlyBlocked(data)) {
-        await supabase.auth.signOut();
-
-        localStorage.removeItem("messageAppLoggedIn");
-
-        alert("Your account is currently blocked.");
-
-        window.location.href = "index.html";
-        return;
-    }
-
     renderMyProfile();
     setupRoleUI();
+
+    return true;
 }
 
-
-/* =========================================================
-   BLOCK STATUS
-   ========================================================= */
-
-function isCurrentlyBlocked(profile) {
-    if (!profile?.account_blocked) return false;
-
-    if (!profile.account_blocked_until) {
-        return true;
-    }
-
-    return new Date(profile.account_blocked_until) > new Date();
-}
-
-function isMessagingBlocked(profile) {
-    if (!profile?.messaging_blocked) return false;
-
-    if (!profile.messaging_blocked_until) {
-        return true;
-    }
-
-    return new Date(profile.messaging_blocked_until) > new Date();
-}
-
-
-/* =========================================================
-   MY PROFILE UI
-   ========================================================= */
 
 function renderMyProfile() {
+
     if (!currentProfile) return;
 
-    const name =
-        currentProfile.full_name ||
-        currentProfile.username ||
-        "User";
+    $("myName").textContent =
+        currentProfile.full_name || "User";
 
-    const username =
-        currentProfile.username || "";
+    $("myUsername").textContent =
+        "@" + (currentProfile.username || "");
 
-    setText("myName", name);
-    setText("myUsername", `@${username}`);
+    $("myAvatar").textContent =
+        getInitial(currentProfile.full_name);
 
-    const myAvatar = $("myAvatar");
 
-    if (myAvatar) {
-        if (currentProfile.avatar_url) {
-            myAvatar.innerHTML = `
-                <img
-                    src="${escapeHtml(currentProfile.avatar_url)}"
-                    alt="${escapeHtml(name)}"
-                >
-            `;
-        } else {
-            myAvatar.textContent =
-                name.charAt(0).toUpperCase();
-        }
+    if (currentProfile.avatar_url) {
+
+        $("myAvatar").style.backgroundImage =
+            `url("${currentProfile.avatar_url}")`;
+
+        $("myAvatar").style.backgroundSize = "cover";
+        $("myAvatar").style.backgroundPosition = "center";
+        $("myAvatar").textContent = "";
+
+    } else {
+
+        $("myAvatar").style.backgroundImage = "";
     }
 
-    const myVerified = $("myVerified");
 
-    if (myVerified) {
-        if (currentProfile.is_verified) {
-            show(myVerified);
-        } else {
-            hide(myVerified);
-        }
-    }
-
-    const profileEditAvatar = $("profileEditAvatar");
-
-    if (profileEditAvatar) {
-        if (currentProfile.avatar_url) {
-            profileEditAvatar.innerHTML = `
-                <img
-                    src="${escapeHtml(currentProfile.avatar_url)}"
-                    alt="Avatar"
-                >
-            `;
-        } else {
-            profileEditAvatar.textContent =
-                name.charAt(0).toUpperCase();
-        }
-    }
+    $("myVerified").style.display =
+        currentProfile.is_verified === true
+            ? "inline-flex"
+            : "none";
 }
 
-
-/* =========================================================
-   ROLE UI
-   ========================================================= */
 
 function setupRoleUI() {
-    const role = currentProfile?.role;
 
-    const ownerSettings = $("ownerSettings");
-    const adminSettings = $("adminSettings");
+    const isOwner =
+        currentProfile?.role === "owner";
 
-    if (ownerSettings) {
-        role === "owner"
-            ? show(ownerSettings)
-            : hide(ownerSettings);
-    }
+    const isAdmin =
+        currentProfile?.role === "admin";
 
-    if (adminSettings) {
-        role === "admin" || role === "owner"
-            ? show(adminSettings)
-            : hide(adminSettings);
-    }
 
-    const ownerPanelButton = $("ownerPanelButton");
-    const adminPanelButton = $("adminPanelButton");
+    $("ownerPanelButton").style.display =
+        isOwner
+            ? "flex"
+            : "none";
 
-    if (ownerPanelButton) {
-        role === "owner"
-            ? show(ownerPanelButton)
-            : hide(ownerPanelButton);
-    }
 
-    if (adminPanelButton) {
-        role === "admin" || role === "owner"
-            ? show(adminPanelButton)
-            : hide(adminPanelButton);
-    }
+    $("adminPanelButton").style.display =
+        isOwner || isAdmin
+            ? "flex"
+            : "none";
+
+
+    $("createGroupBtn").style.display =
+        isOwner || isAdmin
+            ? "flex"
+            : "flex";
+
+
+    $("createChannelBtn").style.display =
+        isOwner || isAdmin
+            ? "flex"
+            : "flex";
 }
 
 
 /* =========================================================
-   USER SEARCH
-   ========================================================= */
+   BLOCK CHECK
+========================================================= */
+
+function isBlocked(profile) {
+
+    if (!profile) return false;
+
+    if (profile.account_blocked === true) {
+        return true;
+    }
+
+    if (
+        profile.account_blocked_until &&
+        new Date(profile.account_blocked_until) > new Date()
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+
+function isMessagingBlocked(profile) {
+
+    if (!profile) return false;
+
+    if (profile.messaging_blocked === true) {
+        return true;
+    }
+
+    if (
+        profile.messaging_blocked_until &&
+        new Date(profile.messaging_blocked_until) > new Date()
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+
+/* =========================================================
+   SEARCH USERS
+========================================================= */
+
+let searchTimer = null;
+
+function setupSearch() {
+
+    $("searchInput").addEventListener(
+        "input",
+        () => {
+
+            clearTimeout(searchTimer);
+
+            const username =
+                $("searchInput").value
+                    .trim()
+                    .toLowerCase();
+
+            if (!username) {
+
+                loadDefaultList();
+
+                return;
+            }
+
+            searchTimer = setTimeout(
+                () => searchUsers(username),
+                300
+            );
+        }
+    );
+}
+
 
 async function searchUsers(username) {
-    username = username.trim().toLowerCase();
-
-    const list = $("userList");
-
-    if (!list) return;
-
-    if (!username) {
-        await loadDefaultList();
-        return;
-    }
 
     const { data, error } = await supabase
         .from("profiles")
-        .select(`
-            id,
-            username,
-            full_name,
-            role,
-            is_verified,
-            avatar_url,
-            last_seen
-        `)
-        .ilike("username", `%${username}%`)
-        .neq("id", currentUser.id)
-        .order("username")
-        .limit(30);
+        .select("*")
+        .ilike("username", username)
+        .limit(10);
 
     if (error) {
+
         console.error(error);
 
-        list.innerHTML = `
-            <div class="empty-state">
-                Search failed
-            </div>
-        `;
+        showToast("Search failed");
 
         return;
     }
 
-    renderUserList(data || []);
+
+    renderUserResults(data || []);
 }
 
 
-/* =========================================================
-   DEFAULT SIDEBAR LIST
-   ========================================================= */
+function renderUserResults(users) {
 
-async function loadDefaultList() {
-    if (currentTab === "groups") {
-        await loadGroups();
-        return;
-    }
-
-    if (currentTab === "channels") {
-        await loadChannels();
-        return;
-    }
-
-    const { data, error } = await supabase
-        .from("contact_requests")
-        .select(`
-            sender_id,
-            receiver_id,
-            status,
-            created_at
-        `)
-        .or(
-            `sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`
-        )
-        .eq("status", "accepted")
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-    if (error) {
-        console.error(error);
-        return;
-    }
-
-    const ids = [];
-
-    for (const item of data || []) {
-        const otherId =
-            item.sender_id === currentUser.id
-                ? item.receiver_id
-                : item.sender_id;
-
-        if (!ids.includes(otherId)) {
-            ids.push(otherId);
-        }
-    }
-
-    if (!ids.length) {
-        renderUserList([]);
-        return;
-    }
-
-    const { data: users, error: userError } =
-        await supabase
-            .from("profiles")
-            .select(`
-                id,
-                username,
-                full_name,
-                role,
-                is_verified,
-                avatar_url,
-                last_seen
-            `)
-            .in("id", ids);
-
-    if (userError) {
-        console.error(userError);
-        return;
-    }
-
-    renderUserList(users || []);
-}
-
-
-/* =========================================================
-   RENDER USER LIST
-   ========================================================= */
-
-function renderUserList(users) {
     const list = $("userList");
 
-    if (!list) return;
+    list.innerHTML = "";
+
 
     if (!users.length) {
+
         list.innerHTML = `
             <div class="empty-state">
-                No users found
+                <i class="fa-solid fa-user-slash"></i>
+                <p>${escapeHtml(t("noUser"))}</p>
             </div>
         `;
 
         return;
     }
 
-    list.innerHTML = users.map(user => `
-        <div
-            class="user-item"
-            data-user-id="${escapeHtml(user.id)}"
-        >
-            ${avatarHtml(user, "user-avatar")}
 
-            <div class="user-info">
-                <div class="user-name-row">
-                    <strong>
-                        ${escapeHtml(user.full_name || user.username)}
-                    </strong>
+    users.forEach(user => {
 
-                    ${verifiedBadge(user)}
-                </div>
+        if (user.id === currentUser.id) return;
 
-                <span>
-                    @${escapeHtml(user.username)}
-                </span>
+        const item = document.createElement("div");
+
+        item.className = "chat-item";
+
+        item.innerHTML = `
+            <div class="profile-avatar">
+                ${escapeHtml(getInitial(user.full_name))}
             </div>
-        </div>
-    `).join("");
 
-    list.querySelectorAll(".user-item").forEach(item => {
-        item.addEventListener("click", async () => {
-            const userId = item.dataset.userId;
+            <div class="chat-item-info">
+                <h3>
+                    ${escapeHtml(user.full_name)}
 
-            const user = users.find(
-                u => u.id === userId
-            );
+                    ${
+                        user.is_verified
+                            ? `<span class="verified-badge">✓</span>`
+                            : ""
+                    }
+                </h3>
 
-            if (user) {
-                await openUserChat(user);
-            }
-        });
+                <p>@${escapeHtml(user.username)}</p>
+            </div>
+        `;
+
+        item.addEventListener(
+            "click",
+            () => openUserChat(user)
+        );
+
+        list.appendChild(item);
     });
 }
 
 
 /* =========================================================
-   OPEN USER CHAT
-   ========================================================= */
+   CONTACTS
+========================================================= */
 
-async function openUserChat(user) {
-    selectedUser = user;
+async function loadDefaultList() {
 
-    document
-        .querySelector(".app")
-        ?.classList.add("chat-open");
+    if (!currentUser) return;
 
-    renderChatHeader();
+    if (currentTab !== "chats") {
 
-    await checkContactStatus();
-
-    if (selectedContactStatus === "accepted") {
-        await loadMessages();
-    } else {
-        renderWelcomeMessage();
-    }
-}
-
-
-/* =========================================================
-   CHAT HEADER
-   ========================================================= */
-
-function renderChatHeader() {
-    if (!selectedUser) return;
-
-    const avatar = $("chatAvatar");
-
-    if (avatar) {
-        if (selectedUser.avatar_url) {
-            avatar.innerHTML = `
-                <img
-                    src="${escapeHtml(selectedUser.avatar_url)}"
-                    alt=""
-                >
-            `;
-        } else {
-            avatar.textContent =
-                (
-                    selectedUser.full_name ||
-                    selectedUser.username ||
-                    "?"
-                ).charAt(0).toUpperCase();
+        if (currentTab === "groups") {
+            await loadGroups();
         }
+
+        if (currentTab === "channels") {
+            await loadChannels();
+        }
+
+        return;
     }
 
-    setText(
-        "chatName",
-        selectedUser.full_name ||
-        selectedUser.username
-    );
-
-    const chatVerified = $("chatVerified");
-
-    if (chatVerified) {
-        selectedUser.is_verified
-            ? show(chatVerified)
-            : hide(chatVerified);
-    }
-
-    const chatStatus = $("chatStatus");
-
-    if (chatStatus) {
-        chatStatus.textContent =
-            selectedUser.last_seen
-                ? formatLastSeen(selectedUser.last_seen)
-                : "Offline";
-    }
-}
-
-
-/* =========================================================
-   CONTACT STATUS
-   ========================================================= */
-
-async function checkContactStatus() {
-    if (!selectedUser) return;
-
-    selectedContactStatus = null;
-    selectedContactRequest = null;
 
     const { data, error } = await supabase
         .from("contact_requests")
-        .select(`
-            id,
-            sender_id,
-            receiver_id,
-            status,
-            created_at
-        `)
+        .select("*")
+        .eq("status", "accepted")
+        .or(
+            `sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`
+        );
+
+
+    if (error) {
+
+        console.error(error);
+
+        renderUserResults([]);
+
+        return;
+    }
+
+
+    const ids = (data || []).map(request => {
+
+        return request.sender_id === currentUser.id
+            ? request.receiver_id
+            : request.sender_id;
+
+    });
+
+
+    if (!ids.length) {
+
+        $("userList").innerHTML = `
+            <div class="empty-state">
+                <i class="fa-solid fa-comments"></i>
+                <p>${escapeHtml(t("searchToChat"))}</p>
+            </div>
+        `;
+
+        return;
+    }
+
+
+    const { data: users } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("id", ids);
+
+
+    renderUserResults(users || []);
+}
+
+
+/* =========================================================
+   OPEN USER CHAT
+========================================================= */
+
+async function openUserChat(user) {
+
+    if (!user) return;
+
+    selectedUser = user;
+
+    $("chatName").textContent =
+        user.full_name || user.username;
+
+    $("chatStatus").textContent =
+        user.last_seen
+            ? t("offline")
+            : t("offline");
+
+
+    $("chatAvatar").textContent =
+        getInitial(user.full_name);
+
+
+    $("chatVerified").style.display =
+        user.is_verified
+            ? "inline-flex"
+            : "none";
+
+
+    $("messages").innerHTML = "";
+
+
+    document.querySelector(".app")
+        ?.classList.add("chat-open");
+
+
+    await updateContactActions();
+
+    await loadMessages();
+
+    updateMessageInputState();
+}
+
+
+/* =========================================================
+   CONTACT ACTIONS
+========================================================= */
+
+async function getContactRequest() {
+
+    if (!selectedUser) return null;
+
+    const { data } = await supabase
+        .from("contact_requests")
+        .select("*")
         .or(
             `and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${currentUser.id})`
         )
-        .order("created_at", { ascending: false })
+        .order("created_at", {
+            ascending: false
+        })
         .limit(1);
 
-    if (error) {
-        console.error(error);
-        updateContactButtons();
-        return;
-    }
-
-    if (data?.length) {
-        selectedContactStatus = data[0].status;
-        selectedContactRequest = data[0];
-    }
-
-    updateContactButtons();
+    return data?.[0] || null;
 }
 
 
-/* =========================================================
-   CONTACT REQUEST
-   ========================================================= */
+async function updateContactActions() {
 
-function updateContactButtons() {
     const addBtn = $("addContactBtn");
     const acceptBtn = $("acceptContactBtn");
     const declineBtn = $("declineContactBtn");
-    const form = $("messageForm");
 
-    if (!selectedUser) {
-        hide(addBtn);
-        hide(acceptBtn);
-        hide(declineBtn);
+    addBtn.style.display = "none";
+    acceptBtn.style.display = "none";
+    declineBtn.style.display = "none";
 
-        if (form) {
-            form.style.opacity = "0.5";
+
+    if (!selectedUser) return;
+
+
+    const request = await getContactRequest();
+
+
+    if (!request) {
+
+        addBtn.style.display = "inline-flex";
+
+        $("chatStatus").textContent =
+            "Not a contact";
+
+        return;
+    }
+
+
+    if (request.status === "accepted") {
+
+        $("chatStatus").textContent =
+            t("online");
+
+        return;
+    }
+
+
+    if (request.status === "pending") {
+
+        if (request.receiver_id === currentUser.id) {
+
+            acceptBtn.style.display = "inline-flex";
+            declineBtn.style.display = "inline-flex";
+
+            $("chatStatus").textContent =
+                "Incoming contact request";
+
+        } else {
+
+            $("chatStatus").textContent =
+                "Contact request pending";
         }
 
         return;
     }
 
-    hide(addBtn);
-    hide(acceptBtn);
-    hide(declineBtn);
 
-    if (selectedContactStatus === "accepted") {
-        if (form) {
-            form.style.opacity = "1";
-            show(form);
-        }
+    if (request.status === "declined") {
+
+        addBtn.style.display = "inline-flex";
 
         return;
-    }
-
-    if (selectedContactStatus === "pending") {
-
-        if (
-            selectedContactRequest &&
-            selectedContactRequest.receiver_id === currentUser.id
-        ) {
-            show(acceptBtn);
-            show(declineBtn);
-        }
-
-        if (form) {
-            form.style.opacity = "0.5";
-        }
-
-        return;
-    }
-
-    show(addBtn);
-
-    if (form) {
-        form.style.opacity = "0.5";
     }
 }
 
 
-/* =========================================================
-   SEND CONTACT REQUEST
-   ========================================================= */
-
 async function sendContactRequest() {
+
     if (!selectedUser) return;
+
 
     const { error } = await supabase
         .from("contact_requests")
@@ -709,123 +797,144 @@ async function sendContactRequest() {
             status: "pending"
         });
 
+
     if (error) {
+
+        console.error(error);
+
         if (error.code === "23505") {
-            showToast("Contact request already exists");
+            showToast("Request already exists");
         } else {
-            console.error(error);
-            showToast(error.message, "error");
+            showToast(error.message);
         }
 
         return;
     }
 
-    showToast("Contact request sent");
 
-    await checkContactStatus();
+    showToast(t("requestSent"));
+
+    await updateContactActions();
 }
 
 
-/* =========================================================
-   ACCEPT REQUEST
-   ========================================================= */
+async function updateContactRequest(status) {
 
-async function acceptContactRequest() {
-    if (!selectedContactRequest) return;
+    if (!selectedUser) return;
+
+
+    const request = await getContactRequest();
+
+    if (!request) return;
+
 
     const { error } = await supabase
         .from("contact_requests")
-        .update({
-            status: "accepted"
-        })
-        .eq("id", selectedContactRequest.id)
+        .update({ status })
+        .eq("id", request.id)
         .eq("receiver_id", currentUser.id);
 
+
     if (error) {
+
         console.error(error);
-        showToast(error.message, "error");
+
+        showToast(error.message);
+
         return;
     }
 
-    showToast("Contact accepted");
 
-    await checkContactStatus();
+    showToast(
+        status === "accepted"
+            ? t("contactAccepted")
+            : t("requestDeclined")
+    );
 
-    if (selectedContactStatus === "accepted") {
-        await loadMessages();
-    }
+
+    await updateContactActions();
+
+    await loadDefaultList();
+
+    updateMessageInputState();
 }
 
 
 /* =========================================================
-   DECLINE REQUEST
-   ========================================================= */
+   MESSAGE STATE
+========================================================= */
 
-async function declineContactRequest() {
-    if (!selectedContactRequest) return;
+async function isAcceptedContact() {
 
-    const { error } = await supabase
-        .from("contact_requests")
-        .update({
-            status: "declined"
-        })
-        .eq("id", selectedContactRequest.id)
-        .eq("receiver_id", currentUser.id);
+    if (!selectedUser) return false;
 
-    if (error) {
-        console.error(error);
-        showToast(error.message, "error");
+    const request = await getContactRequest();
+
+    return request?.status === "accepted";
+}
+
+
+function updateMessageInputState() {
+
+    const enabled =
+        selectedUser &&
+        currentProfile &&
+        !isMessagingBlocked(currentProfile);
+
+
+    const messageInput = $("messageInput");
+    const sendButton = $("sendButton");
+    const imageBtn = $("imageBtn");
+    const emojiBtn = $("emojiBtn");
+    const stickerBtn = $("stickerBtn");
+
+
+    if (!enabled) {
+
+        messageInput.disabled = true;
+        sendButton.disabled = true;
+        imageBtn.disabled = true;
+        emojiBtn.disabled = true;
+        stickerBtn.disabled = true;
+
         return;
     }
 
-    showToast("Contact request declined");
 
-    await checkContactStatus();
+    isAcceptedContact().then(accepted => {
+
+        messageInput.disabled = !accepted;
+        sendButton.disabled = !accepted;
+        imageBtn.disabled = !accepted;
+        emojiBtn.disabled = !accepted;
+        stickerBtn.disabled = !accepted;
+
+    });
 }
 
 
 /* =========================================================
-   WELCOME MESSAGE
-   ========================================================= */
+   LOAD MESSAGES
+========================================================= */
 
-function renderWelcomeMessage() {
-    const messages = $("messages");
+async function loadMessages() {
 
-    if (!messages) return;
+    if (!selectedUser) return;
 
-    if (!selectedUser) {
-        messages.innerHTML = `
+    const accepted = await isAcceptedContact();
+
+    if (!accepted) {
+
+        $("messages").innerHTML = `
             <div class="welcome-message">
-                <i class="fa-solid fa-comments"></i>
-                <h2>Welcome to MsgBox</h2>
-                <p>Select a contact to start chatting.</p>
-            </div>
-        `;
+                <div class="welcome-icon">
+                    <i class="fa-solid fa-user-lock"></i>
+                </div>
 
-        return;
-    }
-
-    if (selectedContactStatus === "pending") {
-
-        const incoming =
-            selectedContactRequest?.receiver_id === currentUser.id;
-
-        messages.innerHTML = `
-            <div class="welcome-message">
-                <i class="fa-solid fa-user-plus"></i>
-
-                <h2>
-                    ${incoming
-                        ? "Contact request"
-                        : "Request sent"}
-                </h2>
+                <h2>Contact required</h2>
 
                 <p>
-                    ${
-                        incoming
-                            ? "Accept the request to start chatting."
-                            : "Waiting for the user to accept your request."
-                    }
+                    Accept the contact request before chatting.
                 </p>
             </div>
         `;
@@ -833,48 +942,10 @@ function renderWelcomeMessage() {
         return;
     }
 
-    messages.innerHTML = `
-        <div class="welcome-message">
-            <i class="fa-solid fa-lock"></i>
-
-            <h2>Contact required</h2>
-
-            <p>
-                Add this user first to start chatting.
-            </p>
-        </div>
-    `;
-}
-
-
-/* =========================================================
-   LOAD MESSAGES
-   ========================================================= */
-
-async function loadMessages() {
-    if (!selectedUser) return;
-
-    if (selectedContactStatus !== "accepted") {
-        renderWelcomeMessage();
-        return;
-    }
 
     const { data, error } = await supabase
         .from("messages")
-        .select(`
-            id,
-            sender_id,
-            receiver_id,
-            content,
-            created_at,
-            message_type,
-            image_url,
-            sticker_url,
-            edited_at,
-            deleted_at,
-            delivered_at,
-            seen_at
-        `)
+        .select("*")
         .or(
             `and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${currentUser.id})`
         )
@@ -882,1578 +953,782 @@ async function loadMessages() {
             ascending: true
         });
 
+
     if (error) {
+
         console.error(error);
-        showToast(
-            "Messages could not be loaded",
-            "error"
-        );
+
+        showToast(error.message);
+
         return;
     }
 
+
     renderMessages(data || []);
 
-    /* Mark received messages as delivered */
-    await markMessagesDelivered();
-
-    /* Mark currently opened chat as seen */
-    await markMessagesSeen();
+    markMessagesDelivered();
+    markMessagesSeen();
 }
 
 
-/* =========================================================
-   MESSAGE STATUS
-   ========================================================= */
+function renderMessages(messages) {
 
-function messageStatusHtml(message, mine) {
-    if (!mine) return "";
+    const container = $("messages");
 
-    if (message.seen_at) {
-        return `
-            <span
-                class="message-status seen"
-                title="Seen"
-            >
-                ✓✓
-            </span>
+    container.innerHTML = "";
+
+
+    if (!messages.length) {
+
+        container.innerHTML = `
+            <div class="welcome-message">
+                <div class="welcome-icon">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+
+                <h2>${escapeHtml(selectedUser.full_name)}</h2>
+
+                <p>Start your conversation.</p>
+            </div>
         `;
+
+        return;
     }
 
-    if (message.delivered_at) {
-        return `
-            <span
-                class="message-status delivered"
-                title="Delivered"
-            >
-                ✓✓
-            </span>
-        `;
+
+    messages.forEach(message => {
+
+        const wrapper = document.createElement("div");
+
+        wrapper.className =
+            message.sender_id === currentUser.id
+                ? "message sent"
+                : "message received";
+
+
+        if (message.deleted_at) {
+
+            wrapper.innerHTML = `
+                <div class="message-bubble deleted">
+                    ${escapeHtml(t("deletedMessage"))}
+                </div>
+            `;
+
+        } else if (message.message_type === "image") {
+
+            wrapper.innerHTML = `
+                <div class="message-bubble">
+                    <div class="message-image">
+                        ${escapeHtml(t("image"))}
+                    </div>
+                    ${renderMessageMeta(message)}
+                </div>
+            `;
+
+        } else {
+
+            wrapper.innerHTML = `
+                <div class="message-bubble">
+
+                    <div class="message-content">
+                        ${escapeHtml(message.content)}
+                    </div>
+
+                    ${renderMessageMeta(message)}
+
+                </div>
+            `;
+
+        }
+
+
+        if (
+            message.sender_id === currentUser.id &&
+            !message.deleted_at
+        ) {
+
+            wrapper.addEventListener(
+                "contextmenu",
+                event => {
+
+                    event.preventDefault();
+
+                    showMessageMenu(message);
+                }
+            );
+        }
+
+
+        container.appendChild(wrapper);
+    });
+
+
+    container.scrollTop =
+        container.scrollHeight;
+}
+
+
+function renderMessageMeta(message) {
+
+    const time = new Date(
+        message.created_at
+    ).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+
+
+    let status = "";
+
+    if (message.sender_id === currentUser.id) {
+
+        if (message.seen_at) {
+            status = " ✓✓";
+        } else if (message.delivered_at) {
+            status = " ✓";
+        } else {
+            status = " ✓";
+        }
     }
+
+
+    const edited =
+        message.edited_at
+            ? ` · ${escapeHtml(t("edited"))}`
+            : "";
+
 
     return `
-        <span
-            class="message-status sent"
-            title="Sent"
-        >
-            ✓
-        </span>
+        <div class="message-meta">
+            ${time}${edited}${status}
+        </div>
     `;
 }
 
 
 /* =========================================================
-   RENDER MESSAGES
-   ========================================================= */
+   SEND MESSAGE
+========================================================= */
 
-function renderMessages(messages) {
-    const container = $("messages");
+async function sendMessage(content) {
 
-    if (!container) return;
+    if (!selectedUser) return;
 
-    if (!messages.length) {
-        container.innerHTML = `
-            <div class="welcome-message">
-                <i class="fa-regular fa-message"></i>
+    const accepted = await isAcceptedContact();
 
-                <h2>No messages yet</h2>
+    if (!accepted) return;
 
-                <p>
-                    Start the conversation.
-                </p>
-            </div>
-        `;
+
+    if (isMessagingBlocked(currentProfile)) {
+
+        showToast("Messaging is blocked");
 
         return;
     }
 
-    container.innerHTML = messages.map(message => {
 
-        const mine =
-            message.sender_id === currentUser.id;
+    const text = content.trim();
 
-        let content = "";
+    if (!text) return;
 
-        /* -----------------------------------------
-           DELETED MESSAGE
-           ----------------------------------------- */
-
-        if (message.deleted_at) {
-
-            content = `
-                <span class="deleted-message">
-                    This message was deleted
-                </span>
-            `;
-
-        }
-
-        /* -----------------------------------------
-           IMAGE
-           ----------------------------------------- */
-
-        else if (message.message_type === "image") {
-
-            content = `
-                <div
-                    class="image-message"
-                    data-image-path="${escapeHtml(
-                        message.image_url || ""
-                    )}"
-                >
-                    <span>
-                        Image
-                    </span>
-                </div>
-            `;
-
-        }
-
-        /* -----------------------------------------
-           STICKER
-           ----------------------------------------- */
-
-        else if (message.message_type === "sticker") {
-
-            content = `
-                <div class="sticker-message">
-                    Sticker
-                </div>
-            `;
-
-        }
-
-        /* -----------------------------------------
-           TEXT
-           ----------------------------------------- */
-
-        else {
-
-            content = `
-                <span>
-                    ${escapeHtml(message.content || "")}
-                </span>
-            `;
-        }
-
-        /* -----------------------------------------
-           EDIT / DELETE ACTIONS
-           ----------------------------------------- */
-
-        let actions = "";
-
-        if (mine && !message.deleted_at) {
-
-            actions = `
-                <div class="message-actions">
-
-                    ${
-                        message.message_type === "text"
-                            ? `
-                                <button
-                                    type="button"
-                                    class="message-action-btn"
-                                    data-message-action="edit"
-                                    data-message-id="${message.id}"
-                                    title="Edit"
-                                >
-                                    <i class="fa-solid fa-pen"></i>
-                                </button>
-                            `
-                            : ""
-                    }
-
-                    <button
-                        type="button"
-                        class="message-action-btn"
-                        data-message-action="delete"
-                        data-message-id="${message.id}"
-                        title="Delete"
-                    >
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-
-                </div>
-            `;
-        }
-
-        return `
-            <div
-                class="message-row ${mine ? "sent" : "received"}"
-                data-message-id="${message.id}"
-            >
-
-                <div class="message-bubble">
-
-                    ${content}
-
-                    <div class="message-meta">
-
-                        <span>
-                            ${formatTime(message.created_at)}
-                        </span>
-
-                        ${
-                            message.edited_at
-                                ? `
-                                    <small>
-                                        edited
-                                    </small>
-                                `
-                                : ""
-                        }
-
-                        ${messageStatusHtml(message, mine)}
-
-                    </div>
-
-                    ${actions}
-
-                </div>
-
-            </div>
-        `;
-
-    }).join("");
-
-    container.scrollTop = container.scrollHeight;
-}
-
-
-/* =========================================================
-   EDIT MESSAGE
-   ========================================================= */
-
-async function editMessage(messageId) {
-
-    const { data: message, error: loadError } =
-        await supabase
-            .from("messages")
-            .select(`
-                id,
-                sender_id,
-                receiver_id,
-                content,
-                message_type,
-                deleted_at
-            `)
-            .eq("id", messageId)
-            .single();
-
-    if (loadError || !message) {
-        console.error(loadError);
-        showToast(
-            "Message could not be found",
-            "error"
-        );
-        return;
-    }
-
-    if (message.sender_id !== currentUser.id) {
-        showToast(
-            "You can only edit your own messages",
-            "error"
-        );
-        return;
-    }
-
-    if (message.deleted_at) {
-        showToast(
-            "Deleted messages cannot be edited",
-            "error"
-        );
-        return;
-    }
-
-    if (message.message_type !== "text") {
-        showToast(
-            "Only text messages can be edited",
-            "error"
-        );
-        return;
-    }
-
-    const newContent =
-        prompt(
-            "Edit your message:",
-            message.content || ""
-        );
-
-    if (newContent === null) return;
-
-    const content = newContent.trim();
-
-    if (!content) {
-        showToast(
-            "Message cannot be empty",
-            "error"
-        );
-        return;
-    }
 
     const { error } = await supabase
         .from("messages")
-        .update({
-            content,
-            edited_at: new Date().toISOString()
-        })
-        .eq("id", messageId)
-        .eq("sender_id", currentUser.id);
+        .insert({
+            sender_id: currentUser.id,
+            receiver_id: selectedUser.id,
+            content: text,
+            message_type: "text"
+        });
+
 
     if (error) {
+
         console.error(error);
-        showToast(
-            error.message,
-            "error"
-        );
+
+        showToast(error.message);
+
         return;
     }
 
-    showToast("Message edited");
+
+    $("messageInput").value = "";
 
     await loadMessages();
 }
 
 
 /* =========================================================
-   DELETE MESSAGE
-   ========================================================= */
+   IMAGE
+========================================================= */
 
-async function deleteMessage(messageId) {
+async function sendImage(file) {
 
-    const confirmed =
-        confirm(
-            "Delete this message?"
-        );
+    if (!file || !selectedUser) return;
 
-    if (!confirmed) return;
+    const accepted = await isAcceptedContact();
 
-    const { error } = await supabase
-        .from("messages")
-        .update({
-            content: "",
-            image_url: null,
-            sticker_url: null,
-            deleted_at: new Date().toISOString(),
-            edited_at: null
-        })
-        .eq("id", messageId)
-        .eq("sender_id", currentUser.id);
+    if (!accepted) return;
 
-    if (error) {
-        console.error(error);
-        showToast(
-            error.message,
-            "error"
-        );
+
+    const extension =
+        file.name.split(".").pop() || "jpg";
+
+
+    const path =
+        `${currentUser.id}/${crypto.randomUUID()}.${extension}`;
+
+
+    const { error: uploadError } =
+        await supabase.storage
+            .from("chat-media")
+            .upload(path, file);
+
+
+    if (uploadError) {
+
+        console.error(uploadError);
+
+        showToast(uploadError.message);
+
         return;
     }
 
-    showToast("Message deleted");
+
+    const { error } = await supabase
+        .from("messages")
+        .insert({
+
+            sender_id: currentUser.id,
+            receiver_id: selectedUser.id,
+
+            content: "Image",
+
+            message_type: "image",
+
+            image_url: path
+        });
+
+
+    if (error) {
+
+        console.error(error);
+
+        showToast(error.message);
+
+        return;
+    }
+
 
     await loadMessages();
 }
 
 
 /* =========================================================
-   MARK DELIVERED
-   ========================================================= */
+   MESSAGE EDIT / DELETE
+========================================================= */
+
+async function showMessageMenu(message) {
+
+    const action = prompt(
+        "Type E to edit or D to delete"
+    );
+
+    if (!action) return;
+
+
+    if (action.toLowerCase() === "e") {
+
+        const newText = prompt(
+            "New message:",
+            message.content
+        );
+
+        if (!newText?.trim()) return;
+
+
+        const { error } = await supabase.rpc(
+            "edit_message",
+            {
+                p_message_id: message.id,
+                p_new_content: newText.trim()
+            }
+        );
+
+
+        if (error) {
+
+            console.error(error);
+
+            showToast(error.message);
+
+            return;
+        }
+
+
+        await loadMessages();
+
+        return;
+    }
+
+
+    if (action.toLowerCase() === "d") {
+
+        const confirmed =
+            confirm("Delete this message?");
+
+        if (!confirmed) return;
+
+
+        const { error } = await supabase.rpc(
+            "delete_message",
+            {
+                p_message_id: message.id
+            }
+        );
+
+
+        if (error) {
+
+            console.error(error);
+
+            showToast(error.message);
+
+            return;
+        }
+
+
+        await loadMessages();
+    }
+}
+
+
+/* =========================================================
+   DELIVERED / SEEN
+========================================================= */
 
 async function markMessagesDelivered() {
 
     if (!selectedUser) return;
 
-    const { data, error } =
-        await supabase
-            .from("messages")
-            .select("id")
-            .eq("sender_id", selectedUser.id)
-            .eq("receiver_id", currentUser.id)
-            .is("delivered_at", null);
+    try {
 
-    if (error) {
+        await supabase.rpc(
+            "mark_messages_delivered",
+            {
+                p_other_user_id: selectedUser.id
+            }
+        );
+
+    } catch (error) {
+
         console.error(error);
-        return;
-    }
-
-    for (const message of data || []) {
-
-        const { error: rpcError } =
-            await supabase.rpc(
-                "mark_message_delivered",
-                {
-                    message_id: message.id
-                }
-            );
-
-        if (rpcError) {
-            console.error(rpcError);
-        }
     }
 }
 
-
-/* =========================================================
-   MARK SEEN
-   ========================================================= */
 
 async function markMessagesSeen() {
 
     if (!selectedUser) return;
 
-    const { data, error } =
-        await supabase
-            .from("messages")
-            .select("id")
-            .eq("sender_id", selectedUser.id)
-            .eq("receiver_id", currentUser.id)
-            .is("seen_at", null);
+    try {
 
-    if (error) {
-        console.error(error);
-        return;
-    }
-
-    for (const message of data || []) {
-
-        const { error: rpcError } =
-            await supabase.rpc(
-                "mark_message_seen",
-                {
-                    message_id: message.id
-                }
-            );
-
-        if (rpcError) {
-            console.error(rpcError);
-        }
-    }
-}
-
-
-/* =========================================================
-   MESSAGE ACTION EVENTS
-   ========================================================= */
-
-function setupMessageActions() {
-
-    const container = $("messages");
-
-    if (!container) return;
-
-    container.addEventListener(
-        "click",
-        async event => {
-
-            const button =
-                event.target.closest(
-                    "[data-message-action]"
-                );
-
-            if (!button) return;
-
-            const action =
-                button.dataset.messageAction;
-
-            const messageId =
-                Number(button.dataset.messageId);
-
-            if (!messageId) return;
-
-            if (action === "edit") {
-                await editMessage(messageId);
+        await supabase.rpc(
+            "mark_chat_seen",
+            {
+                p_other_user_id: selectedUser.id
             }
-
-            if (action === "delete") {
-                await deleteMessage(messageId);
-            }
-
-        }
-    );
-}
-
-
-/* =========================================================
-   SEND MESSAGE
-   ========================================================= */
-
-async function sendMessage(event) {
-    event?.preventDefault();
-
-    if (!selectedUser) {
-        showToast(
-            "Select a contact first"
         );
-        return;
-    }
 
-    if (selectedContactStatus !== "accepted") {
-        showToast(
-            "Accept the contact request first"
-        );
-        return;
-    }
+    } catch (error) {
 
-    if (isMessagingBlocked(currentProfile)) {
-        showToast(
-            "Messaging is blocked for your account",
-            "error"
-        );
-        return;
-    }
-
-    const input = $("messageInput");
-
-    if (!input) return;
-
-    const content =
-        input.value.trim();
-
-    if (!content) return;
-
-    const { error } =
-        await supabase
-            .from("messages")
-            .insert({
-                sender_id: currentUser.id,
-                receiver_id: selectedUser.id,
-                content,
-                message_type: "text"
-            });
-
-    if (error) {
         console.error(error);
-        showToast(
-            error.message,
-            "error"
-        );
-        return;
     }
-
-    input.value = "";
-
-    await loadMessages();
-}
-
-
-/* =========================================================
-   IMAGE UPLOAD
-   ========================================================= */
-
-async function sendImage(file) {
-
-    if (!file) return;
-
-    if (!selectedUser) {
-        showToast(
-            "Select a contact first"
-        );
-        return;
-    }
-
-    if (selectedContactStatus !== "accepted") {
-        showToast(
-            "Accept the contact request first"
-        );
-        return;
-    }
-
-    if (isMessagingBlocked(currentProfile)) {
-        showToast(
-            "Messaging is blocked",
-            "error"
-        );
-        return;
-    }
-
-    const allowedTypes = [
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-        "image/gif"
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-        showToast(
-            "Unsupported image type",
-            "error"
-        );
-        return;
-    }
-
-    if (file.size > 8 * 1024 * 1024) {
-        showToast(
-            "Image must be smaller than 8MB",
-            "error"
-        );
-        return;
-    }
-
-    const extension =
-        file.name.split(".").pop() || "jpg";
-
-    const fileName =
-        `${crypto.randomUUID()}.${extension}`;
-
-    const path =
-        `${currentUser.id}/${fileName}`;
-
-    showToast(
-        "Uploading image..."
-    );
-
-    const { error: uploadError } =
-        await supabase.storage
-            .from("chat-media")
-            .upload(
-                path,
-                file,
-                {
-                    cacheControl: "3600",
-                    upsert: false
-                }
-            );
-
-    if (uploadError) {
-        console.error(uploadError);
-
-        showToast(
-            uploadError.message,
-            "error"
-        );
-
-        return;
-    }
-
-    /*
-     * IMPORTANT:
-     * chat-media is PRIVATE.
-     *
-     * Store the storage path, not a public URL.
-     *
-     * Signed URL support will use this path.
-     */
-
-    const { error } =
-        await supabase
-            .from("messages")
-            .insert({
-                sender_id: currentUser.id,
-                receiver_id: selectedUser.id,
-                content: "",
-                message_type: "image",
-                image_url: path
-            });
-
-    if (error) {
-        console.error(error);
-
-        showToast(
-            error.message,
-            "error"
-        );
-
-        return;
-    }
-
-    showToast(
-        "Image sent"
-    );
-
-    await loadMessages();
 }
 
 
 /* =========================================================
    EMOJI
-   ========================================================= */
+========================================================= */
 
-const emojis = [
-    "😀", "😃", "😄", "😁", "😆",
-    "😅", "😂", "🤣", "😊", "😇",
-    "🙂", "🙃", "😉", "😌", "😍",
-    "🥰", "😘", "😎", "🤩", "🤔",
-    "😐", "😑", "😶", "🙄", "😏",
-    "😴", "😭", "😡", "🤬", "😱",
-    "👍", "👎", "👏", "🙏", "❤️",
-    "🔥", "🎉", "💯", "😂", "💀"
-];
+function setupEmoji() {
 
-function setupEmojiPanel() {
+    $("emojiBtn").addEventListener(
+        "click",
+        () => {
 
-    const panel = $("emojiPanel");
-
-    if (!panel) return;
-
-    panel.innerHTML =
-        emojis.map(emoji => `
-            <button
-                type="button"
-                class="emoji-item"
-                data-emoji="${emoji}"
-            >
-                ${emoji}
-            </button>
-        `).join("");
-
-    panel.querySelectorAll(".emoji-item")
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    const input =
-                        $("messageInput");
-
-                    if (!input) return;
-
-                    input.value +=
-                        button.dataset.emoji;
-
-                    input.focus();
-                }
+            $("emojiPanel").classList.toggle(
+                "active"
             );
-
-        });
-}
-
-function toggleEmojiPanel() {
-
-    const panel =
-        $("emojiPanel");
-
-    if (!panel) return;
-
-    if (
-        panel.style.display === "none" ||
-        !panel.style.display
-    ) {
-        show(panel);
-    } else {
-        hide(panel);
-    }
-}
+        }
+    );
 
 
-/* =========================================================
-   SETTINGS MODAL
-   ========================================================= */
+    document.querySelectorAll(
+        "#emojiPanel button"
+    ).forEach(button => {
 
-function openSettings() {
+        button.addEventListener(
+            "click",
+            () => {
 
-    const modal =
-        $("settingsModal");
+                $("messageInput").value +=
+                    button.textContent;
 
-    if (!modal) return;
-
-    show(modal);
-}
-
-function closeSettings() {
-    hide($("settingsModal"));
+                $("messageInput").focus();
+            }
+        );
+    });
 }
 
 
 /* =========================================================
    PROFILE MODAL
-   ========================================================= */
+========================================================= */
 
-function openProfileModal() {
+function openProfileSettings() {
 
-    const modal =
-        $("profileModal");
+    if (!currentProfile) return;
 
-    if (!modal) return;
 
-    const fullName =
-        $("profileFullName");
+    $("profileFullName").value =
+        currentProfile.full_name || "";
 
-    const username =
-        $("profileUsername");
+    $("profileUsername").value =
+        currentProfile.username || "";
 
-    const bio =
-        $("profileBio");
+    $("profileBio").value =
+        currentProfile.bio || "";
 
-    if (fullName) {
-        fullName.value =
-            currentProfile?.full_name || "";
-    }
 
-    if (username) {
-        username.value =
-            currentProfile?.username || "";
-    }
+    $("profileEditAvatar").textContent =
+        getInitial(currentProfile.full_name);
 
-    if (bio) {
-        bio.value =
-            currentProfile?.bio || "";
-    }
 
-    show(modal);
+    openModal("profileModal");
 }
 
-function closeProfileModal() {
-    hide($("profileModal"));
-}
-
-
-/* =========================================================
-   AVATAR UPLOAD
-   ========================================================= */
 
 async function uploadAvatar(file) {
 
-    if (!file) return;
+    if (!file || !currentUser) return null;
 
-    const allowed = [
-        "image/jpeg",
-        "image/png",
-        "image/webp"
-    ];
-
-    if (!allowed.includes(file.type)) {
-        showToast(
-            "Unsupported image type",
-            "error"
-        );
-        return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-        showToast(
-            "Avatar must be smaller than 5MB",
-            "error"
-        );
-        return;
-    }
 
     const extension =
         file.name.split(".").pop() || "jpg";
 
-    const path =
-        `${currentUser.id}/${crypto.randomUUID()}.${extension}`;
 
-    const { error: uploadError } =
+    const path =
+        `${currentUser.id}/avatar.${extension}`;
+
+
+    const { error } =
         await supabase.storage
             .from("avatars")
             .upload(
                 path,
                 file,
                 {
-                    cacheControl: "3600",
-                    upsert: false
+                    upsert: true
                 }
             );
 
-    if (uploadError) {
-        console.error(uploadError);
-
-        showToast(
-            uploadError.message,
-            "error"
-        );
-
-        return;
-    }
-
-    const {
-        data: publicData
-    } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(path);
-
-    const avatarUrl =
-        publicData?.publicUrl;
-
-    if (!avatarUrl) {
-        showToast(
-            "Avatar URL failed",
-            "error"
-        );
-        return;
-    }
-
-    const { error } =
-        await supabase
-            .from("profiles")
-            .update({
-                avatar_url: avatarUrl
-            })
-            .eq("id", currentUser.id);
 
     if (error) {
+
         console.error(error);
 
-        showToast(
-            error.message,
-            "error"
-        );
+        showToast(error.message);
 
-        return;
+        return null;
     }
 
-    currentProfile.avatar_url =
-        avatarUrl;
 
-    renderMyProfile();
+    const { data } =
+        supabase.storage
+            .from("avatars")
+            .getPublicUrl(path);
 
-    showToast(
-        "Avatar updated"
-    );
+
+    return data.publicUrl;
 }
 
 
-/* =========================================================
-   SAVE PROFILE
-   ========================================================= */
-
 async function saveProfile(event) {
 
-    event?.preventDefault();
+    event.preventDefault();
+
 
     const fullName =
-        $("profileFullName")?.value.trim();
+        $("profileFullName").value.trim();
 
     const username =
-        $("profileUsername")?.value
+        $("profileUsername").value
             .trim()
             .toLowerCase();
 
     const bio =
-        $("profileBio")?.value.trim();
+        $("profileBio").value.trim();
 
-    if (!fullName) {
-        showToast(
-            "Full name is required",
-            "error"
-        );
+
+    if (!fullName || !username) {
+
+        showToast("Name and username are required");
+
         return;
     }
+
 
     if (!/^[a-z0-9_]{3,32}$/.test(username)) {
+
         showToast(
-            "Username: 3-32 characters, a-z, 0-9 and _ only",
-            "error"
+            "Username must contain only a-z, 0-9 and _"
         );
+
         return;
     }
 
-    if (
-        username === "owner" &&
-        currentProfile.username !== "owner"
-    ) {
-        showToast(
-            "This username is protected",
-            "error"
-        );
-        return;
+
+    let avatarUrl =
+        currentProfile.avatar_url || null;
+
+
+    const file =
+        $("profileAvatarInput").files?.[0];
+
+
+    if (file) {
+
+        const uploaded =
+            await uploadAvatar(file);
+
+        if (uploaded) {
+            avatarUrl = uploaded;
+        }
     }
 
-    const { error } =
-        await supabase
-            .from("profiles")
-            .update({
-                full_name: fullName,
-                username,
-                bio: bio || ""
-            })
-            .eq("id", currentUser.id);
+
+    const { data, error } = await supabase
+        .from("profiles")
+        .update({
+
+            full_name: fullName,
+            username,
+            bio,
+            avatar_url: avatarUrl
+
+        })
+        .eq("id", currentUser.id)
+        .select()
+        .single();
+
 
     if (error) {
 
-        if (error.code === "23505") {
-            showToast(
-                "Username already exists",
-                "error"
-            );
-        } else {
-            console.error(error);
+        console.error(error);
 
-            showToast(
-                error.message,
-                "error"
-            );
+        if (error.code === "23505") {
+            showToast("Username already exists");
+        } else {
+            showToast(error.message);
         }
 
         return;
     }
 
-    currentProfile.full_name =
-        fullName;
 
-    currentProfile.username =
-        username;
-
-    currentProfile.bio =
-        bio || "";
+    currentProfile = data;
 
     renderMyProfile();
 
-    closeProfileModal();
+    closeModal("profileModal");
 
     showToast(
-        "Profile updated"
+        currentLanguage === "uz"
+            ? "Profil saqlandi"
+            : currentLanguage === "ru"
+                ? "Профиль сохранён"
+                : "Profile saved"
     );
 }
 
 
 /* =========================================================
    OWNER PANEL
-   ========================================================= */
+========================================================= */
 
-function openOwnerPanel() {
+async function searchOwnerUser(inputId, resultId) {
 
-    if (currentProfile?.role !== "owner") {
-        showToast(
-            "Owner access only",
-            "error"
-        );
-        return;
-    }
+    const username =
+        $(inputId).value.trim().toLowerCase();
 
-    show($("ownerModal"));
-
-    loadOwnerReports();
-}
-
-function closeOwnerPanel() {
-    hide($("ownerModal"));
-}
-
-
-/* =========================================================
-   OWNER USER SEARCH
-   ========================================================= */
-
-async function findUserByUsername(username) {
-
-    username =
-        username.trim().toLowerCase();
 
     if (!username) return null;
 
-    const { data, error } =
-        await supabase
-            .from("profiles")
-            .select(`
-                id,
-                username,
-                full_name,
-                role,
-                is_verified,
-                verified_until,
-                account_blocked,
-                account_blocked_until,
-                messaging_blocked,
-                messaging_blocked_until,
-                avatar_url
-            `)
-            .eq("username", username)
-            .maybeSingle();
+
+    const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("username", username)
+        .maybeSingle();
+
 
     if (error) {
+
         console.error(error);
+
+        showToast(error.message);
+
         return null;
     }
+
+
+    if (!data) {
+
+        $(resultId).innerHTML = `
+            <div class="empty-state">
+                ${escapeHtml(t("noUser"))}
+            </div>
+        `;
+
+        return null;
+    }
+
 
     return data;
 }
 
 
-/* =========================================================
-   OWNER VERIFIED SEARCH
-   ========================================================= */
+async function ownerVerifiedSearch() {
 
-async function ownerSearchVerified() {
+    if (currentProfile?.role !== "owner") return;
 
-    const username =
-        $("ownerVerifiedUsername")?.value.trim();
 
-    if (!username) return;
+    const user = await searchOwnerUser(
+        "ownerVerifiedUsername",
+        "ownerVerifiedResult"
+    );
 
-    const user =
-        await findUserByUsername(username);
 
-    const result =
-        $("ownerVerifiedResult");
+    if (!user) return;
 
-    if (!result) return;
 
-    if (!user) {
+    $("ownerVerifiedResult").innerHTML = `
 
-        result.innerHTML = `
-            <div class="empty-state">
-                User not found
-            </div>
-        `;
-
-        return;
-    }
-
-    result.innerHTML = `
         <div class="owner-user-card">
 
-            ${avatarHtml(user, "user-avatar")}
-
-            <div class="user-info">
-
+            <div>
                 <strong>
                     ${escapeHtml(user.full_name)}
-                    ${verifiedBadge(user)}
                 </strong>
 
                 <span>
                     @${escapeHtml(user.username)}
                 </span>
-
             </div>
 
-            <div class="owner-actions">
-
+            <button id="ownerVerifyAction">
                 ${
                     user.is_verified
-                        ? `
-                            <button
-                                class="danger-btn"
-                                data-action="remove-verified"
-                            >
-                                Remove
-                            </button>
-                        `
-                        : `
-                            <button
-                                class="primary-btn"
-                                data-action="give-verified"
-                            >
-                                Give ✓
-                            </button>
+                        ? "Remove"
+                        : "Verify"
                 }
-
-            </div>
+            </button>
 
         </div>
     `;
 
-    result
-        .querySelectorAll("[data-action]")
-        .forEach(button => {
 
-            button.addEventListener(
-                "click",
-                async () => {
-
-                    if (
-                        button.dataset.action ===
-                        "remove-verified"
-                    ) {
-                        await setVerified(
-                            user.id,
-                            false
-                        );
-                    }
-
-                    if (
-                        button.dataset.action ===
-                        "give-verified"
-                    ) {
-                        await setVerified(
-                            user.id,
-                            true
-                        );
-                    }
-
-                }
-            );
-
-        });
+    $("ownerVerifyAction")
+        .addEventListener(
+            "click",
+            () => ownerToggleVerified(user)
+        );
 }
 
 
-/* =========================================================
-   SET VERIFIED
-   ========================================================= */
+async function ownerToggleVerified(user) {
 
-async function setVerified(
-    userId,
-    give
-) {
+    const isVerified =
+        user.is_verified === true;
 
-    if (currentProfile?.role !== "owner") {
-        showToast(
-            "Owner access only",
-            "error"
-        );
-        return;
+
+    let duration = null;
+
+
+    if (!isVerified) {
+
+        const selected =
+            $("verifiedDuration").value;
+
+        duration =
+            selected === "permanent"
+                ? null
+                : Number(selected);
     }
 
-    let durationDays = null;
 
-    if (give) {
-
-        const duration =
-            $("verifiedDuration")?.value ||
-            "permanent";
-
-        if (duration !== "permanent") {
-            durationDays =
-                Number(duration);
+    const { error } = await supabase.rpc(
+        "owner_set_verified",
+        {
+            target_user_id: user.id,
+            give_verified: !isVerified,
+            duration_days: duration
         }
-    }
+    );
 
-    const { error } =
-        await supabase.rpc(
-            "owner_set_verified",
-            {
-                target_user_id: userId,
-                give_verified: give,
-                duration_days: durationDays
-            }
-        );
 
     if (error) {
+
         console.error(error);
 
-        showToast(
-            error.message,
-            "error"
-        );
+        showToast(error.message);
 
         return;
     }
 
+
     showToast(
-        give
-            ? "Verified badge given ✓"
+        !isVerified
+            ? "Verified badge added"
             : "Verified badge removed"
     );
 
-    await ownerSearchVerified();
+
+    await ownerVerifiedSearch();
 }
 
 
 /* =========================================================
-   OWNER MODERATION SEARCH
-   ========================================================= */
+   OWNER MODERATION
+========================================================= */
 
-async function ownerSearchModeration() {
-
-    const username =
-        $("ownerModerationUsername")?.value.trim();
-
-    if (!username) return;
-
-    const user =
-        await findUserByUsername(username);
-
-    renderModerationUser(
-        user,
-        $("ownerModerationResult")
-    );
-}
-
-
-/* =========================================================
-   ADMIN MODERATION SEARCH
-   ========================================================= */
-
-async function adminSearchModeration() {
-
-    const username =
-        $("adminModerationUsername")?.value.trim();
-
-    if (!username) return;
-
-    const user =
-        await findUserByUsername(username);
-
-    renderModerationUser(
-        user,
-        $("adminModerationResult")
-    );
-}
-
-
-/* =========================================================
-   RENDER MODERATION USER
-   ========================================================= */
-
-function renderModerationUser(
-    user,
-    result
-) {
-
-    if (!result) return;
-
-    if (!user) {
-
-        result.innerHTML = `
-            <div class="empty-state">
-                User not found
-            </div>
-        `;
-
-        return;
-    }
-
-    const owner =
-        user.role === "owner";
-
-    if (owner) {
-
-        result.innerHTML = `
-            <div class="empty-state">
-                Owner cannot be moderated.
-            </div>
-        `;
-
-        return;
-    }
-
-    result.innerHTML = `
-        <div class="owner-user-card">
-
-            ${avatarHtml(
-                user,
-                "user-avatar"
-            )}
-
-            <div class="user-info">
-
-                <strong>
-                    ${escapeHtml(user.full_name)}
-                    ${verifiedBadge(user)}
-                </strong>
-
-                <span>
-                    @${escapeHtml(user.username)}
-                </span>
-
-                <small>
-                    Role: ${escapeHtml(user.role)}
-                </small>
-
-            </div>
-
-            <div class="owner-actions">
-
-                <button
-                    class="danger-btn"
-                    data-moderate="account"
-                >
-                    ${
-                        user.account_blocked
-                            ? "Unblock Account"
-                            : "Block Account"
-                    }
-                </button>
-
-                <button
-                    class="danger-btn"
-                    data-moderate="messaging"
-                >
-                    ${
-                        user.messaging_blocked
-                            ? "Unblock Messages"
-                            : "Block Messages"
-                    }
-                </button>
-
-            </div>
-
-        </div>
-    `;
-
-    result
-        .querySelectorAll("[data-moderate]")
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                async () => {
-
-                    const type =
-                        button.dataset.moderate;
-
-                    const blocked =
-                        type === "account"
-                            ? user.account_blocked
-                            : user.messaging_blocked;
-
-                    if (blocked) {
-
-                        await moderateUser(
-                            user.id,
-                            type,
-                            false
-                        );
-
-                        return;
-                    }
-
-                    const reason =
-                        prompt(
-                            "Reason for this action:"
-                        );
-
-                    if (reason === null) return;
-
-                    const durationText =
-                        prompt(
-                            "Duration in days. Leave empty for permanent:"
-                        );
-
-                    let durationDays = null;
-
-                    if (durationText?.trim()) {
-
-                        durationDays =
-                            Number(durationText);
-
-                        if (
-                            !Number.isInteger(
-                                durationDays
-                            ) ||
-                            durationDays <= 0
-                        ) {
-                            showToast(
-                                "Invalid duration",
-                                "error"
-                            );
-                            return;
-                        }
-                    }
-
-                    await moderateUser(
-                        user.id,
-                        type,
-                        true,
-                        reason,
-                        durationDays
-                    );
-
-                }
-            );
-
-        });
-}
-
-
-/* =========================================================
-   MODERATE USER
-   ========================================================= */
-
-async function moderateUser(
-    userId,
-    blockType,
-    active,
-    reason = "",
-    durationDays = null
-) {
+async function ownerModerationSearch() {
 
     if (
         currentProfile?.role !== "owner" &&
         currentProfile?.role !== "admin"
-    ) {
-        showToast(
-            "Admin access only",
-            "error"
-        );
-        return;
-    }
+    ) return;
 
-    const { error } =
-        await supabase.rpc(
-            "owner_set_user_block",
-            {
-                target_user_id: userId,
-                block_type: blockType,
-                reason_text: reason,
-                duration_days: durationDays,
-                make_active: active
-            }
-        );
 
-    if (error) {
-        console.error(error);
-
-        showToast(
-            error.message,
-            "error"
-        );
-
-        return;
-    }
-
-    showToast(
-        active
-            ? `${blockType} block applied`
-            : `${blockType} block removed`
+    const user = await searchOwnerUser(
+        "ownerModerationUsername",
+        "ownerModerationResult"
     );
 
-    if (
-        currentProfile.role === "owner"
-    ) {
-        await ownerSearchModeration();
-    } else {
-        await adminSearchModeration();
-    }
-}
+
+    if (!user) return;
 
 
-/* =========================================================
-   ADMIN MANAGEMENT
-   ========================================================= */
+    const isOwner =
+        user.role === "owner";
 
-async function ownerSearchAdmin() {
 
-    const username =
-        $("ownerAdminUsername")?.value.trim();
+    $("ownerModerationResult").innerHTML = `
 
-    if (!username) return;
-
-    const user =
-        await findUserByUsername(username);
-
-    const result =
-        $("ownerAdminResult");
-
-    if (!result) return;
-
-    if (!user) {
-
-        result.innerHTML = `
-            <div class="empty-state">
-                User not found
-            </div>
-        `;
-
-        return;
-    }
-
-    if (user.role === "owner") {
-
-        result.innerHTML = `
-            <div class="empty-state">
-                Owner cannot be changed.
-            </div>
-        `;
-
-        return;
-    }
-
-    const isAdmin =
-        user.role === "admin";
-
-    result.innerHTML = `
         <div class="owner-user-card">
 
-            ${avatarHtml(
-                user,
-                "user-avatar"
-            )}
-
-            <div class="user-info">
-
+            <div>
                 <strong>
                     ${escapeHtml(user.full_name)}
                 </strong>
@@ -2461,15 +1736,153 @@ async function ownerSearchAdmin() {
                 <span>
                     @${escapeHtml(user.username)}
                 </span>
+            </div>
+
+            <div class="moderation-actions">
+
+                <button
+                    id="blockAccountBtn"
+                    ${isOwner ? "disabled" : ""}
+                >
+                    Block Account
+                </button>
+
+                <button
+                    id="blockMessagingBtn"
+                    ${isOwner ? "disabled" : ""}
+                >
+                    Block Messaging
+                </button>
+
+                <button
+                    id="unblockUserBtn"
+                    ${isOwner ? "disabled" : ""}
+                >
+                    Unblock
+                </button>
 
             </div>
 
-            <button
-                class="${isAdmin
-                    ? "danger-btn"
-                    : "primary-btn"}"
-                id="toggleAdminBtn"
-            >
+        </div>
+    `;
+
+
+    $("blockAccountBtn")
+        .addEventListener(
+            "click",
+            () => moderateUser(
+                user,
+                "account",
+                true
+            )
+        );
+
+
+    $("blockMessagingBtn")
+        .addEventListener(
+            "click",
+            () => moderateUser(
+                user,
+                "messaging",
+                true
+            )
+        );
+
+
+    $("unblockUserBtn")
+        .addEventListener(
+            "click",
+            () => moderateUser(
+                user,
+                "account",
+                false
+            )
+        );
+}
+
+
+async function moderateUser(
+    user,
+    blockType,
+    active
+) {
+
+    const reason =
+        active
+            ? prompt("Reason:")
+            : null;
+
+
+    const { error } = await supabase.rpc(
+        "owner_set_user_block",
+        {
+            target_user_id: user.id,
+            block_type: blockType,
+            reason_text: reason,
+            duration_days: null,
+            make_active: active
+        }
+    );
+
+
+    if (error) {
+
+        console.error(error);
+
+        showToast(error.message);
+
+        return;
+    }
+
+
+    showToast(
+        active
+            ? "Restriction applied"
+            : "Restriction removed"
+    );
+
+
+    await ownerModerationSearch();
+}
+
+
+/* =========================================================
+   OWNER ADMINS
+========================================================= */
+
+async function ownerAdminSearch() {
+
+    if (currentProfile?.role !== "owner") return;
+
+
+    const user = await searchOwnerUser(
+        "ownerAdminUsername",
+        "ownerAdminResult"
+    );
+
+
+    if (!user) return;
+
+
+    const isAdmin =
+        user.role === "admin";
+
+
+    $("ownerAdminResult").innerHTML = `
+
+        <div class="owner-user-card">
+
+            <div>
+                <strong>
+                    ${escapeHtml(user.full_name)}
+                </strong>
+
+                <span>
+                    @${escapeHtml(user.username)}
+                </span>
+            </div>
+
+            <button id="ownerAdminAction">
                 ${
                     isAdmin
                         ? "Remove Admin"
@@ -2480,57 +1893,41 @@ async function ownerSearchAdmin() {
         </div>
     `;
 
-    $("toggleAdminBtn")
-        ?.addEventListener(
+
+    $("ownerAdminAction")
+        .addEventListener(
             "click",
-            async () => {
-
-                await setAdmin(
-                    user.id,
-                    !isAdmin
-                );
-
-            }
+            () => ownerToggleAdmin(
+                user,
+                !isAdmin
+            )
         );
 }
 
 
-/* =========================================================
-   SET ADMIN
-   ========================================================= */
-
-async function setAdmin(
-    userId,
+async function ownerToggleAdmin(
+    user,
     makeAdmin
 ) {
 
-    if (currentProfile?.role !== "owner") {
-        showToast(
-            "Only Owner can manage admins",
-            "error"
-        );
-        return;
-    }
+    const { error } = await supabase.rpc(
+        "owner_set_admin",
+        {
+            target_user_id: user.id,
+            make_admin: makeAdmin
+        }
+    );
 
-    const { error } =
-        await supabase.rpc(
-            "owner_set_admin",
-            {
-                target_user_id: userId,
-                make_admin: makeAdmin
-            }
-        );
 
     if (error) {
+
         console.error(error);
 
-        showToast(
-            error.message,
-            "error"
-        );
+        showToast(error.message);
 
         return;
     }
+
 
     showToast(
         makeAdmin
@@ -2538,265 +1935,228 @@ async function setAdmin(
             : "Admin removed"
     );
 
-    await ownerSearchAdmin();
+
+    await ownerAdminSearch();
+
+    await loadMyProfile();
 }
 
 
 /* =========================================================
    REPORTS
-   ========================================================= */
+========================================================= */
 
-async function loadOwnerReports() {
+async function loadReports(targetId) {
 
-    if (
-        currentProfile?.role !== "owner" &&
-        currentProfile?.role !== "admin"
-    ) {
-        return;
-    }
-
-    const { data, error } =
-        await supabase
-            .from("reports")
-            .select(`
-                id,
-                reporter_id,
-                reported_user_id,
-                reason,
-                description,
-                status,
-                created_at
-            `)
-            .order("created_at", {
-                ascending: false
-            })
-            .limit(50);
-
-    if (error) {
-        console.error(error);
-        return;
-    }
-
-    renderReports(
-        data || [],
-        $("ownerReportsList") ||
-        $("adminReportsList")
-    );
-}
-
-
-/* =========================================================
-   RENDER REPORTS
-   ========================================================= */
-
-function renderReports(
-    reports,
-    container
-) {
+    const container =
+        $(targetId);
 
     if (!container) return;
 
-    if (!reports.length) {
+
+    const { data, error } = await supabase
+        .from("reports")
+        .select("*")
+        .order("created_at", {
+            ascending: false
+        });
+
+
+    if (error) {
+
+        console.error(error);
 
         container.innerHTML = `
             <div class="empty-state">
-                No reports
+                ${escapeHtml(error.message)}
             </div>
         `;
 
         return;
     }
 
-    container.innerHTML =
-        reports.map(report => `
 
-        <div class="report-card">
+    if (!data?.length) {
+
+        container.innerHTML = `
+            <div class="empty-state">
+                ${escapeHtml(t("noReports"))}
+            </div>
+        `;
+
+        return;
+    }
+
+
+    container.innerHTML = "";
+
+
+    data.forEach(report => {
+
+        const item =
+            document.createElement("div");
+
+        item.className = "report-item";
+
+
+        item.innerHTML = `
 
             <div>
-
                 <strong>
                     Report #${report.id}
                 </strong>
 
-                <span>
-                    Reason:
+                <p>
                     ${escapeHtml(report.reason)}
-                </span>
-
-                <span>
-                    ${escapeHtml(
-                        report.description || ""
-                    )}
-                </span>
+                </p>
 
                 <small>
-                    ${formatTime(
-                        report.created_at
-                    )}
-                    ·
-                    ${escapeHtml(
-                        report.status
-                    )}
+                    ${escapeHtml(report.description || "")}
                 </small>
-
             </div>
 
-            <div class="owner-actions">
+            <div>
 
-                ${
-                    report.status === "pending"
-                        ? `
-                            <button
-                                class="primary-btn"
-                                data-report-action="reviewed"
-                                data-report-id="${report.id}"
-                            >
-                                Review
-                            </button>
+                <span>
+                    ${escapeHtml(report.status)}
+                </span>
 
-                            <button
-                                class="danger-btn"
-                                data-report-action="dismissed"
-                                data-report-id="${report.id}"
-                            >
-                                Dismiss
-                            </button>
-                        `
-                        : ""
-                }
+                <button
+                    class="report-review-btn"
+                    data-id="${report.id}"
+                >
+                    Review
+                </button>
 
             </div>
+        `;
 
-        </div>
 
-    `).join("");
+        container.appendChild(item);
+    });
+
 
     container
-        .querySelectorAll(
-            "[data-report-action]"
-        )
+        .querySelectorAll(".report-review-btn")
         .forEach(button => {
 
             button.addEventListener(
                 "click",
-                async () => {
-
-                    await updateReport(
-                        Number(
-                            button.dataset.reportId
-                        ),
-                        button.dataset.reportAction
-                    );
-
-                }
+                () => updateReport(
+                    Number(button.dataset.id)
+                )
             );
 
         });
 }
 
 
-/* =========================================================
-   UPDATE REPORT
-   ========================================================= */
+async function updateReport(reportId) {
 
-async function updateReport(
-    reportId,
-    status
-) {
-
-    const { error } =
-        await supabase.rpc(
-            "admin_update_report",
-            {
-                report_id: reportId,
-                new_status: status
-            }
+    const status =
+        prompt(
+            "Enter status: reviewed or dismissed",
+            "reviewed"
         );
+
+
+    if (
+        status !== "reviewed" &&
+        status !== "dismissed"
+    ) return;
+
+
+    const { error } = await supabase.rpc(
+        "admin_update_report",
+        {
+            report_id: reportId,
+            new_status: status
+        }
+    );
+
 
     if (error) {
+
         console.error(error);
 
-        showToast(
-            error.message,
-            "error"
-        );
+        showToast(error.message);
 
         return;
     }
 
-    showToast(
-        "Report updated"
+
+    await loadReports(
+        "ownerReportsList"
     );
 
-    await loadOwnerReports();
+    showToast("Report updated");
 }
 
 
 /* =========================================================
-   CREATE GROUP
-   ========================================================= */
+   GROUPS
+========================================================= */
 
 async function createGroup(event) {
 
-    event?.preventDefault();
+    event.preventDefault();
+
+
+    if (!currentUser) return;
+
 
     const name =
-        $("groupName")?.value.trim();
+        $("groupName").value.trim();
 
     const username =
-        $("groupUsername")?.value
+        $("groupUsername").value
             .trim()
             .toLowerCase();
 
     const bio =
-        $("groupBio")?.value.trim();
+        $("groupBio").value.trim();
 
-    if (!name || !username) {
-        showToast(
-            "Group name and username are required",
-            "error"
-        );
+
+    if (!name) {
+
+        showToast("Group name is required");
+
         return;
     }
 
-    if (!/^[a-z0-9_]{3,32}$/.test(username)) {
-        showToast(
-            "Invalid group username",
-            "error"
-        );
+
+    if (
+        username &&
+        !/^[a-z0-9_]{3,32}$/.test(username)
+    ) {
+
+        showToast("Invalid group username");
+
         return;
     }
 
-    const { data, error } =
-        await supabase
-            .from("groups")
-            .insert({
-                owner_id: currentUser.id,
-                name,
-                username,
-                bio: bio || ""
-            })
-            .select()
-            .single();
+
+    const { data, error } = await supabase
+        .from("groups")
+        .insert({
+            owner_id: currentUser.id,
+            name,
+            username: username || null,
+            bio
+        })
+        .select()
+        .single();
+
 
     if (error) {
 
         console.error(error);
 
-        if (error.code === "23505") {
-            showToast(
-                "Group username already exists",
-                "error"
-            );
-        } else {
-            showToast(
-                error.message,
-                "error"
-            );
-        }
+        showToast(error.message);
 
         return;
     }
+
 
     const { error: memberError } =
         await supabase
@@ -2807,101 +2167,91 @@ async function createGroup(event) {
                 role: "owner"
             });
 
+
     if (memberError) {
 
         console.error(memberError);
 
-        showToast(
-            memberError.message,
-            "error"
-        );
+        showToast(memberError.message);
 
         return;
     }
 
-    $("groupName").value = "";
-    $("groupUsername").value = "";
-    $("groupBio").value = "";
 
-    hide(
-        $("createGroupModal")
-    );
+    closeModal("createGroupModal");
 
-    showToast(
-        "Group created"
-    );
+    $("groupForm").reset();
 
-    if (currentTab === "groups") {
-        await loadGroups();
-    }
+    showToast("Group created");
+
+    await loadGroups();
 }
 
 
 /* =========================================================
-   CREATE CHANNEL
-   ========================================================= */
+   CHANNELS
+========================================================= */
 
 async function createChannel(event) {
 
-    event?.preventDefault();
+    event.preventDefault();
+
+
+    if (!currentUser) return;
+
 
     const name =
-        $("channelName")?.value.trim();
+        $("channelName").value.trim();
 
     const username =
-        $("channelUsername")?.value
+        $("channelUsername").value
             .trim()
             .toLowerCase();
 
     const bio =
-        $("channelBio")?.value.trim();
+        $("channelBio").value.trim();
 
-    if (!name || !username) {
-        showToast(
-            "Channel name and username are required",
-            "error"
-        );
+
+    if (!name) {
+
+        showToast("Channel name is required");
+
         return;
     }
 
-    if (!/^[a-z0-9_]{3,32}$/.test(username)) {
-        showToast(
-            "Invalid channel username",
-            "error"
-        );
+
+    if (
+        username &&
+        !/^[a-z0-9_]{3,32}$/.test(username)
+    ) {
+
+        showToast("Invalid channel username");
+
         return;
     }
 
-    const { data, error } =
-        await supabase
-            .from("channels")
-            .insert({
-                owner_id: currentUser.id,
-                name,
-                username,
-                bio: bio || ""
-            })
-            .select()
-            .single();
+
+    const { data, error } = await supabase
+        .from("channels")
+        .insert({
+            owner_id: currentUser.id,
+            name,
+            username: username || null,
+            bio
+        })
+        .select()
+        .single();
+
 
     if (error) {
 
         console.error(error);
 
-        if (error.code === "23505") {
-            showToast(
-                "Channel username already exists",
-                "error"
-            );
-        } else {
-            showToast(
-                error.message,
-                "error"
-            );
-        }
+        showToast(error.message);
 
         return;
     }
+
 
     const { error: memberError } =
         await supabase
@@ -2912,384 +2262,281 @@ async function createChannel(event) {
                 role: "owner"
             });
 
+
     if (memberError) {
 
         console.error(memberError);
 
-        showToast(
-            memberError.message,
-            "error"
-        );
+        showToast(memberError.message);
 
         return;
     }
 
-    $("channelName").value = "";
-    $("channelUsername").value = "";
-    $("channelBio").value = "";
 
-    hide(
-        $("createChannelModal")
-    );
+    closeModal("createChannelModal");
 
-    showToast(
-        "Channel created"
-    );
+    $("channelForm").reset();
 
-    if (currentTab === "channels") {
-        await loadChannels();
-    }
+    showToast("Channel created");
+
+    await loadChannels();
 }
 
 
 /* =========================================================
-   GROUPS
-   ========================================================= */
+   GROUP LIST
+========================================================= */
 
 async function loadGroups() {
 
-    const list =
-        $("userList");
+    const { data, error } = await supabase
+        .from("groups")
+        .select("*")
+        .order("created_at", {
+            ascending: false
+        });
 
-    if (!list) return;
-
-    const {
-        data: memberships,
-        error
-    } = await supabase
-        .from("group_members")
-        .select(`
-            group_id,
-            role
-        `)
-        .eq(
-            "user_id",
-            currentUser.id
-        );
 
     if (error) {
+
         console.error(error);
+
         return;
     }
 
-    const ids =
-        (memberships || [])
-            .map(
-                item => item.group_id
-            );
 
-    if (!ids.length) {
+    const list = $("userList");
+
+    list.innerHTML = "";
+
+
+    if (!data?.length) {
 
         list.innerHTML = `
             <div class="empty-state">
-                No groups yet
+                <i class="fa-solid fa-users"></i>
+                <p>No groups yet.</p>
             </div>
         `;
 
         return;
     }
 
-    const {
-        data: groups,
-        error: groupError
-    } = await supabase
-        .from("groups")
-        .select(`
-            id,
-            name,
-            username,
-            bio,
-            avatar_url
-        `)
-        .in(
-            "id",
-            ids
-        );
 
-    if (groupError) {
-        console.error(groupError);
-        return;
-    }
+    data.forEach(group => {
 
-    list.innerHTML =
-        (groups || [])
-            .map(group => `
+        const item =
+            document.createElement("div");
 
-        <div
-            class="user-item"
-            data-group-id="${group.id}"
-        >
+        item.className = "chat-item";
 
-            ${avatarHtml(
-                {
-                    full_name: group.name,
-                    username: group.username,
-                    avatar_url: group.avatar_url
-                },
-                "user-avatar"
-            )}
 
-            <div class="user-info">
-
-                <strong>
-                    ${escapeHtml(
-                        group.name
-                    )}
-                </strong>
-
-                <span>
-                    @${escapeHtml(
-                        group.username
-                    )}
-                </span>
-
+        item.innerHTML = `
+            <div class="profile-avatar">
+                ${escapeHtml(
+                    getInitial(group.name)
+                )}
             </div>
 
-        </div>
+            <div class="chat-item-info">
 
-    `).join("");
+                <h3>
+                    ${escapeHtml(group.name)}
+                </h3>
 
-    list
-        .querySelectorAll(
-            "[data-group-id]"
-        )
-        .forEach(item => {
+                <p>
+                    ${
+                        group.username
+                            ? "@" + escapeHtml(group.username)
+                            : "Group"
+                    }
+                </p>
 
-            item.addEventListener(
-                "click",
-                () => {
+            </div>
+        `;
 
-                    showToast(
-                        "Group chat will be connected next"
-                    );
 
-                }
-            );
+        item.addEventListener(
+            "click",
+            () => {
 
-        });
+                showToast(
+                    "Group chat will be connected next"
+                );
+
+            }
+        );
+
+
+        list.appendChild(item);
+    });
 }
 
 
 /* =========================================================
-   CHANNELS
-   ========================================================= */
+   CHANNEL LIST
+========================================================= */
 
 async function loadChannels() {
 
-    const list =
-        $("userList");
+    const { data, error } = await supabase
+        .from("channels")
+        .select("*")
+        .order("created_at", {
+            ascending: false
+        });
 
-    if (!list) return;
-
-    const {
-        data: memberships,
-        error
-    } = await supabase
-        .from("channel_members")
-        .select(`
-            channel_id,
-            role
-        `)
-        .eq(
-            "user_id",
-            currentUser.id
-        );
 
     if (error) {
+
         console.error(error);
+
         return;
     }
 
-    const ids =
-        (memberships || [])
-            .map(
-                item => item.channel_id
-            );
 
-    if (!ids.length) {
+    const list = $("userList");
+
+    list.innerHTML = "";
+
+
+    if (!data?.length) {
 
         list.innerHTML = `
             <div class="empty-state">
-                No channels yet
+                <i class="fa-solid fa-bullhorn"></i>
+                <p>No channels yet.</p>
             </div>
         `;
 
         return;
     }
 
-    const {
-        data: channels,
-        error: channelError
-    } = await supabase
-        .from("channels")
-        .select(`
-            id,
-            name,
-            username,
-            bio,
-            avatar_url
-        `)
-        .in(
-            "id",
-            ids
-        );
 
-    if (channelError) {
-        console.error(channelError);
-        return;
-    }
+    data.forEach(channel => {
 
-    list.innerHTML =
-        (channels || [])
-            .map(channel => `
+        const item =
+            document.createElement("div");
 
-        <div
-            class="user-item"
-            data-channel-id="${channel.id}"
-        >
+        item.className = "chat-item";
 
-            ${avatarHtml(
-                {
-                    full_name: channel.name,
-                    username: channel.username,
-                    avatar_url: channel.avatar_url
-                },
-                "user-avatar"
-            )}
 
-            <div class="user-info">
-
-                <strong>
-                    ${escapeHtml(
-                        channel.name
-                    )}
-                </strong>
-
-                <span>
-                    @${escapeHtml(
-                        channel.username
-                    )}
-                </span>
-
+        item.innerHTML = `
+            <div class="profile-avatar">
+                ${escapeHtml(
+                    getInitial(channel.name)
+                )}
             </div>
 
-        </div>
+            <div class="chat-item-info">
 
-    `).join("");
+                <h3>
+                    ${escapeHtml(channel.name)}
+                </h3>
 
-    list
-        .querySelectorAll(
-            "[data-channel-id]"
-        )
-        .forEach(item => {
+                <p>
+                    ${
+                        channel.username
+                            ? "@" + escapeHtml(channel.username)
+                            : "Channel"
+                    }
+                </p>
 
-            item.addEventListener(
-                "click",
-                () => {
+            </div>
+        `;
 
-                    showToast(
-                        "Channel view will be connected next"
-                    );
 
-                }
-            );
+        item.addEventListener(
+            "click",
+            () => {
 
-        });
+                showToast(
+                    "Channel chat will be connected next"
+                );
+
+            }
+        );
+
+
+        list.appendChild(item);
+    });
 }
 
 
 /* =========================================================
    TABS
-   ========================================================= */
+========================================================= */
 
 function setupTabs() {
 
-    document
-        .querySelectorAll(
-            "[data-tab]"
-        )
-        .forEach(tab => {
+    document.querySelectorAll(
+        ".sidebar-tab"
+    ).forEach(tab => {
 
-            tab.addEventListener(
-                "click",
-                async () => {
+        tab.addEventListener(
+            "click",
+            async () => {
 
-                    document
-                        .querySelectorAll(
-                            "[data-tab]"
-                        )
-                        .forEach(item =>
-                            item.classList.remove(
-                                "active"
-                            )
-                        );
+                document.querySelectorAll(
+                    ".sidebar-tab"
+                ).forEach(item => {
 
-                    tab.classList.add(
+                    item.classList.remove(
                         "active"
                     );
 
-                    currentTab =
-                        tab.dataset.tab;
+                });
 
-                    const searchInput =
-                        $("searchInput");
 
-                    if (searchInput) {
-                        searchInput.value = "";
-                    }
+                tab.classList.add("active");
 
-                    if (
-                        currentTab === "groups"
-                    ) {
-                        await loadGroups();
 
-                    } else if (
-                        currentTab === "channels"
-                    ) {
-                        await loadChannels();
+                currentTab =
+                    tab.dataset.tab;
 
-                    } else {
-                        await loadDefaultList();
-                    }
 
+                if (currentTab === "chats") {
+                    await loadDefaultList();
                 }
-            );
 
-        });
+                if (currentTab === "groups") {
+                    await loadGroups();
+                }
+
+                if (currentTab === "channels") {
+                    await loadChannels();
+                }
+
+            }
+        );
+    });
 }
 
 
 /* =========================================================
    MOBILE
-   ========================================================= */
+========================================================= */
 
 function setupMobile() {
 
-    const backBtn =
-        $("mobileBackBtn");
+    $("mobileBackBtn")
+        ?.addEventListener(
+            "click",
+            () => {
 
-    if (!backBtn) return;
+                document.querySelector(".app")
+                    ?.classList.remove(
+                        "chat-open"
+                    );
 
-    backBtn.addEventListener(
-        "click",
-        () => {
-
-            document
-                .querySelector(".app")
-                ?.classList.remove(
-                    "chat-open"
-                );
-
-            selectedUser = null;
-
-        }
-    );
+            }
+        );
 }
 
 
 /* =========================================================
    LOGOUT
-   ========================================================= */
+========================================================= */
 
 async function logout() {
 
@@ -3310,23 +2557,13 @@ async function logout() {
 
 /* =========================================================
    REALTIME
-   ========================================================= */
+========================================================= */
 
 function setupRealtime() {
 
-    if (realtimeChannel) {
-
-        supabase.removeChannel(
-            realtimeChannel
-        );
-    }
-
-    realtimeChannel =
+    messageChannel =
         supabase
-            .channel(
-                "msgbox-realtime"
-            )
-
+            .channel("msgbox-messages")
             .on(
                 "postgres_changes",
                 {
@@ -3337,35 +2574,38 @@ function setupRealtime() {
                 async payload => {
 
                     const message =
-                        payload.new ||
-                        payload.old;
+                        payload.new;
+
 
                     if (!message) return;
+
 
                     if (
                         selectedUser &&
                         (
                             (
-                                message.sender_id ===
-                                currentUser.id &&
-                                message.receiver_id ===
-                                selectedUser.id
+                                message.sender_id === currentUser.id &&
+                                message.receiver_id === selectedUser.id
                             )
                             ||
                             (
-                                message.sender_id ===
-                                selectedUser.id &&
-                                message.receiver_id ===
-                                currentUser.id
+                                message.sender_id === selectedUser.id &&
+                                message.receiver_id === currentUser.id
                             )
                         )
                     ) {
 
                         await loadMessages();
                     }
+
                 }
             )
+            .subscribe();
 
+
+    contactChannel =
+        supabase
+            .channel("msgbox-contact-requests")
             .on(
                 "postgres_changes",
                 {
@@ -3375,372 +2615,326 @@ function setupRealtime() {
                 },
                 async payload => {
 
-                    const request =
-                        payload.new ||
-                        payload.old;
+                    const row =
+                        payload.new;
 
-                    if (!request) return;
 
                     if (
-                        request.sender_id ===
-                        currentUser.id ||
-                        request.receiver_id ===
-                        currentUser.id
+                        row?.receiver_id === currentUser.id ||
+                        row?.sender_id === currentUser.id
                     ) {
 
-                        if (
-                            selectedUser &&
-                            (
-                                request.sender_id ===
-                                selectedUser.id ||
-                                request.receiver_id ===
-                                selectedUser.id
-                            )
-                        ) {
+                        await updateContactActions();
 
-                            await checkContactStatus();
-
-                            if (
-                                selectedContactStatus ===
-                                "accepted"
-                            ) {
-                                await loadMessages();
-                            } else {
-                                renderWelcomeMessage();
-                            }
+                        if (currentTab === "chats") {
+                            await loadDefaultList();
                         }
 
-                        await loadDefaultList();
                     }
+
                 }
             )
-
-            .subscribe(
-                status => {
-                    console.log(
-                        "Realtime:",
-                        status
-                    );
-                }
-            );
+            .subscribe();
 }
 
 
 /* =========================================================
-   EVENT LISTENERS
-   ========================================================= */
+   EVENT SETUP
+========================================================= */
 
 function setupEvents() {
-
-    /* Search */
-
-    const searchInput =
-        $("searchInput");
-
-    if (searchInput) {
-
-        searchInput.addEventListener(
-            "input",
-            () => {
-
-                clearTimeout(
-                    searchTimer
-                );
-
-                searchTimer =
-                    setTimeout(
-                        async () => {
-
-                            if (
-                                currentTab !==
-                                "chats"
-                            ) {
-                                return;
-                            }
-
-                            await searchUsers(
-                                searchInput.value
-                            );
-
-                        },
-                        300
-                    );
-            }
-        );
-    }
-
-
-    /* Contact buttons */
-
-    $("addContactBtn")
-        ?.addEventListener(
-            "click",
-            sendContactRequest
-        );
-
-    $("acceptContactBtn")
-        ?.addEventListener(
-            "click",
-            acceptContactRequest
-        );
-
-    $("declineContactBtn")
-        ?.addEventListener(
-            "click",
-            declineContactRequest
-        );
-
-
-    /* Message */
-
-    $("messageForm")
-        ?.addEventListener(
-            "submit",
-            sendMessage
-        );
-
-    $("messageInput")
-        ?.addEventListener(
-            "keydown",
-            event => {
-
-                if (
-                    event.key === "Enter" &&
-                    !event.shiftKey
-                ) {
-
-                    event.preventDefault();
-
-                    $("messageForm")
-                        ?.requestSubmit();
-                }
-
-            }
-        );
-
-
-    /* Message edit/delete */
-
-    setupMessageActions();
-
-
-    /* Emoji */
-
-    $("emojiBtn")
-        ?.addEventListener(
-            "click",
-            toggleEmojiPanel
-        );
-
-
-    /* Image */
-
-    $("imageBtn")
-        ?.addEventListener(
-            "click",
-            () => {
-                $("imageInput")?.click();
-            }
-        );
-
-    $("imageInput")
-        ?.addEventListener(
-            "change",
-            async event => {
-
-                const file =
-                    event.target.files?.[0];
-
-                if (file) {
-                    await sendImage(file);
-                }
-
-                event.target.value = "";
-            }
-        );
-
-
-    /* Sticker */
-
-    $("stickerBtn")
-        ?.addEventListener(
-            "click",
-            () => {
-
-                showToast(
-                    "Sticker system will be connected next"
-                );
-
-            }
-        );
-
 
     /* Settings */
 
     $("settingsBtn")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            openSettings
+            () => openModal("settingsModal")
         );
 
+
     $("closeSettingsBtn")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            closeSettings
+            () => closeModal("settingsModal")
         );
 
 
     /* Profile */
 
-    $("profileSettingsBtn")
-        ?.addEventListener(
+    $("myProfileBtn")
+        .addEventListener(
             "click",
-            openProfileModal
+            openProfileSettings
         );
+
+
+    $("profileSettingsBtn")
+        .addEventListener(
+            "click",
+            () => {
+
+                closeModal("settingsModal");
+
+                openProfileSettings();
+
+            }
+        );
+
 
     $("closeProfileBtn")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            closeProfileModal
+            () => closeModal("profileModal")
         );
 
+
     $("profileForm")
-        ?.addEventListener(
+        .addEventListener(
             "submit",
             saveProfile
         );
 
 
-    /* Avatar */
+    /* Language */
 
-    $("profileAvatarInput")
-        ?.addEventListener(
-            "change",
-            async event => {
+    $("languageSettingsBtn")
+        .addEventListener(
+            "click",
+            () => {
 
-                const file =
-                    event.target.files?.[0];
+                closeModal("settingsModal");
 
-                if (file) {
-                    await uploadAvatar(file);
-                }
+                openModal("languageModal");
 
-                event.target.value = "";
             }
         );
 
 
-    /* Logout */
+    $("closeLanguageBtn")
+        .addEventListener(
+            "click",
+            () => closeModal("languageModal")
+        );
 
-    document
-        .querySelectorAll(
-            "[data-logout]"
-        )
-        .forEach(button => {
 
-            button.addEventListener(
-                "click",
-                logout
-            );
+    document.querySelectorAll(
+        ".language-option"
+    ).forEach(option => {
 
-        });
+        option.addEventListener(
+            "click",
+            () => {
+
+                setLanguage(
+                    option.dataset.language
+                );
+
+            }
+        );
+
+    });
 
 
     /* Owner */
 
     $("ownerPanelButton")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            openOwnerPanel
+            () => {
+
+                closeModal("settingsModal");
+
+                openModal("ownerModal");
+
+                loadReports(
+                    "ownerReportsList"
+                );
+
+            }
         );
+
 
     $("closeOwnerBtn")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            closeOwnerPanel
+            () => closeModal("ownerModal")
         );
+
 
     $("ownerVerifiedSearchBtn")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            ownerSearchVerified
+            ownerVerifiedSearch
         );
+
 
     $("ownerModerationSearchBtn")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            ownerSearchModeration
+            ownerModerationSearch
         );
 
+
     $("ownerAdminSearchBtn")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            ownerSearchAdmin
+            ownerAdminSearch
         );
+
+
+    /* Owner tabs */
+
+    document.querySelectorAll(
+        ".owner-tab"
+    ).forEach(tab => {
+
+        tab.addEventListener(
+            "click",
+            () => {
+
+                document.querySelectorAll(
+                    ".owner-tab"
+                ).forEach(item =>
+                    item.classList.remove("active")
+                );
+
+
+                document.querySelectorAll(
+                    ".owner-section"
+                ).forEach(section =>
+                    section.classList.remove("active")
+                );
+
+
+                tab.classList.add("active");
+
+
+                const target =
+                    tab.dataset.ownerTab;
+
+
+                const section =
+                    $(
+                        `owner${target.charAt(0).toUpperCase() + target.slice(1)}Section`
+                    );
+
+
+                section?.classList.add("active");
+
+            }
+        );
+    });
 
 
     /* Admin */
 
     $("adminPanelButton")
-        ?.addEventListener(
+        .addEventListener(
             "click",
             () => {
 
-                if (
-                    currentProfile?.role !==
-                    "admin" &&
-                    currentProfile?.role !==
-                    "owner"
-                ) {
-                    return;
-                }
+                closeModal("settingsModal");
 
-                show(
-                    $("adminModal")
-                );
+                openModal("adminModal");
 
-                loadOwnerReports();
             }
         );
 
+
     $("closeAdminBtn")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            () =>
-                hide(
-                    $("adminModal")
-                )
+            () => closeModal("adminModal")
         );
 
-    $("adminModerationSearchBtn")
-        ?.addEventListener(
+
+    $("openAdminReportsBtn")
+        .addEventListener(
             "click",
-            adminSearchModeration
+            async () => {
+
+                closeModal("adminModal");
+
+                openModal("ownerModal");
+
+                document.querySelector(
+                    '[data-owner-tab="reports"]'
+                )?.click();
+
+                await loadReports(
+                    "ownerReportsList"
+                );
+
+            }
+        );
+
+
+    $("openAdminUsersBtn")
+        .addEventListener(
+            "click",
+            () => {
+
+                closeModal("adminModal");
+
+                openModal("ownerModal");
+
+                document.querySelector(
+                    '[data-owner-tab="users"]'
+                )?.click();
+
+            }
+        );
+
+
+    $("openAdminGroupsBtn")
+        .addEventListener(
+            "click",
+            () => {
+
+                closeModal("adminModal");
+
+                showToast(
+                    "Group moderation is coming next"
+                );
+
+            }
+        );
+
+
+    $("openAdminChannelsBtn")
+        .addEventListener(
+            "click",
+            () => {
+
+                closeModal("adminModal");
+
+                showToast(
+                    "Channel moderation is coming next"
+                );
+
+            }
         );
 
 
     /* Create Group */
 
     $("createGroupBtn")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            () =>
-                show(
-                    $("createGroupModal")
-                )
+            () => openModal("createGroupModal")
         );
+
 
     $("closeGroupBtn")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            () =>
-                hide(
-                    $("createGroupModal")
-                )
+            () => closeModal("createGroupModal")
         );
 
+
     $("groupForm")
-        ?.addEventListener(
+        .addEventListener(
             "submit",
             createGroup
         );
@@ -3749,28 +2943,108 @@ function setupEvents() {
     /* Create Channel */
 
     $("createChannelBtn")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            () =>
-                show(
-                    $("createChannelModal")
-                )
+            () => openModal("createChannelModal")
         );
+
 
     $("closeChannelBtn")
-        ?.addEventListener(
+        .addEventListener(
             "click",
-            () =>
-                hide(
-                    $("createChannelModal")
-                )
+            () => closeModal("createChannelModal")
         );
 
+
     $("channelForm")
-        ?.addEventListener(
+        .addEventListener(
             "submit",
             createChannel
         );
+
+
+    /* Contact */
+
+    $("addContactBtn")
+        .addEventListener(
+            "click",
+            sendContactRequest
+        );
+
+
+    $("acceptContactBtn")
+        .addEventListener(
+            "click",
+            () => updateContactRequest("accepted")
+        );
+
+
+    $("declineContactBtn")
+        .addEventListener(
+            "click",
+            () => updateContactRequest("declined")
+        );
+
+
+    /* Message */
+
+    $("messageForm")
+        .addEventListener(
+            "submit",
+            event => {
+
+                event.preventDefault();
+
+                sendMessage(
+                    $("messageInput").value
+                );
+
+            }
+        );
+
+
+    $("imageBtn")
+        .addEventListener(
+            "click",
+            () => $("imageInput").click()
+        );
+
+
+    $("imageInput")
+        .addEventListener(
+            "change",
+            event => {
+
+                const file =
+                    event.target.files?.[0];
+
+                if (file) {
+                    sendImage(file);
+                }
+
+                event.target.value = "";
+
+            }
+        );
+
+
+    $("stickerBtn")
+        .addEventListener(
+            "click",
+            () => showToast(
+                "Stickers will be connected next"
+            )
+        );
+
+
+    /* Emoji */
+
+    setupEmoji();
+
+
+    /* Search */
+
+    setupSearch();
 
 
     /* Tabs */
@@ -3783,49 +3057,107 @@ function setupEvents() {
     setupMobile();
 
 
-    /* Emoji */
+    /* Logout */
 
-    setupEmojiPanel();
+    $("logoutBtn")
+        .addEventListener(
+            "click",
+            logout
+        );
 
 
-    /* Close modals */
+    $("settingsLogoutBtn")
+        .addEventListener(
+            "click",
+            logout
+        );
 
-    document
-        .querySelectorAll(
-            ".modal"
-        )
-        .forEach(modal => {
 
-            modal.addEventListener(
-                "click",
-                event => {
+    /* Avatar */
 
-                    if (
-                        event.target ===
-                        modal
-                    ) {
-                        hide(modal);
-                    }
+    $("profileAvatarInput")
+        .addEventListener(
+            "change",
+            event => {
+
+                const file =
+                    event.target.files?.[0];
+
+                if (!file) return;
+
+                const reader =
+                    new FileReader();
+
+                reader.onload = () => {
+
+                    $("profileEditAvatar")
+                        .style.backgroundImage =
+                        `url("${reader.result}")`;
+
+                    $("profileEditAvatar")
+                        .style.backgroundSize =
+                        "cover";
+
+                    $("profileEditAvatar")
+                        .style.backgroundPosition =
+                        "center";
+
+                    $("profileEditAvatar")
+                        .textContent = "";
+
+                };
+
+                reader.readAsDataURL(file);
+
+            }
+        );
+
+
+    /* Close when clicking outside */
+
+    document.querySelectorAll(
+        ".modal-overlay"
+    ).forEach(overlay => {
+
+        overlay.addEventListener(
+            "click",
+            event => {
+
+                if (event.target === overlay) {
+
+                    overlay.classList.remove(
+                        "active"
+                    );
 
                 }
-            );
 
-        });
+            }
+        );
+
+    });
 }
 
 
 /* =========================================================
-   INIT
-   ========================================================= */
+   INITIALIZE
+========================================================= */
 
 async function init() {
 
-    const sessionOk =
-        await checkSession();
+    applyLanguage();
 
-    if (!sessionOk) return;
 
-    await loadMyProfile();
+    const sessionLoaded =
+        await loadSession();
+
+    if (!sessionLoaded) return;
+
+
+    const profileLoaded =
+        await loadMyProfile();
+
+    if (!profileLoaded) return;
+
 
     setupEvents();
 
@@ -3833,19 +3165,13 @@ async function init() {
 
     await loadDefaultList();
 
-    renderWelcomeMessage();
 
-    console.log(
-        "MsgBox V2 Dashboard loaded 🚀"
-    );
+    $("messageInput").disabled = true;
+    $("sendButton").disabled = true;
+    $("imageBtn").disabled = true;
+    $("emojiBtn").disabled = true;
+    $("stickerBtn").disabled = true;
 }
 
 
-/* =========================================================
-   START
-   ========================================================= */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    init
-);
+init();
