@@ -7480,4 +7480,229 @@
         );
     }
 
+/* =========================================
+   MESSAGE SWIPE ACTIONS + PROFILE AVATAR FIX
+========================================= */
+
+function setupMessageSwipe(wrapper) {
+    if (!wrapper) return;
+
+    let startX = 0;
+    let startY = 0;
+    let currentX = 0;
+    let swiping = false;
+    let longPressTimer = null;
+
+    const bubble = wrapper.querySelector(".message-bubble");
+
+    if (!bubble) return;
+
+    function closeOtherMessages() {
+        document
+            .querySelectorAll(".message-wrapper.swiped")
+            .forEach(item => {
+                if (item !== wrapper) {
+                    item.classList.remove("swiped");
+                    const itemBubble = item.querySelector(".message-bubble");
+
+                    if (itemBubble) {
+                        itemBubble.style.transform = "";
+                    }
+                }
+            });
+    }
+
+    wrapper.addEventListener("pointerdown", (e) => {
+        startX = e.clientX;
+        startY = e.clientY;
+        currentX = startX;
+        swiping = false;
+
+        clearTimeout(longPressTimer);
+
+        longPressTimer = setTimeout(() => {
+            closeOtherMessages();
+            wrapper.classList.add("swiped");
+        }, 450);
+    });
+
+    wrapper.addEventListener("pointermove", (e) => {
+        currentX = e.clientX;
+
+        const deltaX = currentX - startX;
+        const deltaY = Math.abs(e.clientY - startY);
+
+        if (deltaY > 30) {
+            clearTimeout(longPressTimer);
+            return;
+        }
+
+        // Faqat chapga swipe
+        if (deltaX < -10) {
+            swiping = true;
+            clearTimeout(longPressTimer);
+
+            closeOtherMessages();
+
+            const distance = Math.min(Math.abs(deltaX), 150);
+
+            bubble.style.transform = `translateX(-${distance}px)`;
+        }
+    });
+
+    wrapper.addEventListener("pointerup", () => {
+        clearTimeout(longPressTimer);
+
+        if (swiping) {
+            const deltaX = currentX - startX;
+
+            if (deltaX < -60) {
+                wrapper.classList.add("swiped");
+                bubble.style.transform = "translateX(-145px)";
+            } else {
+                wrapper.classList.remove("swiped");
+                bubble.style.transform = "";
+            }
+        }
+
+        swiping = false;
+    });
+
+    wrapper.addEventListener("pointercancel", () => {
+        clearTimeout(longPressTimer);
+        swiping = false;
+
+        wrapper.classList.remove("swiped");
+        bubble.style.transform = "";
+    });
+
+    // Action tugmalari xabarni yopib yubormasin
+    wrapper.querySelectorAll(".message-action").forEach(button => {
+        button.addEventListener("pointerdown", e => {
+            e.stopPropagation();
+        });
+
+        button.addEventListener("click", e => {
+            e.stopPropagation();
+        });
+    });
+}
+
+
+/* =========================================
+   MESSAGE ACTIONS INITIALIZER
+========================================= */
+
+function initializeMessageSwipes() {
+    document
+        .querySelectorAll(".message-wrapper")
+        .forEach(wrapper => {
+            if (wrapper.dataset.swipeReady === "true") return;
+
+            wrapper.dataset.swipeReady = "true";
+            setupMessageSwipe(wrapper);
+        });
+}
+
+
+/* =========================================
+   CLOSE SWIPED MESSAGE
+========================================= */
+
+document.addEventListener("click", (e) => {
+    if (
+        !e.target.closest(".message-wrapper") &&
+        !e.target.closest(".message-action")
+    ) {
+        document
+            .querySelectorAll(".message-wrapper.swiped")
+            .forEach(wrapper => {
+                wrapper.classList.remove("swiped");
+
+                const bubble = wrapper.querySelector(".message-bubble");
+
+                if (bubble) {
+                    bubble.style.transform = "";
+                }
+            });
+    }
+});
+
+
+/* =========================================
+   PROFILE AVATAR FIX
+========================================= */
+
+function fixProfileAvatar(container) {
+    if (!container) return;
+
+    container.style.width = "110px";
+    container.style.height = "110px";
+    container.style.minWidth = "110px";
+    container.style.minHeight = "110px";
+    container.style.maxWidth = "110px";
+    container.style.maxHeight = "110px";
+    container.style.aspectRatio = "1 / 1";
+    container.style.borderRadius = "50%";
+    container.style.overflow = "hidden";
+
+    const image = container.querySelector("img");
+
+    if (image) {
+        image.style.width = "100%";
+        image.style.height = "100%";
+        image.style.minWidth = "100%";
+        image.style.minHeight = "100%";
+        image.style.objectFit = "cover";
+        image.style.objectPosition = "center";
+        image.style.display = "block";
+    }
+}
+
+
+/* =========================================
+   FIX PROFILE POPUP AVATAR
+========================================= */
+
+function fixAllProfileAvatars() {
+    const selectors = [
+        ".profile-popup-avatar-wrap",
+        ".user-profile-avatar",
+        "#userProfileAvatar",
+        "#profilePopupAvatar"
+    ];
+
+    selectors.forEach(selector => {
+        document
+            .querySelectorAll(selector)
+            .forEach(container => {
+                fixProfileAvatar(container);
+            });
+    });
+}
+
+
+/* =========================================
+   AUTO FIX AFTER DOM CHANGES
+========================================= */
+
+const profileAvatarObserver = new MutationObserver(() => {
+    fixAllProfileAvatars();
+    initializeMessageSwipes();
+});
+
+profileAvatarObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+});
+
+
+/* =========================================
+   INITIAL START
+========================================= */
+
+setTimeout(() => {
+    fixAllProfileAvatars();
+    initializeMessageSwipes();
+}, 300);
 })();
