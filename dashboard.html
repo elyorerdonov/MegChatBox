@@ -6,10 +6,11 @@
 
     <title>MsgBox</title>
 
-    <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-    >
+    <!-- Prevent favicon 404 -->
+    <link rel="icon" href="data:,">
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css">
 
     <link rel="stylesheet" href="dashboard.css">
 </head>
@@ -19,42 +20,62 @@
 <div class="app" id="app">
 
     <!-- ================= SIDEBAR ================= -->
-
     <aside class="sidebar" id="sidebar">
 
+        <!-- Header -->
         <div class="sidebar-header">
 
-            <div class="profile" id="myProfileBtn">
-                <div class="profile-avatar" id="myAvatar">?</div>
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
 
-                <div class="profile-info">
-                    <h3>
-                        <span id="myName">Loading...</span>
-
-                        <span
-                            id="myVerified"
-                            class="verified-badge"
-                            style="display:none;"
-                        >✓</span>
-                    </h3>
-
-                    <p id="myUsername">@username</p>
+                <div class="brand-text">
+                    <strong>MsgBox</strong>
+                    <span>Messenger</span>
                 </div>
             </div>
 
-            <button
-                class="icon-btn"
-                id="settingsBtn"
-                title="Settings"
-            >
+            <button class="icon-btn" id="settingsBtn" title="Settings">
                 <i class="fa-solid fa-gear"></i>
             </button>
 
         </div>
 
-        <!-- SEARCH -->
 
+        <!-- My Profile -->
+        <button class="profile-card" id="myProfileBtn">
+
+            <div class="avatar avatar-medium" id="myAvatar">
+                ?
+            </div>
+
+            <div class="profile-info">
+
+                <div class="profile-name-row">
+                    <span id="myName">Loading...</span>
+
+                    <span class="verified-badge"
+                          id="myVerified"
+                          style="display:none;">
+                        ✓
+                    </span>
+                </div>
+
+                <span class="profile-username" id="myUsername">
+                    @username
+                </span>
+
+            </div>
+
+            <i class="fa-solid fa-chevron-right profile-arrow"></i>
+
+        </button>
+
+
+        <!-- Search -->
         <div class="search-box">
+
             <i class="fa-solid fa-magnifying-glass"></i>
 
             <input
@@ -63,18 +84,27 @@
                 placeholder="Search username..."
                 autocomplete="off"
             >
+
+            <button
+                class="search-clear"
+                id="searchClearBtn"
+                style="display:none;"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
         </div>
 
-        <!-- TABS -->
 
+        <!-- Tabs -->
         <div class="sidebar-tabs">
 
             <button
                 class="sidebar-tab active"
                 data-tab="chats"
             >
-                <i class="fa-solid fa-message"></i>
-                <span data-i18n="chats">Chats</span>
+                <i class="fa-solid fa-user-group"></i>
+                <span>Contacts</span>
             </button>
 
             <button
@@ -82,7 +112,7 @@
                 data-tab="groups"
             >
                 <i class="fa-solid fa-users"></i>
-                <span data-i18n="groups">Groups</span>
+                <span>Groups</span>
             </button>
 
             <button
@@ -90,57 +120,123 @@
                 data-tab="channels"
             >
                 <i class="fa-solid fa-bullhorn"></i>
-                <span data-i18n="channels">Channels</span>
+                <span>Channels</span>
             </button>
 
         </div>
 
-        <!-- LIST -->
 
-        <div class="chat-list" id="userList">
+        <!-- ================= CONTACTS ================= -->
+        <div class="tab-content active" id="chatsTab">
 
-            <div class="empty-state">
-                <i class="fa-solid fa-comments"></i>
+            <div class="list-header">
+                <span>Contacts</span>
+                <span class="list-count" id="contactCount"></span>
+            </div>
 
-                <p data-i18n="searchToChat">
-                    Search for a user to start chatting
-                </p>
+            <div class="chat-list" id="userList">
+
+                <div class="empty-state">
+
+                    <i class="fa-solid fa-user-group"></i>
+
+                    <strong>No contacts yet</strong>
+
+                    <span>
+                        Search for a username to add someone.
+                    </span>
+
+                </div>
+
             </div>
 
         </div>
 
-        <!-- CREATE -->
 
-        <div class="create-section">
+        <!-- ================= GROUPS ================= -->
+        <div class="tab-content" id="groupsTab">
 
-            <button
-                class="create-btn"
-                id="createGroupBtn"
-            >
-                <i class="fa-solid fa-users"></i>
-                <span data-i18n="createGroup">Create Group</span>
-            </button>
+            <div class="tab-create-actions">
 
-            <button
-                class="create-btn"
-                id="createChannelBtn"
-            >
-                <i class="fa-solid fa-bullhorn"></i>
-                <span data-i18n="createChannel">Create Channel</span>
-            </button>
+                <button
+                    class="create-btn"
+                    id="createGroupBtn"
+                >
+                    <i class="fa-solid fa-plus"></i>
+                    Create Group
+                </button>
+
+            </div>
+
+            <div class="list-header">
+                <span>Groups</span>
+                <span class="list-count" id="groupCount"></span>
+            </div>
+
+            <div class="chat-list" id="groupsList">
+
+                <div class="empty-state">
+
+                    <i class="fa-solid fa-users"></i>
+
+                    <strong>No groups yet</strong>
+
+                    <span>
+                        Create your first group.
+                    </span>
+
+                </div>
+
+            </div>
 
         </div>
 
-        <!-- LOGOUT -->
 
+        <!-- ================= CHANNELS ================= -->
+        <div class="tab-content" id="channelsTab">
+
+            <div class="tab-create-actions">
+
+                <button
+                    class="create-btn"
+                    id="createChannelBtn"
+                >
+                    <i class="fa-solid fa-plus"></i>
+                    Create Channel
+                </button>
+
+            </div>
+
+            <div class="list-header">
+                <span>Channels</span>
+                <span class="list-count" id="channelCount"></span>
+            </div>
+
+            <div class="chat-list" id="channelsList">
+
+                <div class="empty-state">
+
+                    <i class="fa-solid fa-bullhorn"></i>
+
+                    <strong>No channels yet</strong>
+
+                    <span>
+                        Create your first channel.
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Logout -->
         <div class="sidebar-footer">
 
-            <button
-                class="logout-btn"
-                id="logoutBtn"
-            >
+            <button class="logout-btn" id="logoutBtn">
                 <i class="fa-solid fa-right-from-bracket"></i>
-                <span data-i18n="logout">Logout</span>
+                <span>Log out</span>
             </button>
 
         </div>
@@ -148,218 +244,238 @@
     </aside>
 
 
-    <!-- ================= CHAT ================= -->
-
+    <!-- ================= CHAT AREA ================= -->
     <main class="chat-area">
 
-        <header class="chat-header">
+        <!-- Empty chat -->
+        <div class="chat-empty" id="chatEmpty">
 
-            <button
-                class="mobile-back-btn"
-                id="mobileBackBtn"
-            >
-                <i class="fa-solid fa-arrow-left"></i>
-            </button>
+            <div class="chat-empty-icon">
+                <i class="fa-solid fa-comments"></i>
+            </div>
 
-            <div class="chat-user">
+            <h2>Welcome to MsgBox</h2>
+
+            <p>
+                Select a contact to start chatting.
+            </p>
+
+        </div>
+
+
+        <!-- Active chat -->
+        <section class="active-chat" id="activeChat">
+
+            <!-- Chat Header -->
+            <header class="chat-header">
+
+                <button
+                    class="mobile-back-btn"
+                    id="mobileBackBtn"
+                >
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
 
                 <div
-                    class="chat-avatar"
+                    class="avatar avatar-medium"
                     id="chatAvatar"
-                >?</div>
+                >
+                    ?
+                </div>
 
                 <div class="chat-user-info">
 
-                    <h2>
+                    <div class="chat-title-row">
 
-                        <span id="chatName">
-                            Select a user
-                        </span>
+                        <h3 id="chatName">
+                            User
+                        </h3>
 
                         <span
-                            id="chatVerified"
                             class="verified-badge"
+                            id="chatVerified"
                             style="display:none;"
-                        >✓</span>
+                        >
+                            ✓
+                        </span>
 
-                    </h2>
+                    </div>
 
-                    <p id="chatStatus">
-                        Search for someone to start chatting
-                    </p>
+                    <span
+                        class="chat-status"
+                        id="chatStatus"
+                    >
+                    </span>
 
                 </div>
 
-            </div>
+                <button
+                    class="icon-btn chat-more-btn"
+                    id="chatMoreBtn"
+                    title="More"
+                >
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>
 
+            </header>
+
+
+            <!-- Contact actions -->
             <div
                 class="contact-actions"
                 id="contactActions"
+                style="display:none;"
             >
 
                 <button
+                    class="contact-action add"
                     id="addContactBtn"
-                    class="contact-btn"
                 >
                     <i class="fa-solid fa-user-plus"></i>
-                    <span data-i18n="addContact">Add Contact</span>
+                    Add Contact
                 </button>
 
                 <button
+                    class="contact-action accept"
                     id="acceptContactBtn"
-                    class="contact-btn accept-btn"
                 >
                     <i class="fa-solid fa-check"></i>
-                    <span data-i18n="accept">Accept</span>
+                    Accept
                 </button>
 
                 <button
+                    class="contact-action decline"
                     id="declineContactBtn"
-                    class="contact-btn decline-btn"
                 >
                     <i class="fa-solid fa-xmark"></i>
-                    <span data-i18n="decline">Decline</span>
+                    Decline
                 </button>
 
             </div>
 
-        </header>
+
+            <!-- Messages -->
+            <div
+                class="messages"
+                id="messages"
+            >
+            </div>
 
 
-        <!-- MESSAGES -->
+            <!-- Message Form -->
+            <form
+                class="message-form"
+                id="messageForm"
+            >
 
-        <div
-            class="messages"
-            id="messages"
-        >
+                <button
+                    type="button"
+                    class="message-tool-btn"
+                    id="imageBtn"
+                    title="Image"
+                >
+                    <i class="fa-solid fa-image"></i>
+                </button>
 
-            <div class="welcome-message">
+                <input
+                    type="file"
+                    id="imageInput"
+                    accept="image/*"
+                    hidden
+                >
 
-                <div class="welcome-icon">
-                    <i class="fa-solid fa-comments"></i>
+
+                <button
+                    type="button"
+                    class="message-tool-btn"
+                    id="emojiBtn"
+                    title="Emoji"
+                >
+                    <i class="fa-regular fa-face-smile"></i>
+                </button>
+
+
+                <button
+                    type="button"
+                    class="message-tool-btn"
+                    id="stickerBtn"
+                    title="Sticker"
+                >
+                    <i class="fa-regular fa-note-sticky"></i>
+                </button>
+
+
+                <div class="message-input-wrap">
+
+                    <input
+                        type="text"
+                        id="messageInput"
+                        placeholder="Write a message..."
+                        autocomplete="off"
+                        maxlength="5000"
+                    >
+
                 </div>
 
-                <h2 data-i18n="welcome">
-                    Welcome to MsgBox
-                </h2>
 
-                <p data-i18n="searchToChat">
-                    Search for a user to start chatting
-                </p>
+                <button
+                    type="submit"
+                    class="send-btn"
+                    id="sendButton"
+                    title="Send"
+                >
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+
+            </form>
+
+
+            <!-- Emoji Panel -->
+            <div
+                class="emoji-panel"
+                id="emojiPanel"
+            >
+
+                <button type="button">😀</button>
+                <button type="button">😂</button>
+                <button type="button">🤣</button>
+                <button type="button">😊</button>
+                <button type="button">😍</button>
+                <button type="button">🥰</button>
+                <button type="button">😎</button>
+                <button type="button">😭</button>
+                <button type="button">😡</button>
+                <button type="button">🤔</button>
+                <button type="button">👍</button>
+                <button type="button">👎</button>
+                <button type="button">❤️</button>
+                <button type="button">🔥</button>
+                <button type="button">💀</button>
+                <button type="button">🚀</button>
 
             </div>
 
-        </div>
-
-
-        <!-- MESSAGE FORM -->
-
-        <form
-            class="message-form"
-            id="messageForm"
-        >
-
-            <button
-                type="button"
-                class="message-tool-btn"
-                id="imageBtn"
-                title="Send image"
-                disabled
-            >
-                <i class="fa-solid fa-image"></i>
-            </button>
-
-            <input
-                type="file"
-                id="imageInput"
-                accept="image/*"
-                hidden
-            >
-
-            <button
-                type="button"
-                class="message-tool-btn"
-                id="emojiBtn"
-                title="Emoji"
-                disabled
-            >
-                <i class="fa-regular fa-face-smile"></i>
-            </button>
-
-            <button
-                type="button"
-                class="message-tool-btn"
-                id="stickerBtn"
-                title="Stickers"
-                disabled
-            >
-                <i class="fa-solid fa-icons"></i>
-            </button>
-
-            <input
-                type="text"
-                id="messageInput"
-                placeholder="Type a message..."
-                autocomplete="off"
-                disabled
-            >
-
-            <button
-                type="submit"
-                id="sendButton"
-                disabled
-            >
-                <i class="fa-solid fa-paper-plane"></i>
-            </button>
-
-        </form>
-
-
-        <!-- EMOJI -->
-
-        <div
-            class="emoji-panel"
-            id="emojiPanel"
-        >
-            <button type="button">😀</button>
-            <button type="button">😂</button>
-            <button type="button">🤣</button>
-            <button type="button">😊</button>
-            <button type="button">😍</button>
-            <button type="button">🥰</button>
-            <button type="button">😎</button>
-            <button type="button">😭</button>
-            <button type="button">😡</button>
-            <button type="button">🤔</button>
-            <button type="button">👍</button>
-            <button type="button">👎</button>
-            <button type="button">❤️</button>
-            <button type="button">🔥</button>
-            <button type="button">💀</button>
-            <button type="button">🎉</button>
-            <button type="button">🚀</button>
-        </div>
+        </section>
 
     </main>
 
 </div>
 
 
-<!-- ================= SETTINGS ================= -->
+<!-- ================================================= -->
+<!-- SETTINGS MODAL -->
+<!-- ================================================= -->
 
-<div
-    class="modal-overlay"
-    id="settingsModal"
->
+<div class="modal-overlay" id="settingsModal">
 
     <div class="modal">
 
         <div class="modal-header">
 
-            <h2>
-                <i class="fa-solid fa-gear"></i>
-                <span data-i18n="settings">Settings</span>
-            </h2>
+            <div>
+                <h2>Settings</h2>
+                <span>Manage your MsgBox account</span>
+            </div>
 
             <button
                 class="modal-close"
@@ -371,22 +487,20 @@
         </div>
 
 
-        <div class="settings-content">
+        <div class="settings-list">
 
             <button
                 class="settings-item"
                 id="profileSettingsBtn"
             >
-                <div class="settings-icon">
+                <span class="settings-icon">
                     <i class="fa-solid fa-user"></i>
-                </div>
+                </span>
 
-                <div>
-                    <strong data-i18n="profile">Profile</strong>
-                    <span data-i18n="profileDescription">
-                        Name, username, bio and avatar
-                    </span>
-                </div>
+                <span>
+                    <strong>Profile</strong>
+                    <small>Edit your profile</small>
+                </span>
 
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
@@ -396,16 +510,14 @@
                 class="settings-item"
                 id="privacySettingsBtn"
             >
-                <div class="settings-icon">
-                    <i class="fa-solid fa-shield-halved"></i>
-                </div>
+                <span class="settings-icon">
+                    <i class="fa-solid fa-lock"></i>
+                </span>
 
-                <div>
-                    <strong data-i18n="privacy">Privacy</strong>
-                    <span data-i18n="privacyDescription">
-                        Privacy and account settings
-                    </span>
-                </div>
+                <span>
+                    <strong>Privacy</strong>
+                    <small>Online status and last seen</small>
+                </span>
 
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
@@ -415,133 +527,188 @@
                 class="settings-item"
                 id="appearanceSettingsBtn"
             >
-                <div class="settings-icon">
+                <span class="settings-icon">
                     <i class="fa-solid fa-palette"></i>
-                </div>
+                </span>
 
-                <div>
-                    <strong data-i18n="appearance">Appearance</strong>
-                    <span data-i18n="appearanceDescription">
-                        Customize MsgBox
-                    </span>
-                </div>
+                <span>
+                    <strong>Appearance</strong>
+                    <small>Customize MsgBox</small>
+                </span>
 
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
-
-            <!-- LANGUAGE -->
 
             <button
                 class="settings-item"
                 id="languageSettingsBtn"
             >
-                <div class="settings-icon">
+                <span class="settings-icon">
                     <i class="fa-solid fa-language"></i>
-                </div>
+                </span>
 
-                <div>
-                    <strong data-i18n="language">Language</strong>
-                    <span id="currentLanguageText">
-                        English
-                    </span>
-                </div>
+                <span>
+                    <strong>Language</strong>
+                    <small>English / Uzbek / Russian</small>
+                </span>
 
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
-
-            <!-- OWNER -->
 
             <button
                 class="settings-item owner-setting"
                 id="ownerPanelButton"
                 style="display:none;"
             >
-                <div class="settings-icon owner-icon">
+                <span class="settings-icon">
                     <i class="fa-solid fa-crown"></i>
-                </div>
+                </span>
 
-                <div>
-                    <strong data-i18n="ownerPanel">
-                        Owner Panel
-                    </strong>
-
-                    <span data-i18n="ownerPanelDescription">
-                        Manage MsgBox
-                    </span>
-                </div>
+                <span>
+                    <strong>Owner Panel</strong>
+                    <small>Owner controls</small>
+                </span>
 
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
-
-            <!-- ADMIN -->
 
             <button
                 class="settings-item admin-setting"
                 id="adminPanelButton"
                 style="display:none;"
             >
-                <div class="settings-icon admin-icon">
-                    <i class="fa-solid fa-shield"></i>
-                </div>
+                <span class="settings-icon">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </span>
 
-                <div>
-                    <strong data-i18n="adminPanel">
-                        Admin Panel
-                    </strong>
-
-                    <span data-i18n="adminPanelDescription">
-                        Moderation tools
-                    </span>
-                </div>
+                <span>
+                    <strong>Admin Panel</strong>
+                    <small>Moderation tools</small>
+                </span>
 
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
-
-            <!-- LOGOUT -->
-
-            <button
-                class="settings-item danger-setting"
-                id="settingsLogoutBtn"
-            >
-                <div class="settings-icon">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                </div>
-
-                <div>
-                    <strong data-i18n="logout">Logout</strong>
-
-                    <span data-i18n="logoutDescription">
-                        Sign out of MsgBox
-                    </span>
-                </div>
-            </button>
-
         </div>
+
+
+        <button
+            class="settings-logout"
+            id="settingsLogoutBtn"
+        >
+            <i class="fa-solid fa-right-from-bracket"></i>
+            Log out
+        </button>
 
     </div>
 
 </div>
 
 
-<!-- ================= LANGUAGE ================= -->
+<!-- ================================================= -->
+<!-- PRIVACY MODAL -->
+<!-- ================================================= -->
 
-<div
-    class="modal-overlay"
-    id="languageModal"
->
+<div class="modal-overlay" id="privacyModal">
 
-    <div class="modal">
+    <div class="modal small-modal">
 
         <div class="modal-header">
 
-            <h2>
-                <i class="fa-solid fa-language"></i>
-                <span data-i18n="language">Language</span>
-            </h2>
+            <div>
+                <h2>Privacy</h2>
+                <span>Control what others can see</span>
+            </div>
+
+            <button
+                class="modal-close"
+                id="closePrivacyBtn"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
+
+
+        <div class="privacy-options">
+
+            <label class="privacy-option">
+
+                <span class="privacy-option-info">
+
+                    <strong>Online Status</strong>
+
+                    <small>
+                        Let contacts see when you are online.
+                    </small>
+
+                </span>
+
+                <input
+                    type="checkbox"
+                    id="showOnlineToggle"
+                    checked
+                >
+
+                <span class="toggle"></span>
+
+            </label>
+
+
+            <label class="privacy-option">
+
+                <span class="privacy-option-info">
+
+                    <strong>Last Seen</strong>
+
+                    <small>
+                        Let contacts see your last active time.
+                    </small>
+
+                </span>
+
+                <input
+                    type="checkbox"
+                    id="showLastSeenToggle"
+                    checked
+                >
+
+                <span class="toggle"></span>
+
+            </label>
+
+        </div>
+
+
+        <button
+            class="primary-btn full-btn"
+            id="savePrivacyBtn"
+        >
+            Save Privacy Settings
+        </button>
+
+    </div>
+
+</div>
+
+
+<!-- ================================================= -->
+<!-- LANGUAGE MODAL -->
+<!-- ================================================= -->
+
+<div class="modal-overlay" id="languageModal">
+
+    <div class="modal small-modal">
+
+        <div class="modal-header">
+
+            <div>
+                <h2>Language</h2>
+                <span>Choose your language</span>
+            </div>
 
             <button
                 class="modal-close"
@@ -552,62 +719,36 @@
 
         </div>
 
-        <div class="settings-content">
+
+        <div class="language-list">
 
             <button
-                class="settings-item language-option"
+                class="language-option"
                 data-language="en"
             >
-                <div class="settings-icon">🇬🇧</div>
-
-                <div>
-                    <strong>English</strong>
-                    <span>English</span>
-                </div>
-
-                <i
-                    class="fa-solid fa-check language-check"
-                    data-check="en"
-                    style="display:none;"
-                ></i>
+                <span>🇬🇧</span>
+                <strong>English</strong>
+                <i class="fa-solid fa-check language-check"></i>
             </button>
 
 
             <button
-                class="settings-item language-option"
+                class="language-option"
                 data-language="uz"
             >
-                <div class="settings-icon">🇺🇿</div>
-
-                <div>
-                    <strong>O‘zbek</strong>
-                    <span>O‘zbek tili</span>
-                </div>
-
-                <i
-                    class="fa-solid fa-check language-check"
-                    data-check="uz"
-                    style="display:none;"
-                ></i>
+                <span>🇺🇿</span>
+                <strong>O'zbekcha</strong>
+                <i class="fa-solid fa-check language-check"></i>
             </button>
 
 
             <button
-                class="settings-item language-option"
+                class="language-option"
                 data-language="ru"
             >
-                <div class="settings-icon">🇷🇺</div>
-
-                <div>
-                    <strong>Русский</strong>
-                    <span>Русский язык</span>
-                </div>
-
-                <i
-                    class="fa-solid fa-check language-check"
-                    data-check="ru"
-                    style="display:none;"
-                ></i>
+                <span>🇷🇺</span>
+                <strong>Русский</strong>
+                <i class="fa-solid fa-check language-check"></i>
             </button>
 
         </div>
@@ -617,337 +758,20 @@
 </div>
 
 
-<!-- ================= OWNER PANEL ================= -->
-
-<div
-    class="modal-overlay"
-    id="ownerModal"
->
-
-    <div class="modal large-modal">
-
-        <div class="modal-header">
-
-            <h2>
-                <i class="fa-solid fa-crown"></i>
-                <span data-i18n="ownerPanel">Owner Panel</span>
-            </h2>
-
-            <button
-                class="modal-close"
-                id="closeOwnerBtn"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <div class="owner-tabs">
-
-            <button
-                class="owner-tab active"
-                data-owner-tab="verified"
-            >
-                <i class="fa-solid fa-circle-check"></i>
-                <span data-i18n="verified">Verified</span>
-            </button>
-
-            <button
-                class="owner-tab"
-                data-owner-tab="users"
-            >
-                <i class="fa-solid fa-user-shield"></i>
-                <span data-i18n="users">Users</span>
-            </button>
-
-            <button
-                class="owner-tab"
-                data-owner-tab="admins"
-            >
-                <i class="fa-solid fa-user-tie"></i>
-                <span data-i18n="admins">Admins</span>
-            </button>
-
-            <button
-                class="owner-tab"
-                data-owner-tab="reports"
-            >
-                <i class="fa-solid fa-flag"></i>
-                <span data-i18n="reports">Reports</span>
-            </button>
-
-        </div>
-
-
-        <section
-            class="owner-section active"
-            id="ownerVerifiedSection"
-        >
-
-            <h3 data-i18n="verifiedBadge">Verified Badge</h3>
-
-            <p class="section-description">
-                <span data-i18n="verifiedDescription">
-                    Give or remove the verified badge.
-                </span>
-            </p>
-
-            <div class="owner-search">
-
-                <i class="fa-solid fa-magnifying-glass"></i>
-
-                <input
-                    type="text"
-                    id="ownerVerifiedUsername"
-                    placeholder="Search username..."
-                >
-
-                <button id="ownerVerifiedSearchBtn">
-                    <i class="fa-solid fa-search"></i>
-                </button>
-
-            </div>
-
-            <div
-                id="ownerVerifiedResult"
-                class="owner-result"
-            ></div>
-
-            <div class="verified-duration">
-
-                <label data-i18n="duration">Duration</label>
-
-                <select id="verifiedDuration">
-
-                    <option value="permanent">Permanent</option>
-                    <option value="1">1 day</option>
-                    <option value="7">7 days</option>
-                    <option value="30">30 days</option>
-                    <option value="90">90 days</option>
-
-                </select>
-
-            </div>
-
-        </section>
-
-
-        <section
-            class="owner-section"
-            id="ownerUsersSection"
-        >
-
-            <h3 data-i18n="userControl">User Control</h3>
-
-            <p class="section-description">
-                Manage account and messaging restrictions.
-            </p>
-
-            <div class="owner-search">
-
-                <i class="fa-solid fa-magnifying-glass"></i>
-
-                <input
-                    type="text"
-                    id="ownerModerationUsername"
-                    placeholder="Search username..."
-                >
-
-                <button id="ownerModerationSearchBtn">
-                    <i class="fa-solid fa-search"></i>
-                </button>
-
-            </div>
-
-            <div
-                id="ownerModerationResult"
-                class="owner-result"
-            ></div>
-
-        </section>
-
-
-        <section
-            class="owner-section"
-            id="ownerAdminsSection"
-        >
-
-            <h3 data-i18n="administrators">Administrators</h3>
-
-            <p class="section-description">
-                Owner-only administrator management.
-            </p>
-
-            <div class="owner-search">
-
-                <i class="fa-solid fa-magnifying-glass"></i>
-
-                <input
-                    type="text"
-                    id="ownerAdminUsername"
-                    placeholder="Search username..."
-                >
-
-                <button id="ownerAdminSearchBtn">
-                    <i class="fa-solid fa-search"></i>
-                </button>
-
-            </div>
-
-            <div
-                id="ownerAdminResult"
-                class="owner-result"
-            ></div>
-
-            <div
-                id="ownerAdminList"
-                class="admin-list"
-            ></div>
-
-        </section>
-
-
-        <section
-            class="owner-section"
-            id="ownerReportsSection"
-        >
-
-            <h3 data-i18n="reports">Reports</h3>
-
-            <p class="section-description">
-                Review user reports.
-            </p>
-
-            <div
-                id="ownerReportsList"
-                class="reports-list"
-            >
-                <div class="empty-state">
-                    No reports yet.
-                </div>
-            </div>
-
-        </section>
-
-    </div>
-
-</div>
-
-
-<!-- ================= ADMIN PANEL ================= -->
-
-<div
-    class="modal-overlay"
-    id="adminModal"
->
-
-    <div class="modal large-modal">
-
-        <div class="modal-header">
-
-            <h2>
-                <i class="fa-solid fa-shield"></i>
-                <span data-i18n="adminPanel">Admin Panel</span>
-            </h2>
-
-            <button
-                class="modal-close"
-                id="closeAdminBtn"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <div class="admin-panel-content">
-
-            <div class="admin-card">
-
-                <i class="fa-solid fa-flag"></i>
-
-                <div>
-                    <h3 data-i18n="reports">Reports</h3>
-                    <p>Review reports from users.</p>
-                </div>
-
-                <button id="openAdminReportsBtn">
-                    Open
-                </button>
-
-            </div>
-
-
-            <div class="admin-card">
-
-                <i class="fa-solid fa-user-lock"></i>
-
-                <div>
-                    <h3>User Moderation</h3>
-                    <p>Manage messaging restrictions.</p>
-                </div>
-
-                <button id="openAdminUsersBtn">
-                    Open
-                </button>
-
-            </div>
-
-
-            <div class="admin-card">
-
-                <i class="fa-solid fa-users"></i>
-
-                <div>
-                    <h3>Groups</h3>
-                    <p>Moderate groups.</p>
-                </div>
-
-                <button id="openAdminGroupsBtn">
-                    Open
-                </button>
-
-            </div>
-
-
-            <div class="admin-card">
-
-                <i class="fa-solid fa-bullhorn"></i>
-
-                <div>
-                    <h3>Channels</h3>
-                    <p>Moderate channels.</p>
-                </div>
-
-                <button id="openAdminChannelsBtn">
-                    Open
-                </button>
-
-            </div>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<!-- ================= CREATE GROUP ================= -->
-
-<div
-    class="modal-overlay"
-    id="createGroupModal"
->
+<!-- ================================================= -->
+<!-- CREATE GROUP MODAL -->
+<!-- ================================================= -->
+
+<div class="modal-overlay" id="createGroupModal">
 
     <div class="modal">
 
         <div class="modal-header">
 
-            <h2>
-                <i class="fa-solid fa-users"></i>
-                <span data-i18n="createGroup">Create Group</span>
-            </h2>
+            <div>
+                <h2>Create Group</h2>
+                <span>Create a new group</span>
+            </div>
 
             <button
                 class="modal-close"
@@ -961,36 +785,53 @@
 
         <form id="groupForm">
 
-            <label>Group name</label>
+            <label for="groupName">
+                Group Name
+            </label>
 
             <input
                 type="text"
                 id="groupName"
                 placeholder="My Group"
                 required
+                maxlength="50"
             >
 
 
-            <label>Username</label>
+            <label for="groupUsername">
+                Username
+            </label>
 
-            <input
-                type="text"
-                id="groupUsername"
-                placeholder="mygroup"
-            >
+            <div class="username-input">
+
+                <span>@</span>
+
+                <input
+                    type="text"
+                    id="groupUsername"
+                    placeholder="mygroup"
+                    required
+                    minlength="3"
+                    maxlength="32"
+                >
+
+            </div>
 
 
-            <label>Bio</label>
+            <label for="groupBio">
+                Bio
+            </label>
 
             <textarea
                 id="groupBio"
-                placeholder="Tell people about your group..."
+                placeholder="About this group..."
+                maxlength="250"
             ></textarea>
 
 
             <button
                 type="submit"
-                class="primary-action"
+                class="primary-btn full-btn"
             >
                 Create Group
             </button>
@@ -1002,21 +843,20 @@
 </div>
 
 
-<!-- ================= CREATE CHANNEL ================= -->
+<!-- ================================================= -->
+<!-- CREATE CHANNEL MODAL -->
+<!-- ================================================= -->
 
-<div
-    class="modal-overlay"
-    id="createChannelModal"
->
+<div class="modal-overlay" id="createChannelModal">
 
     <div class="modal">
 
         <div class="modal-header">
 
-            <h2>
-                <i class="fa-solid fa-bullhorn"></i>
-                <span data-i18n="createChannel">Create Channel</span>
-            </h2>
+            <div>
+                <h2>Create Channel</h2>
+                <span>Create a new channel</span>
+            </div>
 
             <button
                 class="modal-close"
@@ -1030,36 +870,53 @@
 
         <form id="channelForm">
 
-            <label>Channel name</label>
+            <label for="channelName">
+                Channel Name
+            </label>
 
             <input
                 type="text"
                 id="channelName"
                 placeholder="My Channel"
                 required
+                maxlength="50"
             >
 
 
-            <label>Username</label>
+            <label for="channelUsername">
+                Username
+            </label>
 
-            <input
-                type="text"
-                id="channelUsername"
-                placeholder="mychannel"
-            >
+            <div class="username-input">
+
+                <span>@</span>
+
+                <input
+                    type="text"
+                    id="channelUsername"
+                    placeholder="mychannel"
+                    required
+                    minlength="3"
+                    maxlength="32"
+                >
+
+            </div>
 
 
-            <label>Bio</label>
+            <label for="channelBio">
+                Bio
+            </label>
 
             <textarea
                 id="channelBio"
-                placeholder="Tell people about your channel..."
+                placeholder="About this channel..."
+                maxlength="250"
             ></textarea>
 
 
             <button
                 type="submit"
-                class="primary-action"
+                class="primary-btn full-btn"
             >
                 Create Channel
             </button>
@@ -1071,21 +928,20 @@
 </div>
 
 
-<!-- ================= PROFILE ================= -->
+<!-- ================================================= -->
+<!-- PROFILE MODAL -->
+<!-- ================================================= -->
 
-<div
-    class="modal-overlay"
-    id="profileModal"
->
+<div class="modal-overlay" id="profileModal">
 
     <div class="modal">
 
         <div class="modal-header">
 
-            <h2>
-                <i class="fa-solid fa-user"></i>
-                <span data-i18n="profile">Profile</span>
-            </h2>
+            <div>
+                <h2>Edit Profile</h2>
+                <span>Update your profile information</span>
+            </div>
 
             <button
                 class="modal-close"
@@ -1099,20 +955,23 @@
 
         <form id="profileForm">
 
-            <div class="profile-edit-avatar">
+            <div class="profile-avatar-editor">
 
                 <div
-                    class="large-avatar"
+                    class="avatar avatar-large"
                     id="profileEditAvatar"
-                >?</div>
+                >
+                    ?
+                </div>
 
-                <label
-                    for="profileAvatarInput"
-                    class="avatar-upload-btn"
+                <button
+                    type="button"
+                    class="avatar-change-btn"
+                    id="changeAvatarBtn"
                 >
                     <i class="fa-solid fa-camera"></i>
-                    Change photo
-                </label>
+                    Change Avatar
+                </button>
 
                 <input
                     type="file"
@@ -1124,38 +983,53 @@
             </div>
 
 
-            <label>Full name</label>
+            <label for="profileFullName">
+                Full Name
+            </label>
 
             <input
                 type="text"
                 id="profileFullName"
+                maxlength="50"
                 required
             >
 
 
-            <label>Username</label>
+            <label for="profileUsername">
+                Username
+            </label>
 
-            <input
-                type="text"
-                id="profileUsername"
-                required
-            >
+            <div class="username-input">
+
+                <span>@</span>
+
+                <input
+                    type="text"
+                    id="profileUsername"
+                    minlength="3"
+                    maxlength="32"
+                    required
+                >
+
+            </div>
 
 
-            <label>Bio</label>
+            <label for="profileBio">
+                Bio
+            </label>
 
             <textarea
                 id="profileBio"
-                maxlength="160"
                 placeholder="Tell people about yourself..."
+                maxlength="250"
             ></textarea>
 
 
             <button
                 type="submit"
-                class="primary-action"
+                class="primary-btn full-btn"
             >
-                Save Changes
+                Save Profile
             </button>
 
         </form>
@@ -1165,18 +1039,294 @@
 </div>
 
 
-<!-- ================= TOAST ================= -->
+<!-- ================================================= -->
+<!-- OWNER MODAL -->
+<!-- ================================================= -->
+
+<div class="modal-overlay" id="ownerModal">
+
+    <div class="modal large-modal">
+
+        <div class="modal-header">
+
+            <div>
+                <h2>
+                    <i class="fa-solid fa-crown"></i>
+                    Owner Panel
+                </h2>
+
+                <span>
+                    Manage MsgBox
+                </span>
+            </div>
+
+            <button
+                class="modal-close"
+                id="closeOwnerBtn"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
+
+
+        <div class="panel-tabs">
+
+            <button
+                class="panel-tab active"
+                data-owner-tab="verified"
+            >
+                Verified
+            </button>
+
+            <button
+                class="panel-tab"
+                data-owner-tab="moderation"
+            >
+                Moderation
+            </button>
+
+            <button
+                class="panel-tab"
+                data-owner-tab="admins"
+            >
+                Admins
+            </button>
+
+            <button
+                class="panel-tab"
+                data-owner-tab="reports"
+            >
+                Reports
+            </button>
+
+        </div>
+
+
+        <!-- Verified -->
+        <div
+            class="owner-panel-section active"
+            id="ownerVerifiedPanel"
+        >
+
+            <label>Username</label>
+
+            <div class="owner-search-row">
+
+                <input
+                    type="text"
+                    id="ownerVerifiedUsername"
+                    placeholder="@username"
+                >
+
+                <button
+                    class="primary-btn"
+                    id="ownerVerifiedSearchBtn"
+                >
+                    Search
+                </button>
+
+            </div>
+
+            <div id="ownerVerifiedResult"></div>
+
+            <label>Duration</label>
+
+            <select id="verifiedDuration">
+
+                <option value="0">
+                    Permanent
+                </option>
+
+                <option value="1">
+                    1 Day
+                </option>
+
+                <option value="7">
+                    7 Days
+                </option>
+
+                <option value="30">
+                    30 Days
+                </option>
+
+                <option value="365">
+                    1 Year
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <!-- Moderation -->
+        <div
+            class="owner-panel-section"
+            id="ownerModerationPanel"
+        >
+
+            <label>Username</label>
+
+            <div class="owner-search-row">
+
+                <input
+                    type="text"
+                    id="ownerModerationUsername"
+                    placeholder="@username"
+                >
+
+                <button
+                    class="primary-btn"
+                    id="ownerModerationSearchBtn"
+                >
+                    Search
+                </button>
+
+            </div>
+
+            <div id="ownerModerationResult"></div>
+
+        </div>
+
+
+        <!-- Admins -->
+        <div
+            class="owner-panel-section"
+            id="ownerAdminsPanel"
+        >
+
+            <label>Username</label>
+
+            <div class="owner-search-row">
+
+                <input
+                    type="text"
+                    id="ownerAdminUsername"
+                    placeholder="@username"
+                >
+
+                <button
+                    class="primary-btn"
+                    id="ownerAdminSearchBtn"
+                >
+                    Search
+                </button>
+
+            </div>
+
+            <div id="ownerAdminResult"></div>
+
+            <div id="ownerAdminList"></div>
+
+        </div>
+
+
+        <!-- Reports -->
+        <div
+            class="owner-panel-section"
+            id="ownerReportsPanel"
+        >
+
+            <div id="ownerReportsList"></div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================================================= -->
+<!-- ADMIN MODAL -->
+<!-- ================================================= -->
+
+<div class="modal-overlay" id="adminModal">
+
+    <div class="modal">
+
+        <div class="modal-header">
+
+            <div>
+                <h2>
+                    <i class="fa-solid fa-shield-halved"></i>
+                    Admin Panel
+                </h2>
+
+                <span>
+                    Moderation tools
+                </span>
+            </div>
+
+            <button
+                class="modal-close"
+                id="closeAdminBtn"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
+
+
+        <div class="admin-actions">
+
+            <button
+                class="admin-panel-btn"
+                id="openAdminReportsBtn"
+            >
+                <i class="fa-solid fa-flag"></i>
+                Reports
+            </button>
+
+            <button
+                class="admin-panel-btn"
+                id="openAdminUsersBtn"
+            >
+                <i class="fa-solid fa-users"></i>
+                Users
+            </button>
+
+            <button
+                class="admin-panel-btn"
+                id="openAdminGroupsBtn"
+            >
+                <i class="fa-solid fa-users"></i>
+                Groups
+            </button>
+
+            <button
+                class="admin-panel-btn"
+                id="openAdminChannelsBtn"
+            >
+                <i class="fa-solid fa-bullhorn"></i>
+                Channels
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================================================= -->
+<!-- TOAST -->
+<!-- ================================================= -->
 
 <div
-    id="toast"
     class="toast"
-></div>
+    id="toast"
+>
+    <i class="fa-solid fa-circle-info"></i>
+    <span id="toastMessage"></span>
+</div>
 
 
-<!-- ================= SUPABASE ================= -->
+<!-- ================= SCRIPTS ================= -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script src="supabase.js"></script>
+
 <script src="dashboard.js"></script>
 
 </body>
