@@ -3027,4 +3027,63 @@ select:focus-visible {
     outline: 2px solid rgba(0, 168, 255, .5);
     outline-offset: 2px;
 }
-```
+
+/* =========================================================
+   MEGCHATBOX V2.1 FIXES
+   ========================================================= */
+
+html[data-density="compact"] .chat-item {
+    min-height: 52px;
+    padding: 8px 12px;
+}
+
+body[data-density="compact"] .chat-item {
+    min-height: 52px;
+    padding: 8px 12px;
+}
+
+html[data-density="comfortable"] .chat-item,
+body[data-density="comfortable"] .chat-item {
+    min-height: 68px;
+}
+
+.saved-chat-item {
+    cursor: pointer;
+}
+
+.saved-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.saved-avatar i {
+    font-size: 18px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.appearance-option.active,
+.appearance-option.selected,
+.language-option.active,
+.language-option.selected {
+    border-color: #00a8ff;
+    background: rgba(0, 168, 255, 0.12);
+}
+
+body[data-theme="light"] {
+    background: #f4f7fb;
+    color: #111827;
+}
+
+body[data-theme="light"] .sidebar,
+body[data-theme="light"] .chat-area {
+    background: #ffffff;
+    color: #111827;
+}
