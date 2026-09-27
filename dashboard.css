@@ -1,1325 +1,300 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-:root {
-    --bg: #080d19;
-    --panel: #101827;
-    --panel-2: #151f31;
-    --panel-3: #1b2639;
-    --border: #26344a;
-    --text: #f8fafc;
-    --muted: #94a3b8;
-    --muted-2: #64748b;
-    --blue: #2563eb;
-    --blue-hover: #1d4ed8;
-    --green: #16a34a;
-    --red: #dc2626;
-    --yellow: #f59e0b;
-}
-
-html,
-body {
-    width: 100%;
-    height: 100%;
-}
-
-body {
-    font-family: Arial, Helvetica, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    overflow: hidden;
-}
-
-button,
-input,
-textarea,
-select {
-    font: inherit;
-}
-
-button {
-    border: none;
-}
-
-button:focus,
-input:focus,
-textarea:focus,
-select:focus {
-    outline: none;
-}
-
-
-/* =========================================================
-   APP
-========================================================= */
-
-.app {
-    width: 100%;
-    height: 100vh;
-    display: flex;
-}
-
-
-/* =========================================================
-   SIDEBAR
-========================================================= */
-
-.sidebar {
-    width: 340px;
-    height: 100%;
-    flex-shrink: 0;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-}
-
-
-/* =========================================================
-   SIDEBAR HEADER
-========================================================= */
-
-.sidebar-header {
-    min-height: 76px;
-    padding: 12px 14px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.profile {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    cursor: pointer;
-}
-
-.profile-avatar,
-.chat-avatar,
-.avatar {
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #2563eb, #0ea5e9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 700;
-    flex-shrink: 0;
-    overflow: hidden;
-}
-
-.profile-avatar {
-    font-size: 18px;
-}
-
-.profile-info {
-    min-width: 0;
-    margin-left: 10px;
-}
-
-.profile-info h3 {
-    display: flex;
-    align-items: center;
-    font-size: 16px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.profile-info p {
-    color: var(--muted);
-    font-size: 13px;
-    margin-top: 4px;
-}
-
-.verified-badge {
-    width: 18px;
-    height: 18px;
-    margin-left: 5px;
-    border-radius: 50%;
-    background: #1d9bf0;
-    color: white;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 800;
-    flex-shrink: 0;
-}
-
-.icon-btn {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    transition: .2s;
-}
-
-.icon-btn:hover {
-    background: var(--panel-3);
-    color: white;
-}
-
-
-/* =========================================================
-   SEARCH
-========================================================= */
-
-.search-box {
-    height: 43px;
-    margin: 14px;
-    padding: 0 12px;
-    display: flex;
-    align-items: center;
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    border-radius: 11px;
-}
-
-.search-box i {
-    color: var(--muted-2);
-    margin-right: 9px;
-}
-
-.search-box input {
-    width: 100%;
-    background: transparent;
-    border: none;
-    color: white;
-    font-size: 14px;
-}
-
-.search-box input::placeholder {
-    color: var(--muted-2);
-}
-
-
-/* =========================================================
-   SIDEBAR TABS
-========================================================= */
-
-.sidebar-tabs {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 5px;
-    padding: 0 10px 10px;
-}
-
-.sidebar-tab {
-    min-height: 38px;
-    border-radius: 9px;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    transition: .2s;
-}
-
-.sidebar-tab:hover {
-    background: var(--panel-2);
-    color: white;
-}
-
-.sidebar-tab.active {
-    background: var(--blue);
-    color: white;
-}
-
-
-/* =========================================================
-   LIST
-========================================================= */
-
-.chat-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0 8px;
-}
-
-.chat-item {
-    padding: 10px;
-    border-radius: 11px;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    transition: .2s;
-}
-
-.chat-item:hover {
-    background: var(--panel-2);
-}
-
-.chat-item.active {
-    background: #1e3a68;
-}
-
-.chat-info {
-    min-width: 0;
-    margin-left: 10px;
-}
-
-.chat-info h4 {
-    font-size: 15px;
-    display: flex;
-    align-items: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.chat-info p {
-    margin-top: 4px;
-    color: var(--muted);
-    font-size: 13px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.empty-state {
-    padding: 35px 20px;
-    text-align: center;
-    color: var(--muted-2);
-}
-
-.empty-state i {
-    font-size: 30px;
-    margin-bottom: 12px;
-}
-
-.empty-state p {
-    font-size: 13px;
-    line-height: 1.5;
-}
-
-
-/* =========================================================
-   CREATE SECTION
-========================================================= */
-
-.create-section {
-    padding: 10px;
-    display: flex;
-    gap: 7px;
-    border-top: 1px solid var(--border);
-}
-
-.create-btn {
-    flex: 1;
-    min-height: 38px;
-    border-radius: 9px;
-    background: var(--panel-2);
-    color: #cbd5e1;
-    cursor: pointer;
-    font-size: 11px;
-    transition: .2s;
-}
-
-.create-btn:hover {
-    background: var(--blue);
-    color: white;
-}
-
-
-/* =========================================================
-   SIDEBAR FOOTER
-========================================================= */
-
-.sidebar-footer {
-    padding: 10px;
-    border-top: 1px solid var(--border);
-}
-
-.logout-btn {
-    width: 100%;
-    height: 40px;
-    border-radius: 9px;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: .2s;
-}
-
-.logout-btn:hover {
-    background: #3b1c24;
-    color: #f87171;
-}
-
-
-/* =========================================================
-   CHAT AREA
-========================================================= */
-
-.chat-area {
-    flex: 1;
-    min-width: 0;
-    height: 100%;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    background:
-        radial-gradient(circle at 70% 10%, rgba(37, 99, 235, .08), transparent 30%),
-        var(--bg);
-}
-
-
-/* =========================================================
-   CHAT HEADER
-========================================================= */
-
-.chat-header {
-    min-height: 76px;
-    padding: 12px 20px;
-    background: rgba(16, 24, 39, .96);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 15px;
-}
-
-.chat-user {
-    min-width: 0;
-    display: flex;
-    align-items: center;
-}
-
-.chat-avatar {
-    width: 46px;
-    height: 46px;
-}
-
-.chat-user-info {
-    min-width: 0;
-    margin-left: 10px;
-}
-
-.chat-user-info h2 {
-    display: flex;
-    align-items: center;
-    font-size: 16px;
-}
-
-.chat-user-info p {
-    margin-top: 4px;
-    color: var(--muted);
-    font-size: 13px;
-}
-
-.mobile-back-btn {
-    display: none;
-    width: 36px;
-    height: 36px;
-    border-radius: 9px;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-}
-
-
-/* =========================================================
-   CONTACT BUTTONS
-========================================================= */
-
-.contact-actions {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-}
-
-.contact-btn {
-    min-height: 37px;
-    padding: 0 12px;
-    border-radius: 9px;
-    background: var(--blue);
-    color: white;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    display: none;
-    align-items: center;
-    gap: 6px;
-    transition: .2s;
-}
-
-.contact-btn:hover {
-    background: var(--blue-hover);
-}
-
-.accept-btn {
-    background: var(--green);
-}
-
-.accept-btn:hover {
-    background: #15803d;
-}
-
-.decline-btn {
-    background: var(--red);
-}
-
-.decline-btn:hover {
-    background: #b91c1c;
-}
-
-
-/* =========================================================
-   MESSAGES
-========================================================= */
-
-.messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 25px;
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-}
-
-.welcome-message {
-    margin: auto;
-    text-align: center;
-    color: var(--muted-2);
-}
-
-.welcome-icon {
-    width: 70px;
-    height: 70px;
-    margin: 0 auto 18px;
-    border-radius: 22px;
-    background: var(--panel-2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #3b82f6;
-    font-size: 30px;
-}
-
-.welcome-message h2 {
-    color: #cbd5e1;
-    font-size: 21px;
-    margin-bottom: 7px;
-}
-
-.welcome-message p {
-    font-size: 14px;
-}
-
-
-/* =========================================================
-   MESSAGE
-========================================================= */
-
-.message {
-    position: relative;
-    max-width: min(65%, 650px);
-    padding: 10px 14px;
-    border-radius: 15px;
-    line-height: 1.45;
-    font-size: 14px;
-    word-break: break-word;
-}
-
-.message.sent {
-    align-self: flex-end;
-    background: var(--blue);
-    border-bottom-right-radius: 4px;
-}
-
-.message.received {
-    align-self: flex-start;
-    background: var(--panel-3);
-    border-bottom-left-radius: 4px;
-}
-
-.message-time {
-    margin-left: 8px;
-    color: rgba(255,255,255,.65);
-    font-size: 10px;
-}
-
-.message-actions {
-    display: none;
-}
-
-.message:hover .message-actions {
-    display: flex;
-}
-
+const loginPanel = document.querySelector(".login-panel");
+const signupPanel = document.querySelector(".signup-panel");
 
-/* =========================================================
-   MESSAGE FORM
-========================================================= */
 
-.message-form {
-    min-height: 72px;
-    padding: 12px 17px;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    background: rgba(16, 24, 39, .97);
-    border-top: 1px solid var(--border);
-}
-
-.message-form input[type="text"] {
-    flex: 1;
-    min-width: 0;
-    height: 45px;
-    padding: 0 15px;
-    border: 1px solid var(--border);
-    border-radius: 13px;
-    background: var(--panel-2);
-    color: white;
-    font-size: 14px;
-}
-
-.message-form input[type="text"]:focus {
-    border-color: var(--blue);
-}
-
-.message-form input::placeholder {
-    color: var(--muted-2);
-}
-
-.message-form button[type="submit"] {
-    width: 45px;
-    height: 45px;
-    flex-shrink: 0;
-    border-radius: 13px;
-    background: var(--blue);
-    color: white;
-    cursor: pointer;
-    transition: .2s;
-}
-
-.message-form button[type="submit"]:hover {
-    background: var(--blue-hover);
-}
-
-.message-form button:disabled {
-    opacity: .45;
-    cursor: not-allowed;
-}
-
-.message-tool-btn {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-    border-radius: 11px;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    transition: .2s;
-}
-
-.message-tool-btn:hover:not(:disabled) {
-    background: var(--panel-2);
-    color: #60a5fa;
-}
-
-
-/* =========================================================
-   EMOJI PANEL
-========================================================= */
-
-.emoji-panel {
-    position: absolute;
-    right: 18px;
-    bottom: 76px;
-    width: 270px;
-    padding: 12px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: var(--panel);
-    box-shadow: 0 15px 45px rgba(0,0,0,.4);
-    display: none;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 5px;
-    z-index: 20;
-}
-
-.emoji-panel.show {
-    display: grid;
-}
-
-.emoji-panel button {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    background: transparent;
-    cursor: pointer;
-    font-size: 20px;
-}
-
-.emoji-panel button:hover {
-    background: var(--panel-2);
-}
-
-
-/* =========================================================
-   MODAL
-========================================================= */
-
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    background: rgba(0, 0, 0, .68);
-    backdrop-filter: blur(5px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-}
-
-.modal-overlay.show {
-    display: flex;
-}
-
-.modal {
-    width: min(460px, 100%);
-    max-height: 90vh;
-    overflow-y: auto;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    box-shadow: 0 25px 70px rgba(0,0,0,.5);
-}
-
-.large-modal {
-    width: min(700px, 100%);
-}
-
-.modal-header {
-    min-height: 65px;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.modal-header h2 {
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    gap: 9px;
-}
-
-.modal-header h2 i {
-    color: #60a5fa;
-}
-
-.modal-close {
-    width: 35px;
-    height: 35px;
-    border-radius: 9px;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 17px;
-}
-
-.modal-close:hover {
-    background: var(--panel-2);
-    color: white;
-}
-
-
-/* =========================================================
-   SETTINGS
-========================================================= */
-
-.settings-content {
-    padding: 10px;
-}
-
-.settings-item {
-    width: 100%;
-    padding: 13px;
-    border-radius: 11px;
-    background: transparent;
-    color: white;
-    display: flex;
-    align-items: center;
-    text-align: left;
-    gap: 12px;
-    cursor: pointer;
-    transition: .2s;
-}
-
-.settings-item:hover {
-    background: var(--panel-2);
-}
-
-.settings-item > div:nth-child(2) {
-    flex: 1;
-    min-width: 0;
-}
-
-.settings-item strong {
-    display: block;
-    font-size: 14px;
-}
-
-.settings-item span {
-    display: block;
-    margin-top: 4px;
-    color: var(--muted);
-    font-size: 12px;
-}
-
-.settings-item > i {
-    color: var(--muted-2);
-    font-size: 12px;
-}
-
-.settings-icon {
-    width: 39px;
-    height: 39px;
-    border-radius: 10px;
-    background: var(--panel-2);
-    color: #60a5fa;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.owner-icon {
-    color: #fbbf24;
-}
-
-.admin-icon {
-    color: #60a5fa;
-}
-
-.danger-setting {
-    color: #f87171;
-}
-
-
-/* =========================================================
-   OWNER / ADMIN TABS
-========================================================= */
-
-.owner-tabs {
-    display: flex;
-    gap: 6px;
-    padding: 10px;
-    overflow-x: auto;
-    border-bottom: 1px solid var(--border);
-}
-
-.owner-tab {
-    flex-shrink: 0;
-    padding: 9px 12px;
-    border-radius: 9px;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 12px;
-}
-
-.owner-tab:hover {
-    background: var(--panel-2);
-    color: white;
-}
-
-.owner-tab.active {
-    background: var(--blue);
-    color: white;
-}
-
-.owner-section {
-    display: none;
-    padding: 18px;
-}
-
-.owner-section.active {
-    display: block;
-}
-
-.owner-section h3 {
-    font-size: 17px;
-}
-
-.section-description {
-    color: var(--muted);
-    font-size: 13px;
-    margin-top: 5px;
-    margin-bottom: 15px;
-}
-
-.owner-search {
-    height: 43px;
-    padding: 0 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--panel-2);
-    display: flex;
-    align-items: center;
-}
-
-.owner-search i {
-    color: var(--muted-2);
-    margin-right: 9px;
-}
-
-.owner-search input {
-    width: 100%;
-    border: none;
-    background: transparent;
-    color: white;
-}
-
-.owner-result {
-    margin-top: 12px;
-}
-
-.owner-result-card {
-    padding: 12px;
-    border-radius: 11px;
-    background: var(--panel-2);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.owner-result-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.owner-result-info strong {
-    font-size: 14px;
-}
-
-.owner-result-info p {
-    color: var(--muted);
-    font-size: 12px;
-    margin-top: 3px;
-}
-
-.owner-result-actions {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-}
-
-.owner-action {
-    padding: 8px 10px;
-    border-radius: 8px;
-    background: var(--blue);
-    color: white;
-    cursor: pointer;
-    font-size: 11px;
-}
-
-.owner-action.green {
-    background: var(--green);
-}
-
-.owner-action.red {
-    background: var(--red);
-}
-
-.owner-action.gray {
-    background: var(--panel-3);
-}
-
-
-/* =========================================================
-   VERIFIED DURATION
-========================================================= */
-
-.verified-duration {
-    margin-top: 14px;
-}
-
-.verified-duration label {
-    display: block;
-    color: var(--muted);
-    font-size: 12px;
-    margin-bottom: 6px;
-}
-
-.verified-duration select {
-    width: 100%;
-    height: 40px;
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    background: var(--panel-2);
-    color: white;
-    padding: 0 10px;
-}
+// =========================
+// LOGIN / SIGNUP PANELS
+// =========================
 
-
-/* =========================================================
-   ADMIN CARDS
-========================================================= */
-
-.admin-panel-content {
-    padding: 15px;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-}
-
-.admin-card {
-    padding: 15px;
-    border: 1px solid var(--border);
-    border-radius: 13px;
-    background: var(--panel-2);
-}
-
-.admin-card > i {
-    font-size: 21px;
-    color: #60a5fa;
-    margin-bottom: 12px;
-}
-
-.admin-card h3 {
-    font-size: 14px;
-}
-
-.admin-card p {
-    color: var(--muted);
-    font-size: 12px;
-    margin: 5px 0 12px;
-    line-height: 1.4;
-}
-
-.admin-card button {
-    padding: 8px 12px;
-    border-radius: 8px;
-    background: var(--blue);
-    color: white;
-    cursor: pointer;
-    font-size: 11px;
-}
-
-
-/* =========================================================
-   FORMS
-========================================================= */
-
-#createGroupForm,
-#createChannelForm,
-#profileForm {
-    padding: 18px;
-}
-
-#createGroupForm label,
-#createChannelForm label,
-#profileForm label {
-    display: block;
-    margin: 12px 0 6px;
-    color: #cbd5e1;
-    font-size: 12px;
-}
-
-#createGroupForm input,
-#createGroupForm textarea,
-#createChannelForm input,
-#createChannelForm textarea,
-#profileForm input,
-#profileForm textarea {
-    width: 100%;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--panel-2);
-    color: white;
-    padding: 11px 12px;
-    outline: none;
+function showSignup() {
+    loginPanel.style.display = "none";
+    signupPanel.style.display = "block";
 }
 
-#createGroupForm input:focus,
-#createGroupForm textarea:focus,
-#createChannelForm input:focus,
-#createChannelForm textarea:focus,
-#profileForm input:focus,
-#profileForm textarea:focus {
-    border-color: var(--blue);
+function showLogin() {
+    signupPanel.style.display = "none";
+    loginPanel.style.display = "block";
 }
 
-#createGroupForm textarea,
-#createChannelForm textarea,
-#profileForm textarea {
-    min-height: 90px;
-    resize: vertical;
-}
-
-.primary-action {
-    width: 100%;
-    height: 43px;
-    margin-top: 18px;
-    border-radius: 10px;
-    background: var(--blue);
-    color: white;
-    cursor: pointer;
-    font-weight: 600;
-}
-
-.primary-action:hover {
-    background: var(--blue-hover);
-}
-
-
-/* =========================================================
-   PROFILE EDIT
-========================================================= */
-
-.profile-edit-avatar {
-    text-align: center;
-    padding: 10px 0 5px;
-}
-
-.large-avatar {
-    width: 90px;
-    height: 90px;
-    margin: 0 auto 10px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #2563eb, #0ea5e9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 32px;
-    font-weight: 700;
-    overflow: hidden;
-}
-
-.avatar-upload-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border-radius: 9px;
-    background: var(--panel-2);
-    color: #60a5fa;
-    cursor: pointer;
-    font-size: 12px;
-}
-
-
-/* =========================================================
-   TOAST
-========================================================= */
 
-.toast {
-    position: fixed;
-    left: 50%;
-    bottom: 25px;
-    transform: translate(-50%, 20px);
-    padding: 11px 16px;
-    border-radius: 10px;
-    background: #1e293b;
-    border: 1px solid var(--border);
-    color: white;
-    font-size: 13px;
-    opacity: 0;
-    pointer-events: none;
-    transition: .25s;
-    z-index: 500;
-}
-
-.toast.show {
-    opacity: 1;
-    transform: translate(-50%, 0);
-}
+// =========================
+// PASSWORD SHOW / HIDE
+// =========================
 
+function togglePassword(inputId, button) {
 
-/* =========================================================
-   SCROLLBAR
-========================================================= */
+    const input = document.getElementById(inputId);
+    const icon = button.querySelector("i");
 
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
+    if (input.type === "password") {
 
-::-webkit-scrollbar-track {
-    background: transparent;
-}
+        input.type = "text";
 
-::-webkit-scrollbar-thumb {
-    background: #334155;
-    border-radius: 10px;
-}
+        icon.classList.remove("fa-eye");
+        icon.classList.add("fa-eye-slash");
 
+    } else {
 
-/* =========================================================
-   TABLET
-========================================================= */
+        input.type = "password";
 
-@media (max-width: 850px) {
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye");
 
-    .sidebar {
-        width: 300px;
     }
-
-    .message {
-        max-width: 75%;
-    }
-
-    .contact-btn span {
-        display: none;
-    }
-
-    .contact-btn {
-        width: 38px;
-        padding: 0;
-        justify-content: center;
-    }
-
 }
 
 
-/* =========================================================
-   MOBILE
-========================================================= */
+// =========================
+// SIGN UP
+// =========================
 
-@media (max-width: 650px) {
+document
+    .getElementById("signupForm")
+    .addEventListener("submit", async function(event) {
 
-    .sidebar {
-        width: 100%;
-        position: absolute;
-        inset: 0;
-        z-index: 30;
-    }
-
-    .chat-area {
-        width: 100%;
-        position: absolute;
-        inset: 0;
-        z-index: 20;
-        display: none;
-    }
-
-    .app.chat-open .sidebar {
-        display: none;
-    }
-
-    .app.chat-open .chat-area {
-        display: flex;
-    }
-
-    .mobile-back-btn {
-        display: block;
-        flex-shrink: 0;
-    }
-
-    .chat-header {
-        padding: 10px 12px;
-    }
-
-    .chat-header .chat-user {
-        flex: 1;
-    }
-
-    .contact-actions {
-        flex-shrink: 0;
-    }
-
-    .messages {
-        padding: 16px 12px;
-    }
-
-    .message {
-        max-width: 82%;
-    }
-
-    .message-form {
-        padding: 9px;
-        min-height: 64px;
-    }
-
-    .message-tool-btn {
-        width: 35px;
-        height: 35px;
-    }
-
-    .message-form button[type="submit"] {
-        width: 40px;
-        height: 40px;
-    }
-
-    .message-form input[type="text"] {
-        height: 40px;
-    }
-
-    .emoji-panel {
-        right: 8px;
-        bottom: 68px;
-        width: 250px;
-    }
-
-    .admin-panel-content {
-        grid-template-columns: 1fr;
-    }
-
-}
+        event.preventDefault();
 
 
-/* =========================================================
-   SMALL MOBILE
-========================================================= */
+        const name =
+            document
+                .getElementById("signupName")
+                .value
+                .trim();
 
-@media (max-width: 400px) {
 
-    .profile-info {
-        max-width: 180px;
-    }
+        const username =
+            document
+                .getElementById("signupUsername")
+                .value
+                .trim()
+                .toLowerCase();
 
-    .sidebar-tabs {
-        gap: 3px;
-    }
 
-    .sidebar-tab {
-        font-size: 11px;
-    }
+        const email =
+            document
+                .getElementById("signupEmail")
+                .value
+                .trim()
+                .toLowerCase();
 
-    .create-section {
-        flex-direction: column;
-    }
 
-    .chat-user-info h2 {
-        font-size: 14px;
-    }
+        const password =
+            document.getElementById("signupPassword").value;
 
-    .chat-user-info p {
-        font-size: 11px;
-    }
 
-    .contact-btn {
-        width: 34px;
-        height: 34px;
-    }
+        const confirmPassword =
+            document.getElementById("confirmPassword").value;
 
-    .messages {
-        padding: 12px 8px;
-    }
 
-    .message {
-        max-width: 88%;
-    }
+        // Password tekshirish
 
-}
+        if (password !== confirmPassword) {
+
+            alert("Passwords do not match!");
+
+            return;
+        }
+
+
+        // Username tekshirish
+
+        if (!/^[a-z0-9_]+$/.test(username)) {
+
+            alert(
+                "Username can only contain letters, numbers and _"
+            );
+
+            return;
+        }
+
+
+        if (username.length < 3) {
+
+            alert(
+                "Username must be at least 3 characters."
+            );
+
+            return;
+        }
+
+
+        try {
+
+            // =========================
+            // CREATE SUPABASE ACCOUNT
+            // =========================
+
+            const { data, error } =
+                await supabaseClient.auth.signUp({
+
+                    email: email,
+
+                    password: password
+
+                });
+
+
+            if (error) {
+
+                alert(error.message);
+
+                return;
+            }
+
+
+            const user = data.user;
+
+
+            if (!user) {
+
+                alert(
+                    "Account could not be created."
+                );
+
+                return;
+            }
+
+
+            // =========================
+            // CREATE PROFILE
+            // =========================
+
+            const { error: profileError } =
+                await supabaseClient
+                    .from("profiles")
+                    .insert({
+
+                        id: user.id,
+
+                        username: username,
+
+                        full_name: name
+
+                    });
+
+
+            if (profileError) {
+
+                if (profileError.code === "23505") {
+
+                    alert(
+                        "This username is already taken."
+                    );
+
+                } else {
+
+                    alert(
+                        profileError.message
+                    );
+
+                }
+
+                return;
+            }
+
+
+            // =========================
+            // SUCCESS
+            // =========================
+
+            alert(
+                "Account created successfully!"
+            );
+
+
+            document
+                .getElementById("signupForm")
+                .reset();
+
+
+            showLogin();
+
+
+        } catch (error) {
+
+            alert(
+                "Something went wrong: " +
+                error.message
+            );
+
+        }
+
+    });
+
+
+// =========================
+// LOGIN
+// =========================
+
+document
+    .getElementById("loginForm")
+    .addEventListener("submit", async function(event) {
+
+        event.preventDefault();
+
+
+        const email =
+            document
+                .getElementById("loginEmail")
+                .value
+                .trim()
+                .toLowerCase();
+
+
+        const password =
+            document
+                .getElementById("loginPassword")
+                .value;
+
+
+        try {
+
+            // =========================
+            // SUPABASE LOGIN
+            // =========================
+
+            const { data, error } =
+                await supabaseClient.auth
+                    .signInWithPassword({
+
+                        email: email,
+
+                        password: password
+
+                    });
+
+
+            if (error) {
+
+                alert(
+                    "Incorrect email or password."
+                );
+
+                return;
+            }
+
+
+            // Login muvaffaqiyatli
+
+            localStorage.setItem(
+                "messageAppLoggedIn",
+                "true"
+            );
+
+
+            // Dashboardga o'tish
+
+            window.location.href =
+                "dashboard.html";
+
+
+        } catch (error) {
+
+            alert(
+                "Something went wrong: " +
+                error.message
+            );
+
+        }
+
+    });
