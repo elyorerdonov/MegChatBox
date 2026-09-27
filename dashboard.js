@@ -2982,7 +2982,7 @@
                             option.dataset.language;
 
                         localStorage.setItem(
-                            "msgboxLanguage",
+                            "MegChatBoxLanguage",
                             currentLanguage
                         );
 
@@ -3735,7 +3735,7 @@
 
         realtimeChannel =
             db.channel(
-                "msgbox-realtime-" +
+                "MegChatBox-realtime-" +
                 currentUser.id
             );
 
@@ -4418,7 +4418,7 @@
 
 
         console.log(
-            "MsgBox V2 dashboard ready."
+            "MegChatBox V2 dashboard ready."
         );
     }
 
@@ -4432,12 +4432,12 @@
     } catch (error) {
 
         console.error(
-            "MsgBox initialization error:",
+            "MegChatBox initialization error:",
             error
         );
 
         showToast(
-            "Something went wrong while loading MsgBox.",
+            "Something went wrong while loading MegChatBox.",
             "error"
         );
     }
