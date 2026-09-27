@@ -2,8 +2,9 @@
     "use strict";
 
     /* =========================================================
-       MEGCHATBOX - DASHBOARD
-       ========================================================= */
+       MEGCHATBOX - DASHBOARD.JS V3
+       Clean / Stable / Current dashboard.html compatible
+    ========================================================= */
 
     const db =
         typeof supabaseClient !== "undefined"
@@ -17,54 +18,30 @@
 
     /* =========================================================
        STATE
-       ========================================================= */
+    ========================================================= */
 
-    const state = {
-        user: null,
-        profile: null,
+    let currentUser = null;
+    let currentProfile = null;
 
-        currentChat: null,
-        currentChatType: null,
-        currentOtherUser: null,
+    let activeChatUser = null;
+    let activeCommunity = null;
+    let activeCommunityType = null;
 
-        currentGroup: null,
-        currentChannel: null,
+    let activeUserProfile = null;
+    let currentRequests = [];
 
-        currentProfileUser: null,
+    let currentRole = "user";
 
-        contactRequest: null,
+    let currentMessages = [];
+    let realtimeChannel = null;
 
-        groups: [],
-        channels: [],
-        contacts: [],
-        requests: [],
+    let searchTimer = null;
 
-        editingMessage: null,
-
-        theme: localStorage.getItem("megchatbox_theme") || "dark",
-        density:
-            localStorage.getItem("megchatbox_density") ||
-            "comfortable",
-
-        language:
-            localStorage.getItem("megchatbox_language") ||
-            "en",
-
-        realtimeChannels: [],
-
-        searchTimer: null
-    };
-
+    const $ = (id) => document.getElementById(id);
 
     /* =========================================================
        HELPERS
-       ========================================================= */
-
-    const $ = (selector) => document.querySelector(selector);
-
-    const $$ = (selector) =>
-        Array.from(document.querySelectorAll(selector));
-
+    ========================================================= */
 
     function escapeHTML(value) {
         return String(value ?? "")
@@ -75,1366 +52,1506 @@
             .replace(/'/g, "&#039;");
     }
 
-
-    function normalizeUsername(value) {
-        return String(value || "")
-            .trim()
-            .replace(/^@/, "")
-            .toLowerCase();
+    function escapeAttr(value) {
+        return escapeHTML(value);
     }
 
-
-    function validUsername(username) {
-        return /^[a-z0-9_]{3,32}$/.test(username);
-    }
-
-
-    function showToast(message, type = "info") {
-        const toast = $("#toast");
-        const text = $("#toastMessage");
-
-        if (!toast || !text) return;
-
-        text.textContent = message;
-
-        toast.dataset.type = type;
-        toast.style.display = "flex";
-
-        clearTimeout(showToast.timer);
-
-        showToast.timer = setTimeout(() => {
-            toast.style.display = "none";
-        }, 3000);
-    }
-
-
-    function openModal(id) {
-        const modal = document.getElementById(id);
-
-        if (!modal) return;
-
-        modal.classList.add("open");
-        modal.style.display = "flex";
-    }
-
-
-    function closeModal(id) {
-        const modal = document.getElementById(id);
-
-        if (!modal) return;
-
-        modal.classList.remove("open");
-        modal.style.display = "none";
-    }
-
-
-    function closeAllModals() {
-        $$(".modal").forEach(modal => {
-            modal.classList.remove("open");
-            modal.style.display = "none";
-        });
-    }
-
-
-    function avatarInitial(name) {
+    function initials(name) {
         const text = String(name || "?").trim();
 
+        if (!text) return "?";
+
         return text
-            ? text.charAt(0).toUpperCase()
-            : "?";
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((x) => x[0])
+            .join("")
+            .toUpperCase();
     }
 
+    function isVerifiedActive(profile) {
+        if (!profile?.is_verified) return false;
 
-    function isVerified(profile) {
-        if (!profile) return false;
+        if (!profile.verified_until) return true;
 
-        if (profile.is_verified !== true) {
-            return false;
-        }
-
-        if (!profile.verified_until) {
-            return true;
-        }
-
-        return new Date(profile.verified_until).getTime() > Date.now();
+        return new Date(profile.verified_until) > new Date();
     }
-
 
     function formatTime(date) {
         if (!date) return "";
 
-        const d = new Date(date);
-
-        if (Number.isNaN(d.getTime())) return "";
-
-        return d.toLocaleTimeString([], {
+        return new Date(date).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit"
         });
     }
 
-
     function formatDate(date) {
         if (!date) return "";
 
-        const d = new Date(date);
-
-        if (Number.isNaN(d.getTime())) return "";
-
-        return d.toLocaleDateString();
+        return new Date(date).toLocaleDateString([], {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+        });
     }
 
-
-    function formatRemaining(until) {
-        if (!until) return "Permanent";
-
-        const diff =
-            new Date(until).getTime() - Date.now();
-
-        if (diff <= 0) return "Expired";
-
-        const days = Math.floor(
-            diff / (1000 * 60 * 60 * 24)
-        );
-
-        if (days > 0) {
-            return `${days} day${days === 1 ? "" : "s"} remaining`;
-        }
-
-        const hours = Math.floor(
-            diff / (1000 * 60 * 60)
-        );
-
-        return `${hours} hour${hours === 1 ? "" : "s"} remaining`;
+    function verifiedHTML(profile) {
+        return isVerifiedActive(profile)
+            ? `<span class="verified-badge" title="Verified">✓</span>`
+            : "";
     }
 
+    function avatarHTML(profile, className = "avatar") {
+        const name = profile?.full_name || profile?.username || "?";
 
-    /* =========================================================
-       AVATAR HELPERS
-       ========================================================= */
-
-    function setAvatar(img, initial, url, name) {
-        if (!img || !initial) return;
-
-        if (url) {
-            img.src = url;
-            img.style.display = "block";
-            initial.style.display = "none";
-
-            img.onerror = () => {
-                img.style.display = "none";
-                initial.style.display = "inline-flex";
-                initial.textContent = avatarInitial(name);
-            };
-
-        } else {
-            img.removeAttribute("src");
-            img.style.display = "none";
-
-            initial.style.display = "inline-flex";
-            initial.textContent = avatarInitial(name);
-        }
-    }
-
-
-    function setCommunityAvatar(element, url, name, icon) {
-        if (!element) return;
-
-        if (url) {
-            element.innerHTML = `
-                <img
-                    src="${escapeHTML(url)}"
-                    alt=""
-                >
-            `;
-        } else {
-            element.innerHTML = `
-                <i class="${escapeHTML(icon)}"></i>
+        if (profile?.avatar_url) {
+            return `
+                <div class="${className}">
+                    <img src="${escapeAttr(profile.avatar_url)}" alt="">
+                </div>
             `;
         }
+
+        return `
+            <div class="${className}">
+                <span>${escapeHTML(initials(name))}</span>
+            </div>
+        `;
     }
 
+    function toast(message, type = "info") {
+        const box = $("toast");
+        const text = $("toastMessage");
 
-    /* =========================================================
-       SESSION
-       ========================================================= */
+        if (!box || !text) return;
 
-    async function getCurrentUser() {
-        const {
-            data,
-            error
-        } = await db.auth.getUser();
+        text.textContent = message;
 
-        if (error) {
-            console.error(error);
-            return null;
+        box.classList.remove("success", "error", "warning", "info");
+        box.classList.add(type);
+
+        box.classList.add("show");
+
+        clearTimeout(toast.timer);
+
+        toast.timer = setTimeout(() => {
+            box.classList.remove("show");
+        }, 3000);
+    }
+
+    function showError(error, fallback = "Something went wrong.") {
+        console.error(error);
+
+        const message =
+            error?.message ||
+            error?.error_description ||
+            fallback;
+
+        toast(message, "error");
+    }
+
+    function openModal(id) {
+        const modal = $(id);
+
+        if (!modal) return;
+
+        modal.style.display = "flex";
+        modal.classList.add("open");
+        document.body.classList.add("modal-open");
+    }
+
+    function closeModal(id) {
+        const modal = $(id);
+
+        if (!modal) return;
+
+        modal.classList.remove("open");
+        modal.style.display = "none";
+
+        if (!document.querySelector(".modal.open")) {
+            document.body.classList.remove("modal-open");
         }
-
-        return data?.user || null;
     }
 
+    function closeAllModals() {
+        document.querySelectorAll(".modal").forEach((modal) => {
+            modal.classList.remove("open");
+            modal.style.display = "none";
+        });
 
-    async function loadMyProfile() {
-        if (!state.user) return null;
+        document.body.classList.remove("modal-open");
+    }
 
-        const {
-            data,
-            error
-        } = await db
+    function isUniqueError(error) {
+        return error?.code === "23505";
+    }
+
+    function isNotFoundError(error) {
+        return error?.code === "PGRST116";
+    }
+
+    async function getProfile(userId) {
+        const { data, error } = await db
             .from("profiles")
             .select("*")
-            .eq("id", state.user.id)
+            .eq("id", userId)
             .maybeSingle();
 
-        if (error) {
-            console.error(error);
-            showToast("Could not load your profile.", "error");
-            return null;
-        }
-
-        state.profile = data;
+        if (error) throw error;
 
         return data;
     }
 
+    async function getProfiles(ids) {
+        const cleanIds = [...new Set((ids || []).filter(Boolean))];
+
+        if (!cleanIds.length) return [];
+
+        const { data, error } = await db
+            .from("profiles")
+            .select(`
+                id,
+                username,
+                full_name,
+                avatar_url,
+                bio,
+                is_verified,
+                verified_until,
+                last_seen,
+                show_online,
+                show_last_seen,
+                account_blocked,
+                messaging_blocked
+            `)
+            .in("id", cleanIds);
+
+        if (error) throw error;
+
+        return data || [];
+    }
 
     /* =========================================================
-       MY PROFILE UI
-       ========================================================= */
+       AUTH
+    ========================================================= */
+
+    async function initAuth() {
+        const {
+            data: { session },
+            error
+        } = await db.auth.getSession();
+
+        if (error) {
+            console.error(error);
+        }
+
+        if (!session?.user) {
+            location.href = "index.html";
+            return false;
+        }
+
+        currentUser = session.user;
+
+        currentProfile = await getProfile(currentUser.id);
+
+        if (!currentProfile) {
+            toast("Profile not found.", "error");
+            return false;
+        }
+
+        if (currentProfile.account_blocked) {
+            toast("Your account is blocked.", "error");
+            await db.auth.signOut();
+            location.href = "index.html";
+            return false;
+        }
+
+        return true;
+    }
+
+    /* =========================================================
+       PROFILE
+    ========================================================= */
 
     function renderMyProfile() {
-        const profile = state.profile;
+        if (!currentProfile) return;
 
-        if (!profile) return;
+        const name = currentProfile.full_name || currentProfile.username;
 
-        const myName = $("#myName");
-        const myUsername = $("#myUsername");
-        const myVerified = $("#myVerified");
+        const myName = $("myName");
+        const myUsername = $("myUsername");
+        const myAvatar = $("myAvatar");
+        const myAvatarInitial = $("myAvatarInitial");
+        const myVerified = $("myVerified");
 
-        const myAvatar = $("#myAvatar");
-        const myAvatarInitial = $("#myAvatarInitial");
+        if (myName) myName.textContent = name;
+        if (myUsername) myUsername.textContent = `@${currentProfile.username}`;
 
-        if (myName) {
-            myName.textContent =
-                profile.full_name ||
-                profile.username ||
-                "User";
-        }
-
-        if (myUsername) {
-            myUsername.textContent =
-                "@" + (profile.username || "username");
-        }
-
-        setAvatar(
-            myAvatar,
-            myAvatarInitial,
-            profile.avatar_url,
-            profile.full_name || profile.username
-        );
-
-        if (myVerified) {
-            if (isVerified(profile)) {
-                myVerified.style.display = "inline-flex";
-                myVerified.title =
-                    profile.verified_until
-                        ? `Verified • ${formatRemaining(profile.verified_until)}`
-                        : "Verified";
+        if (myAvatar) {
+            if (currentProfile.avatar_url) {
+                myAvatar.innerHTML = `
+                    <img src="${escapeAttr(currentProfile.avatar_url)}" alt="">
+                `;
             } else {
-                myVerified.style.display = "none";
+                myAvatar.innerHTML = "";
+                if (myAvatarInitial) {
+                    myAvatarInitial.textContent = initials(name);
+                }
             }
         }
+
+        if (myVerified) {
+            myVerified.style.display =
+                isVerifiedActive(currentProfile)
+                    ? "inline-flex"
+                    : "none";
+        }
     }
 
+    async function saveProfile() {
+        if (!currentUser) return;
 
-    /* =========================================================
-       PROFILE SETTINGS
-       ========================================================= */
-
-    function fillProfileForm() {
-        const p = state.profile;
-
-        if (!p) return;
-
-        const fullName = $("#profileFullName");
-        const username = $("#profileUsername");
-        const bio = $("#profileBio");
-
-        if (fullName) {
-            fullName.value = p.full_name || "";
-        }
-
-        if (username) {
-            username.value = p.username || "";
-        }
-
-        if (bio) {
-            bio.value = p.bio || "";
-        }
-
-        setAvatar(
-            $("#profileAvatarImage"),
-            $("#profileAvatarInitial"),
-            p.avatar_url,
-            p.full_name || p.username
-        );
-    }
-
-
-    async function saveProfile(event) {
-        event?.preventDefault();
-
-        if (!state.user) return;
-
-        const fullName =
-            $("#profileFullName")?.value.trim() || "";
-
-        const username =
-            normalizeUsername(
-                $("#profileUsername")?.value
-            );
-
-        const bio =
-            $("#profileBio")?.value.trim() || "";
+        const fullName = $("profileFullName")?.value.trim();
+        const username = $("profileUsername")?.value.trim().toLowerCase();
+        const bio = $("profileBio")?.value.trim();
 
         if (!fullName) {
-            showToast("Full name is required.", "error");
+            toast("Full name is required.", "error");
             return;
         }
 
-        if (!validUsername(username)) {
-            showToast(
-                "Username must contain 3-32 lowercase letters, numbers or underscores.",
+        if (!/^[a-z0-9_]{3,32}$/.test(username)) {
+            toast(
+                "Username must contain 3-32 lowercase letters, numbers or _.",
                 "error"
             );
             return;
         }
 
-        /* ---------------------------------------------
-           USERNAME UNIQUENESS
-        --------------------------------------------- */
-
-        const {
-            data: existing,
-            error: checkError
-        } = await db
+        const { data: existing, error: existingError } = await db
             .from("profiles")
             .select("id")
             .eq("username", username)
-            .neq("id", state.user.id)
+            .neq("id", currentUser.id)
             .maybeSingle();
 
-        if (checkError) {
-            console.error(checkError);
-            showToast(
-                "Could not check username.",
-                "error"
-            );
+        if (existingError) {
+            showError(existingError);
             return;
         }
 
         if (existing) {
-            showToast(
-                "This username is already taken.",
-                "error"
-            );
+            toast("This username is already taken.", "error");
             return;
         }
 
-
-        const {
-            data,
-            error
-        } = await db
+        const { data, error } = await db
             .from("profiles")
             .update({
                 full_name: fullName,
                 username,
-                bio
+                bio: bio || ""
             })
-            .eq("id", state.user.id)
-            .select()
+            .eq("id", currentUser.id)
+            .select("*")
             .single();
 
         if (error) {
-            console.error(error);
-
-            if (error.code === "23505") {
-                showToast(
-                    "This username is already taken.",
-                    "error"
-                );
+            if (isUniqueError(error)) {
+                toast("This username is already taken.", "error");
             } else {
-                showToast(
-                    "Could not save profile.",
-                    "error"
-                );
+                showError(error);
             }
 
             return;
         }
 
-        state.profile = data;
+        currentProfile = data;
 
         renderMyProfile();
 
         closeModal("profileModal");
 
-        showToast("Profile updated.");
+        toast("Profile updated.", "success");
     }
 
+    async function uploadAvatar(input, bucket, pathPrefix) {
+        if (!input?.files?.length || !currentUser) return null;
 
-    /* =========================================================
-       PROFILE AVATAR
-       ========================================================= */
+        const file = input.files[0];
 
-    async function uploadFile(bucket, file, path) {
-        const {
-            error
-        } = await db.storage
+        if (!file.type.startsWith("image/")) {
+            toast("Please select an image.", "error");
+            return null;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast("Image must be smaller than 5 MB.", "error");
+            return null;
+        }
+
+        const extension =
+            file.name.split(".").pop()?.toLowerCase() || "jpg";
+
+        const path =
+            `${pathPrefix}/${currentUser.id}-${Date.now()}.${extension}`;
+
+        const { error: uploadError } = await db.storage
             .from(bucket)
             .upload(path, file, {
                 upsert: true,
                 contentType: file.type
             });
 
-        if (error) {
-            throw error;
+        if (uploadError) {
+            showError(uploadError, "Avatar upload failed.");
+            return null;
         }
 
-        const {
-            data
-        } = db.storage
+        const { data } = db.storage
             .from(bucket)
             .getPublicUrl(path);
 
         return data.publicUrl;
     }
 
+    async function handleProfileAvatar() {
+        const input = $("profileAvatarInput");
 
-    async function changeProfileAvatar(event) {
-        const file = event.target.files?.[0];
+        const url = await uploadAvatar(
+            input,
+            "avatars",
+            "profiles"
+        );
 
-        if (!file || !state.user) return;
+        if (!url) return;
 
-        if (!file.type.startsWith("image/")) {
-            showToast("Please select an image.", "error");
+        const { data, error } = await db
+            .from("profiles")
+            .update({
+                avatar_url: url
+            })
+            .eq("id", currentUser.id)
+            .select("*")
+            .single();
+
+        if (error) {
+            showError(error);
             return;
         }
 
-        if (file.size > 5 * 1024 * 1024) {
-            showToast(
-                "Image must be smaller than 5 MB.",
-                "error"
-            );
-            return;
+        currentProfile = data;
+
+        renderMyProfile();
+
+        const image = $("profileAvatarImage");
+        const initial = $("profileAvatarInitial");
+
+        if (image) {
+            image.src = url;
+            image.style.display = "block";
         }
 
-        try {
-            showToast("Uploading avatar...");
-
-            const extension =
-                file.name.split(".").pop() || "jpg";
-
-            const path =
-                `${state.user.id}/avatar.${extension}`;
-
-            const url = await uploadFile(
-                "avatars",
-                file,
-                path
-            );
-
-            const {
-                data,
-                error
-            } = await db
-                .from("profiles")
-                .update({
-                    avatar_url: url
-                })
-                .eq("id", state.user.id)
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            state.profile = data;
-
-            renderMyProfile();
-            fillProfileForm();
-
-            showToast("Avatar updated.");
-
-        } catch (error) {
-            console.error(error);
-            showToast(
-                "Could not upload avatar.",
-                "error"
-            );
+        if (initial) {
+            initial.style.display = "none";
         }
+
+        toast("Avatar updated.", "success");
     }
 
+    async function loadPrivacy() {
+        if (!currentProfile) return;
 
-    /* =========================================================
-       PRIVACY
-       ========================================================= */
-
-    function fillPrivacySettings() {
-        const p = state.profile;
-
-        if (!p) return;
-
-        const online = $("#showOnlineToggle");
-        const lastSeen = $("#showLastSeenToggle");
+        const online = $("showOnlineToggle");
+        const lastSeen = $("showLastSeenToggle");
 
         if (online) {
-            online.checked =
-                p.show_online !== false;
+            online.checked = currentProfile.show_online !== false;
         }
 
         if (lastSeen) {
-            lastSeen.checked =
-                p.show_last_seen !== false;
+            lastSeen.checked = currentProfile.show_last_seen !== false;
         }
     }
 
-
     async function savePrivacy() {
-        if (!state.user) return;
-
         const showOnline =
-            $("#showOnlineToggle")?.checked ?? true;
+            $("showOnlineToggle")?.checked ?? true;
 
         const showLastSeen =
-            $("#showLastSeenToggle")?.checked ?? true;
+            $("showLastSeenToggle")?.checked ?? true;
 
-        const {
-            data,
-            error
-        } = await db
+        const { data, error } = await db
             .from("profiles")
             .update({
                 show_online: showOnline,
                 show_last_seen: showLastSeen
             })
-            .eq("id", state.user.id)
-            .select()
+            .eq("id", currentUser.id)
+            .select("*")
             .single();
 
         if (error) {
-            console.error(error);
-            showToast(
-                "Could not save privacy settings.",
-                "error"
-            );
+            showError(error);
             return;
         }
 
-        state.profile = data;
+        currentProfile = data;
 
-        showToast("Privacy settings saved.");
-
-        closeModal("privacyModal");
+        toast("Privacy settings saved.", "success");
     }
-
 
     /* =========================================================
        CONTACTS
-       ========================================================= */
+    ========================================================= */
 
-    async function loadContacts() {
-        if (!state.user) return;
+    async function getContactRequests() {
+        if (!currentUser) return [];
 
-        const {
-            data: requests,
-            error
-        } = await db
+        const { data, error } = await db
             .from("contact_requests")
             .select("*")
             .or(
-                `sender_id.eq.${state.user.id},receiver_id.eq.${state.user.id}`
+                `sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`
             )
-            .eq("status", "accepted");
+            .order("created_at", { ascending: false });
 
         if (error) {
-            console.error(error);
-            return;
+            console.error("Contact requests:", error);
+            return [];
         }
 
-        const ids = [];
-
-        for (const request of requests || []) {
-            const id =
-                request.sender_id === state.user.id
-                    ? request.receiver_id
-                    : request.sender_id;
-
-            if (id) ids.push(id);
-        }
-
-        if (!ids.length) {
-            state.contacts = [];
-            renderContacts([]);
-            return;
-        }
-
-        const {
-            data: profiles,
-            error: profileError
-        } = await db
-            .from("profiles")
-            .select("*")
-            .in("id", ids);
-
-        if (profileError) {
-            console.error(profileError);
-            return;
-        }
-
-        state.contacts = profiles || [];
-
-        renderContacts(state.contacts);
+        return data || [];
     }
 
+    async function loadIncomingRequests() {
+        if (!currentUser) return [];
 
-    function renderContacts(contacts) {
-        const list = $("#userList");
+        try {
+            /*
+             * IMPORTANT:
+             * Do NOT use:
+             * profiles!contact_requests_sender_id_fkey
+             *
+             * sender_id references auth.users, not profiles.
+             */
 
-        if (!list) return;
+            const { data: requests, error } = await db
+                .from("contact_requests")
+                .select("*")
+                .eq("receiver_id", currentUser.id)
+                .eq("status", "pending")
+                .order("created_at", { ascending: false });
 
-        list.innerHTML = "";
+            if (error) {
+                console.error("Incoming requests:", error);
+                return [];
+            }
 
-        if (!contacts.length) {
-            list.innerHTML = `
-                <div class="empty-list">
-                    No contacts yet.
-                </div>
-            `;
+            if (!requests?.length) {
+                currentRequests = [];
+                return [];
+            }
 
-            updateCount("#contactCount", 0);
-            return;
-        }
+            const senderIds = [
+                ...new Set(requests.map((r) => r.sender_id))
+            ];
 
-        contacts.forEach(profile => {
-            list.appendChild(
-                createContactElement(profile)
+            const profiles = await getProfiles(senderIds);
+
+            const map = new Map(
+                profiles.map((profile) => [
+                    profile.id,
+                    profile
+                ])
             );
-        });
 
-        updateCount(
-            "#contactCount",
-            contacts.length
-        );
+            currentRequests = requests.map((request) => ({
+                ...request,
+                sender: map.get(request.sender_id) || null
+            }));
+
+            return currentRequests;
+
+        } catch (error) {
+            console.error("loadIncomingRequests:", error);
+            return [];
+        }
     }
 
+    async function getAcceptedContacts() {
+        const requests = await getContactRequests();
 
-    function createContactElement(profile) {
-        const button = document.createElement("button");
-
-        button.type = "button";
-        button.className = "chat-item";
-
-        button.innerHTML = `
-            <div class="chat-avatar">
-
-                ${
-                    profile.avatar_url
-                        ? `
-                            <img
-                                src="${escapeHTML(profile.avatar_url)}"
-                                alt=""
-                            >
-                        `
-                        : `
-                            <span>
-                                ${escapeHTML(
-                                    avatarInitial(
-                                        profile.full_name ||
-                                        profile.username
-                                    )
-                                )}
-                            </span>
-                        `
-                }
-
-            </div>
-
-            <div class="chat-item-info">
-
-                <div class="chat-item-top">
-
-                    <strong>
-                        ${escapeHTML(
-                            profile.full_name ||
-                            profile.username
-                        )}
-                    </strong>
-
-                    ${
-                        isVerified(profile)
-                            ? `
-                                <span class="verified-badge">
-                                    ✓
-                                </span>
-                            `
-                            : ""
-                    }
-
-                </div>
-
-                <span>
-                    @${escapeHTML(profile.username)}
-                </span>
-
-            </div>
-        `;
-
-        button.addEventListener(
-            "click",
-            () => openDirectChat(profile)
+        const accepted = requests.filter(
+            (r) => r.status === "accepted"
         );
 
-        return button;
+        const ids = accepted.map((request) =>
+            request.sender_id === currentUser.id
+                ? request.receiver_id
+                : request.sender_id
+        );
+
+        return [...new Set(ids)];
     }
 
+    async function getRelationship(userId) {
+        if (!currentUser || !userId) {
+            return null;
+        }
 
-    /* =========================================================
-       CONTACT REQUESTS
-       ========================================================= */
-
-    async function findContactRequest(otherId) {
-        if (!state.user || !otherId) return null;
-
-        const {
-            data,
-            error
-        } = await db
+        const { data, error } = await db
             .from("contact_requests")
             .select("*")
             .or(
-                `and(sender_id.eq.${state.user.id},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${state.user.id})`
+                `and(sender_id.eq.${currentUser.id},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${currentUser.id})`
             )
-            .order("created_at", {
-                ascending: false
-            })
+            .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
 
         if (error) {
-            console.error(error);
+            console.error("Relationship:", error);
             return null;
         }
 
         return data;
     }
 
+    async function sendContactRequest(userId) {
+        if (!userId || userId === currentUser.id) return;
 
-    async function sendContactRequest() {
-        if (
-            !state.user ||
-            !state.currentOtherUser
-        ) return;
+        const relationship = await getRelationship(userId);
 
-        const otherId =
-            state.currentOtherUser.id;
-
-        if (otherId === state.user.id) {
-            showToast(
-                "You cannot add yourself.",
-                "error"
-            );
+        if (relationship?.status === "accepted") {
+            toast("You are already contacts.", "info");
             return;
         }
 
-        const existing =
-            await findContactRequest(otherId);
-
-        if (existing?.status === "accepted") {
-            showToast("Already in contacts.");
-            return;
-        }
-
-        if (
-            existing?.status === "pending" &&
-            existing.sender_id === state.user.id
-        ) {
-            showToast("Request already sent.");
-            return;
-        }
-
-        if (
-            existing?.status === "pending" &&
-            existing.receiver_id === state.user.id
-        ) {
-            showToast(
-                "This user already sent you a request."
-            );
-            return;
-        }
-
-        const {
-            error
-        } = await db
-            .from("contact_requests")
-            .insert({
-                sender_id: state.user.id,
-                receiver_id: otherId,
-                status: "pending"
-            });
-
-        if (error) {
-            console.error(error);
-
-            if (error.code === "23505") {
-                showToast(
-                    "Contact request already exists."
-                );
+        if (relationship?.status === "pending") {
+            if (relationship.sender_id === currentUser.id) {
+                toast("Contact request already sent.", "info");
             } else {
-                showToast(
-                    "Could not send request.",
-                    "error"
-                );
+                toast("This user already sent you a request.", "info");
             }
 
             return;
         }
 
-        showToast("Contact request sent.");
+        const { error } = await db
+            .from("contact_requests")
+            .insert({
+                sender_id: currentUser.id,
+                receiver_id: userId,
+                status: "pending"
+            });
 
-        await updateContactActions();
+        if (error) {
+            if (isUniqueError(error)) {
+                toast("Contact request already exists.", "info");
+            } else {
+                showError(error);
+            }
+
+            return;
+        }
+
+        toast("Contact request sent.", "success");
+
+        await refreshSidebar();
     }
 
-
-    async function acceptContactRequest() {
-        const request = state.contactRequest;
-
-        if (!request) return;
-
-        const {
-            error
-        } = await db
+    async function acceptContactRequest(requestId) {
+        const { error } = await db
             .from("contact_requests")
             .update({
                 status: "accepted"
             })
-            .eq("id", request.id)
-            .eq("receiver_id", state.user.id);
+            .eq("id", requestId)
+            .eq("receiver_id", currentUser.id)
+            .eq("status", "pending");
 
         if (error) {
-            console.error(error);
-            showToast(
-                "Could not accept request.",
-                "error"
-            );
+            showError(error);
             return;
         }
 
-        showToast("Contact request accepted.");
+        toast("Contact request accepted.", "success");
 
-        await loadContacts();
+        await refreshSidebar();
 
-        await updateContactActions();
+        if (activeUserProfile) {
+            openDirectChat(activeUserProfile);
+        }
     }
 
-
-    async function declineContactRequest() {
-        const request = state.contactRequest;
-
-        if (!request) return;
-
-        const {
-            error
-        } = await db
+    async function declineContactRequest(requestId) {
+        const { error } = await db
             .from("contact_requests")
             .update({
                 status: "declined"
             })
-            .eq("id", request.id)
-            .eq("receiver_id", state.user.id);
+            .eq("id", requestId)
+            .eq("receiver_id", currentUser.id)
+            .eq("status", "pending");
 
         if (error) {
-            console.error(error);
-            showToast(
-                "Could not decline request.",
-                "error"
-            );
+            showError(error);
             return;
         }
 
-        showToast("Request declined.");
+        toast("Contact request declined.", "success");
 
-        await updateContactActions();
+        await refreshSidebar();
     }
 
+    /* =========================================================
+       CONTACT LIST
+    ========================================================= */
 
-    async function updateContactActions() {
-        const box = $("#contactActions");
+    async function renderContacts() {
+        const list = $("userList");
 
-        const add = $("#addContactBtn");
-        const accept = $("#acceptContactBtn");
-        const decline = $("#declineContactBtn");
+        if (!list) return;
 
-        if (!box) return;
-
-        if (
-            !state.currentOtherUser ||
-            state.currentChatType !== "direct"
-        ) {
-            box.style.display = "none";
-            return;
-        }
-
-        const request =
-            await findContactRequest(
-                state.currentOtherUser.id
-            );
-
-        state.contactRequest = request;
-
-        box.style.display = "flex";
-
-        add.style.display = "none";
-        accept.style.display = "none";
-        decline.style.display = "none";
-
-        if (!request) {
-            add.style.display = "inline-flex";
-            return;
-        }
-
-        if (request.status === "accepted") {
-            box.style.display = "none";
-            return;
-        }
-
-        if (
-            request.status === "pending" &&
-            request.receiver_id === state.user.id
-        ) {
-            accept.style.display = "inline-flex";
-            decline.style.display = "inline-flex";
-            return;
-        }
-
-        if (
-            request.status === "pending" &&
-            request.sender_id === state.user.id
-        ) {
-            add.style.display = "inline-flex";
-            add.disabled = true;
-            add.innerHTML = `
-                <i class="fa-solid fa-clock"></i>
-                Request Sent
-            `;
-            return;
-        }
-
-        add.style.display = "inline-flex";
-        add.disabled = false;
-        add.innerHTML = `
-            <i class="fa-solid fa-user-plus"></i>
-            Add Contact
+        list.innerHTML = `
+            <div class="loading-state">
+                Loading contacts...
+            </div>
         `;
-    }
 
+        const acceptedIds = await getAcceptedContacts();
 
-    async function areContacts(userA, userB) {
-        const {
-            data,
-            error
-        } = await db
-            .from("contact_requests")
-            .select("id")
-            .or(
-                `and(sender_id.eq.${userA},receiver_id.eq.${userB}),and(sender_id.eq.${userB},receiver_id.eq.${userA})`
-            )
-            .eq("status", "accepted")
-            .maybeSingle();
+        const profiles = await getProfiles(acceptedIds);
 
-        if (error) {
-            console.error(error);
-            return false;
+        const requests = await loadIncomingRequests();
+
+        list.innerHTML = "";
+
+        if (requests.length) {
+            const title = document.createElement("div");
+
+            title.className = "section-title";
+            title.textContent = "Contact requests";
+
+            list.appendChild(title);
+
+            requests.forEach((request) => {
+                const profile = request.sender;
+
+                if (!profile) return;
+
+                const item = document.createElement("div");
+
+                item.className = "contact-request-item";
+
+                item.innerHTML = `
+                    ${avatarHTML(profile, "list-avatar")}
+
+                    <div class="list-user-info">
+                        <div class="list-user-name">
+                            ${escapeHTML(
+                                profile.full_name || profile.username
+                            )}
+                            ${verifiedHTML(profile)}
+                        </div>
+
+                        <div class="list-user-username">
+                            @${escapeHTML(profile.username)}
+                        </div>
+                    </div>
+
+                    <div class="request-actions">
+                        <button
+                            class="request-accept"
+                            data-request-id="${request.id}"
+                        >
+                            Accept
+                        </button>
+
+                        <button
+                            class="request-decline"
+                            data-request-id="${request.id}"
+                        >
+                            Decline
+                        </button>
+                    </div>
+                `;
+
+                list.appendChild(item);
+            });
         }
 
-        return !!data;
+        if (!profiles.length && !requests.length) {
+            list.innerHTML += `
+                <div class="empty-state">
+                    No contacts yet.
+                </div>
+            `;
+        }
+
+        profiles.forEach((profile) => {
+            const item = document.createElement("div");
+
+            item.className = "chat-list-item";
+
+            item.innerHTML = `
+                ${avatarHTML(profile, "list-avatar")}
+
+                <div class="list-user-info">
+                    <div class="list-user-name">
+                        ${escapeHTML(
+                            profile.full_name || profile.username
+                        )}
+                        ${verifiedHTML(profile)}
+                    </div>
+
+                    <div class="list-user-username">
+                        @${escapeHTML(profile.username)}
+                    </div>
+                </div>
+            `;
+
+            item.addEventListener("click", () => {
+                openDirectChat(profile);
+            });
+
+            list.appendChild(item);
+        });
+
+        if ($("contactCount")) {
+            $("contactCount").textContent = profiles.length;
+        }
     }
 
+    /* =========================================================
+       SEARCH
+    ========================================================= */
+
+    async function searchEverything(query) {
+        query = query.trim().toLowerCase();
+
+        if (!query) {
+            await refreshSidebar();
+            return;
+        }
+
+        const usersList = $("userList");
+
+        if (!usersList) return;
+
+        usersList.innerHTML = `
+            <div class="loading-state">
+                Searching...
+            </div>
+        `;
+
+        const [
+            usersResult,
+            groupsResult,
+            channelsResult
+        ] = await Promise.all([
+            db
+                .from("profiles")
+                .select(`
+                    id,
+                    username,
+                    full_name,
+                    avatar_url,
+                    bio,
+                    is_verified,
+                    verified_until
+                `)
+                .or(
+                    `username.ilike.%${query}%,full_name.ilike.%${query}%`
+                )
+                .neq("id", currentUser.id)
+                .limit(20),
+
+            db
+                .from("groups")
+                .select("*")
+                .or(
+                    `username.ilike.%${query}%,name.ilike.%${query}%`
+                )
+                .limit(20),
+
+            db
+                .from("channels")
+                .select("*")
+                .or(
+                    `username.ilike.%${query}%,name.ilike.%${query}%`
+                )
+                .limit(20)
+        ]);
+
+        usersList.innerHTML = "";
+
+        if (!usersResult.error) {
+            (usersResult.data || []).forEach((profile) => {
+                renderSearchUser(usersList, profile);
+            });
+        }
+
+        if (!groupsResult.error) {
+            (groupsResult.data || []).forEach((group) => {
+                renderSearchCommunity(
+                    usersList,
+                    group,
+                    "group"
+                );
+            });
+        }
+
+        if (!channelsResult.error) {
+            (channelsResult.data || []).forEach((channel) => {
+                renderSearchCommunity(
+                    usersList,
+                    channel,
+                    "channel"
+                );
+            });
+        }
+
+        if (!usersList.children.length) {
+            usersList.innerHTML = `
+                <div class="empty-state">
+                    Nothing found.
+                </div>
+            `;
+        }
+    }
+
+    function renderSearchUser(container, profile) {
+        const item = document.createElement("div");
+
+        item.className = "search-result-item";
+
+        item.innerHTML = `
+            ${avatarHTML(profile, "list-avatar")}
+
+            <div class="list-user-info">
+                <div class="list-user-name">
+                    ${escapeHTML(
+                        profile.full_name || profile.username
+                    )}
+                    ${verifiedHTML(profile)}
+                </div>
+
+                <div class="list-user-username">
+                    @${escapeHTML(profile.username)}
+                </div>
+            </div>
+
+            <button class="search-user-action">
+                Open
+            </button>
+        `;
+
+        item.querySelector("button")
+            .addEventListener("click", (event) => {
+                event.stopPropagation();
+                openDirectChat(profile);
+            });
+
+        item.addEventListener("click", () => {
+            openDirectChat(profile);
+        });
+
+        container.appendChild(item);
+    }
+
+    function renderSearchCommunity(container, community, type) {
+        const item = document.createElement("div");
+
+        item.className = "search-result-item community-result";
+
+        item.innerHTML = `
+            <div class="list-avatar community-avatar">
+                ${community.avatar_url
+                    ? `<img src="${escapeAttr(
+                        community.avatar_url
+                    )}" alt="">`
+                    : `<span>${escapeHTML(
+                        initials(community.name)
+                    )}</span>`
+                }
+            </div>
+
+            <div class="list-user-info">
+                <div class="list-user-name">
+                    ${escapeHTML(community.name)}
+                </div>
+
+                <div class="list-user-username">
+                    @${escapeHTML(community.username || "")}
+                    · ${type}
+                </div>
+            </div>
+        `;
+
+        item.addEventListener("click", () => {
+            openCommunity(community, type);
+        });
+
+        container.appendChild(item);
+    }
 
     /* =========================================================
        DIRECT CHAT
-       ========================================================= */
+    ========================================================= */
 
     async function openDirectChat(profile) {
-        if (!profile || !state.user) return;
+        if (!profile) return;
 
-        state.currentChatType = "direct";
-        state.currentOtherUser = profile;
-        state.currentChat = profile.id;
+        activeChatUser = profile;
+        activeCommunity = null;
+        activeCommunityType = null;
+        activeUserProfile = profile;
 
-        state.currentGroup = null;
-        state.currentChannel = null;
+        closeModal("userProfileModal");
 
-        showActiveChat();
+        const relationship =
+            await getRelationship(profile.id);
 
+        renderChatHeader(profile);
+
+        if (relationship?.status === "accepted") {
+            showDirectComposer(true);
+            await loadDirectMessages();
+        } else {
+            showDirectComposer(false);
+            renderContactActions(relationship);
+        }
+
+        $("chatEmpty")?.classList.add("hidden");
+        $("activeChat")?.classList.remove("hidden");
+    }
+
+    function renderChatHeader(profile) {
         const name =
             profile.full_name ||
             profile.username ||
             "User";
 
-        $("#chatName").textContent = name;
+        if ($("chatName")) {
+            $("chatName").textContent = name;
+        }
 
-        $("#chatStatus").textContent =
-            profile.show_online === false
-                ? "offline"
-                : (
-                    profile.last_seen
-                        ? `last seen ${formatDate(profile.last_seen)}`
-                        : "offline"
-                );
-
-        setAvatar(
-            $("#chatAvatar"),
-            $("#chatAvatarInitial"),
-            profile.avatar_url,
-            name
-        );
-
-        const verified =
-            $("#chatVerified");
-
-        if (verified) {
-            verified.style.display =
-                isVerified(profile)
+        if ($("chatVerified")) {
+            $("chatVerified").style.display =
+                isVerifiedActive(profile)
                     ? "inline-flex"
                     : "none";
         }
 
-        const contacts =
-            await areContacts(
-                state.user.id,
-                profile.id
-            );
-
-        if (contacts) {
-            $("#contactActions").style.display =
-                "none";
-
-            enableComposer(true);
-
-            await loadDirectMessages();
-        } else {
-            $("#messages").innerHTML = `
-                <div class="chat-access-message">
-                    <i class="fa-solid fa-user-lock"></i>
-                    <p>
-                        You can chat after this contact request is accepted.
-                    </p>
-                </div>
-            `;
-
-            enableComposer(false);
-
-            await updateContactActions();
+        if ($("chatStatus")) {
+            if (
+                profile.show_online !== false &&
+                profile.last_seen &&
+                Date.now() -
+                    new Date(profile.last_seen).getTime() <
+                    5 * 60 * 1000
+            ) {
+                $("chatStatus").textContent = "online";
+            } else if (
+                profile.show_last_seen !== false &&
+                profile.last_seen
+            ) {
+                $("chatStatus").textContent =
+                    `last seen ${formatDate(profile.last_seen)}`;
+            } else {
+                $("chatStatus").textContent = "";
+            }
         }
 
-        if (window.innerWidth <= 800) {
-            $(".sidebar")?.classList.add("mobile-hidden");
-            $(".chat-area")?.classList.add("mobile-active");
+        const avatar = $("chatAvatar");
+
+        if (avatar) {
+            if (profile.avatar_url) {
+                avatar.innerHTML = `
+                    <img
+                        src="${escapeAttr(profile.avatar_url)}"
+                        alt=""
+                    >
+                `;
+            } else {
+                avatar.innerHTML = `
+                    <span>
+                        ${escapeHTML(
+                            initials(name)
+                        )}
+                    </span>
+                `;
+            }
         }
     }
 
+    function renderContactActions(relationship) {
+        const box = $("contactActions");
+
+        if (!box) return;
+
+        box.innerHTML = "";
+
+        if (!activeChatUser) return;
+
+        if (!relationship) {
+            box.innerHTML = `
+                <button id="dynamicAddContactBtn">
+                    Add Contact
+                </button>
+            `;
+
+            $("dynamicAddContactBtn")
+                ?.addEventListener("click", () => {
+                    sendContactRequest(activeChatUser.id);
+                });
+
+            return;
+        }
+
+        if (relationship.status === "pending") {
+            if (
+                relationship.sender_id === currentUser.id
+            ) {
+                box.innerHTML = `
+                    <div class="request-status">
+                        Contact request sent
+                    </div>
+                `;
+            } else {
+                box.innerHTML = `
+                    <button id="dynamicAcceptBtn">
+                        Accept
+                    </button>
+
+                    <button id="dynamicDeclineBtn">
+                        Decline
+                    </button>
+                `;
+
+                $("dynamicAcceptBtn")
+                    ?.addEventListener("click", () => {
+                        acceptContactRequest(
+                            relationship.id
+                        );
+                    });
+
+                $("dynamicDeclineBtn")
+                    ?.addEventListener("click", () => {
+                        declineContactRequest(
+                            relationship.id
+                        );
+                    });
+            }
+
+            return;
+        }
+
+        if (relationship.status === "declined") {
+            box.innerHTML = `
+                <button id="dynamicAddContactBtn">
+                    Add Contact
+                </button>
+            `;
+        }
+    }
+
+    function showDirectComposer(enabled) {
+        const form = $("messageForm");
+        const input = $("messageInput");
+        const send = $("sendButton");
+
+        if (form) {
+            form.style.display = enabled ? "flex" : "none";
+        }
+
+        if (input) {
+            input.disabled = !enabled;
+        }
+
+        if (send) {
+            send.disabled = !enabled;
+        }
+
+        if ($("contactActions")) {
+            $("contactActions").style.display =
+                enabled ? "none" : "flex";
+        }
+    }
 
     async function loadDirectMessages() {
-        if (
-            !state.user ||
-            !state.currentOtherUser
-        ) return;
+        if (!currentUser || !activeChatUser) return;
 
-        const {
-            data,
-            error
-        } = await db
+        const { data, error } = await db
             .from("messages")
             .select("*")
             .or(
-                `and(sender_id.eq.${state.user.id},receiver_id.eq.${state.currentOtherUser.id}),and(sender_id.eq.${state.currentOtherUser.id},receiver_id.eq.${state.user.id})`
+                `and(sender_id.eq.${currentUser.id},receiver_id.eq.${activeChatUser.id}),and(sender_id.eq.${activeChatUser.id},receiver_id.eq.${currentUser.id})`
             )
             .order("created_at", {
                 ascending: true
             });
 
         if (error) {
-            console.error(error);
-
-            showToast(
-                "Could not load messages.",
-                "error"
-            );
-
+            showError(error);
             return;
         }
 
-        renderMessages(data || []);
+        currentMessages = data || [];
+
+        renderMessages(
+            currentMessages,
+            "direct"
+        );
     }
 
-
     /* =========================================================
-       MESSAGE RENDERING
-       ========================================================= */
+       MESSAGE RENDER
+    ========================================================= */
 
-    function renderMessages(messages) {
-        const container = $("#messages");
+    async function getMediaUrl(path) {
+        if (!path) return "";
+
+        if (
+            path.startsWith("http://") ||
+            path.startsWith("https://")
+        ) {
+            return path;
+        }
+
+        const { data, error } = await db.storage
+            .from("chat-media")
+            .createSignedUrl(path, 3600);
+
+        if (error) {
+            console.error(error);
+            return "";
+        }
+
+        return data?.signedUrl || "";
+    }
+
+    async function renderMessages(messages, type) {
+        const container = $("messages");
 
         if (!container) return;
 
         container.innerHTML = "";
 
-        messages.forEach(message => {
-            container.appendChild(
-                createMessageElement(message)
-            );
-        });
+        if (!messages.length) {
+            container.innerHTML = `
+                <div class="messages-empty">
+                    No messages yet.
+                </div>
+            `;
 
-        initializeMessageSwipes();
+            return;
+        }
 
-        scrollMessagesToBottom();
+        for (const message of messages) {
+            const mine =
+                message.sender_id === currentUser.id;
+
+            const row = document.createElement("div");
+
+            row.className =
+                `message-row ${mine ? "mine" : "theirs"}`;
+
+            const wrapper = document.createElement("div");
+
+            wrapper.className = "message-wrapper";
+
+            wrapper.dataset.messageId = message.id;
+
+            let content = "";
+
+            if (message.deleted_at) {
+                content = `
+                    <div class="message-bubble deleted-message">
+                        Message deleted
+                    </div>
+                `;
+            } else if (
+                message.message_type === "image" &&
+                message.image_url
+            ) {
+                const url =
+                    await getMediaUrl(
+                        message.image_url
+                    );
+
+                content = `
+                    <div class="message-bubble image-message">
+                        <img
+                            src="${escapeAttr(url)}"
+                            alt="Image"
+                            loading="lazy"
+                        >
+                    </div>
+                `;
+            } else {
+                content = `
+                    <div class="message-bubble">
+                        ${escapeHTML(message.content)}
+                        ${
+                            message.edited_at
+                                ? `<span class="edited-label">edited</span>`
+                                : ""
+                        }
+                    </div>
+                `;
+            }
+
+            wrapper.innerHTML = `
+                <div class="message-actions">
+                    <button
+                        class="message-action"
+                        data-action="save"
+                        title="Save"
+                    >
+                        🔖
+                    </button>
+
+                    ${
+                        mine && !message.deleted_at
+                            ? `
+                            <button
+                                class="message-action"
+                                data-action="edit"
+                                title="Edit"
+                            >
+                                ✏️
+                            </button>
+
+                            <button
+                                class="message-action"
+                                data-action="delete"
+                                title="Delete"
+                            >
+                                🗑️
+                            </button>
+                            `
+                            : ""
+                    }
+                </div>
+
+                ${content}
+
+                <div class="message-time">
+                    ${formatTime(message.created_at)}
+                </div>
+            `;
+
+            row.appendChild(wrapper);
+
+            setupMessageSwipe(wrapper, message);
+
+            container.appendChild(row);
+        }
+
+        container.scrollTop =
+            container.scrollHeight;
     }
 
+    /* =========================================================
+       HOLD + SWIPE LEFT MESSAGE ACTIONS
+    ========================================================= */
 
-    function createMessageElement(message) {
-        const row = document.createElement("div");
+    function setupMessageSwipe(wrapper, message) {
+        let startX = 0;
+        let currentX = 0;
+        let holdTimer = null;
+        let holding = false;
 
-        row.className =
-            "message-row " +
-            (
-                message.sender_id === state.user.id
-                    ? "mine"
-                    : "theirs"
-            );
+        wrapper.addEventListener(
+            "pointerdown",
+            (event) => {
+                startX = event.clientX;
+                currentX = event.clientX;
+                holding = false;
 
-        const wrapper =
-            document.createElement("div");
+                clearTimeout(holdTimer);
 
-        wrapper.className =
-            "message-wrapper";
+                holdTimer = setTimeout(() => {
+                    holding = true;
+                    wrapper.classList.add(
+                        "hold-active"
+                    );
+                }, 450);
+            }
+        );
 
-        wrapper.dataset.messageId =
-            message.id;
+        wrapper.addEventListener(
+            "pointermove",
+            (event) => {
+                if (!holding) return;
 
-        const actions =
-            document.createElement("div");
+                currentX = event.clientX;
 
-        actions.className =
-            "message-actions";
+                const delta =
+                    currentX - startX;
+
+                if (delta < 0) {
+                    const amount =
+                        Math.max(
+                            -72,
+                            Math.min(
+                                0,
+                                delta
+                            )
+                        );
+
+                    const bubble =
+                        wrapper.querySelector(
+                            ".message-bubble"
+                        );
+
+                    if (bubble) {
+                        bubble.style.transform =
+                            `translateX(${amount}px)`;
+                    }
+                }
+            }
+        );
+
+        wrapper.addEventListener(
+            "pointerup",
+            () => {
+                clearTimeout(holdTimer);
+
+                if (holding) {
+                    const delta =
+                        currentX - startX;
+
+                    if (delta <= -55) {
+                        wrapper.classList.add(
+                            "swiped"
+                        );
+                    } else {
+                        resetMessageSwipe(
+                            wrapper
+                        );
+                    }
+                }
+
+                holding = false;
+            }
+        );
+
+        wrapper.addEventListener(
+            "pointercancel",
+            () => {
+                clearTimeout(holdTimer);
+                resetMessageSwipe(wrapper);
+                holding = false;
+            }
+        );
+
+        wrapper
+            .querySelectorAll(".message-action")
+            .forEach((button) => {
+                button.addEventListener(
+                    "click",
+                    async (event) => {
+                        event.stopPropagation();
+
+                        const action =
+                            button.dataset.action;
+
+                        if (action === "save") {
+                            await saveMessage(message);
+                        }
+
+                        if (action === "edit") {
+                            await editMessage(message);
+                        }
+
+                        if (action === "delete") {
+                            await deleteMessage(message);
+                        }
+
+                        resetMessageSwipe(wrapper);
+                    }
+                );
+            });
+    }
+
+    function resetMessageSwipe(wrapper) {
+        wrapper.classList.remove(
+            "swiped",
+            "hold-active"
+        );
 
         const bubble =
-            document.createElement("div");
+            wrapper.querySelector(
+                ".message-bubble"
+            );
 
-        bubble.className =
-            "message-bubble";
-
-
-        /* ---------------------------------------------
-           MESSAGE ACTIONS
-        --------------------------------------------- */
-
-        const saveButton =
-            document.createElement("button");
-
-        saveButton.type = "button";
-        saveButton.className =
-            "message-action";
-        saveButton.dataset.action = "save";
-        saveButton.innerHTML =
-            `<i class="fa-solid fa-bookmark"></i>`;
-
-        saveButton.title = "Save";
-
-
-        const editButton =
-            document.createElement("button");
-
-        editButton.type = "button";
-        editButton.className =
-            "message-action";
-        editButton.dataset.action = "edit";
-        editButton.innerHTML =
-            `<i class="fa-solid fa-pen"></i>`;
-
-        editButton.title = "Edit";
-
-
-        const deleteButton =
-            document.createElement("button");
-
-        deleteButton.type = "button";
-        deleteButton.className =
-            "message-action";
-        deleteButton.dataset.action = "delete";
-        deleteButton.innerHTML =
-            `<i class="fa-solid fa-trash"></i>`;
-
-        deleteButton.title = "Delete";
-
-
-        actions.appendChild(saveButton);
-
-        if (
-            message.sender_id ===
-            state.user.id
-        ) {
-            actions.appendChild(editButton);
-            actions.appendChild(deleteButton);
+        if (bubble) {
+            bubble.style.transform = "";
         }
-
-
-        /* ---------------------------------------------
-           CONTENT
-        --------------------------------------------- */
-
-        if (message.deleted_at) {
-            bubble.innerHTML = `
-                <span class="deleted-message">
-                    This message was deleted
-                </span>
-            `;
-
-        } else if (
-            message.message_type === "image" &&
-            message.image_url
-        ) {
-            bubble.innerHTML = `
-                <img
-                    class="message-image"
-                    src="${escapeHTML(message.image_url)}"
-                    alt="Image"
-                    loading="lazy"
-                >
-            `;
-
-        } else if (
-            message.message_type === "sticker" &&
-            message.sticker_url
-        ) {
-            bubble.innerHTML = `
-                <img
-                    class="message-sticker"
-                    src="${escapeHTML(message.sticker_url)}"
-                    alt="Sticker"
-                    loading="lazy"
-                >
-            `;
-
-        } else {
-            bubble.textContent =
-                message.content || "";
-        }
-
-
-        if (message.edited_at) {
-            const edited =
-                document.createElement("span");
-
-            edited.className =
-                "message-edited";
-
-            edited.textContent =
-                " edited";
-
-            bubble.appendChild(edited);
-        }
-
-
-        const time =
-            document.createElement("span");
-
-        time.className =
-            "message-time";
-
-        time.textContent =
-            formatTime(message.created_at);
-
-        bubble.appendChild(time);
-
-
-        wrapper.appendChild(actions);
-        wrapper.appendChild(bubble);
-
-        row.appendChild(wrapper);
-
-        return row;
     }
-
 
     /* =========================================================
        SEND MESSAGE
-       ========================================================= */
+    ========================================================= */
 
     async function sendMessage(event) {
         event?.preventDefault();
 
-        if (
-            !state.user ||
-            state.currentChatType !== "direct" ||
-            !state.currentOtherUser
-        ) return;
+        if (!currentUser || !activeChatUser) {
+            return;
+        }
 
-        const input =
-            $("#messageInput");
+        const relationship =
+            await getRelationship(
+                activeChatUser.id
+            );
+
+        if (relationship?.status !== "accepted") {
+            toast(
+                "Accept the contact request before chatting.",
+                "warning"
+            );
+            return;
+        }
+
+        if (
+            currentProfile.messaging_blocked &&
+            (
+                !currentProfile.messaging_blocked_until ||
+                new Date(
+                    currentProfile.messaging_blocked_until
+                ) > new Date()
+            )
+        ) {
+            toast(
+                "Messaging is currently blocked for your account.",
+                "error"
+            );
+            return;
+        }
+
+        const input = $("messageInput");
 
         const content =
             input?.value.trim();
 
         if (!content) return;
 
-        const contacts =
-            await areContacts(
-                state.user.id,
-                state.currentOtherUser.id
-            );
-
-        if (!contacts) {
-            showToast(
-                "You can only message accepted contacts.",
-                "error"
-            );
-            return;
-        }
-
-
-        /* EDIT MODE */
-
-        if (state.editingMessage) {
-            await updateMessage(
-                state.editingMessage.id,
-                content
-            );
-
-            return;
-        }
-
-
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from("messages")
             .insert({
-                sender_id: state.user.id,
-                receiver_id:
-                    state.currentOtherUser.id,
+                sender_id: currentUser.id,
+                receiver_id: activeChatUser.id,
                 content,
                 message_type: "text"
             });
 
         if (error) {
-            console.error(error);
-
-            showToast(
-                "Could not send message.",
-                "error"
-            );
-
+            showError(error);
             return;
         }
 
@@ -1443,737 +1560,300 @@
         await loadDirectMessages();
     }
 
+    async function sendImage(file) {
+        if (!file || !activeChatUser) return;
 
-    async function updateMessage(id, content) {
-        if (!id || !content) return;
+        const relationship =
+            await getRelationship(
+                activeChatUser.id
+            );
 
-        const {
-            error
-        } = await db
+        if (relationship?.status !== "accepted") {
+            toast("You are not contacts yet.", "warning");
+            return;
+        }
+
+        if (!file.type.startsWith("image/")) {
+            toast("Only image files are supported.", "error");
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            toast("Image must be smaller than 10 MB.", "error");
+            return;
+        }
+
+        const extension =
+            file.name.split(".").pop() || "jpg";
+
+        const path =
+            `${currentUser.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+
+        const { error: uploadError } =
+            await db.storage
+                .from("chat-media")
+                .upload(path, file, {
+                    upsert: false,
+                    contentType: file.type
+                });
+
+        if (uploadError) {
+            showError(uploadError, "Image upload failed.");
+            return;
+        }
+
+        const { error } = await db
+            .from("messages")
+            .insert({
+                sender_id: currentUser.id,
+                receiver_id: activeChatUser.id,
+                content: "",
+                message_type: "image",
+                image_url: path
+            });
+
+        if (error) {
+            showError(error);
+            return;
+        }
+
+        await loadDirectMessages();
+    }
+
+    /* =========================================================
+       EDIT / DELETE / SAVE
+    ========================================================= */
+
+    async function editMessage(message) {
+        if (message.sender_id !== currentUser.id) {
+            return;
+        }
+
+        const value = prompt(
+            "Edit message:",
+            message.content || ""
+        );
+
+        if (value === null) return;
+
+        const content = value.trim();
+
+        if (!content) {
+            toast("Message cannot be empty.", "error");
+            return;
+        }
+
+        const { error } = await db
             .from("messages")
             .update({
                 content,
                 edited_at: new Date().toISOString()
             })
-            .eq("id", id)
-            .eq("sender_id", state.user.id);
+            .eq("id", message.id)
+            .eq("sender_id", currentUser.id);
 
         if (error) {
-            console.error(error);
-
-            showToast(
-                "Could not edit message.",
-                "error"
-            );
-
+            showError(error);
             return;
         }
 
-        state.editingMessage = null;
-
-        $("#messageInput").value = "";
-
-        $("#sendButton").innerHTML =
-            `<i class="fa-solid fa-paper-plane"></i>`;
-
-        await refreshCurrentChat();
+        await loadDirectMessages();
     }
 
+    async function deleteMessage(message) {
+        if (message.sender_id !== currentUser.id) {
+            return;
+        }
 
-    async function deleteMessage(id) {
-        if (!id) return;
+        if (!confirm("Delete this message?")) {
+            return;
+        }
 
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from("messages")
             .update({
-                deleted_at:
-                    new Date().toISOString(),
-                content: ""
+                deleted_at: new Date().toISOString()
             })
-            .eq("id", id)
-            .eq("sender_id", state.user.id);
+            .eq("id", message.id)
+            .eq("sender_id", currentUser.id);
 
         if (error) {
-            console.error(error);
-
-            showToast(
-                "Could not delete message.",
-                "error"
-            );
-
+            showError(error);
             return;
         }
 
-        showToast("Message deleted.");
-
-        await refreshCurrentChat();
+        await loadDirectMessages();
     }
 
+    async function saveMessage(message) {
+        const payload = {
+            user_id: currentUser.id,
+            message_id: message.id,
+            content: message.content || ""
+        };
 
-    /* =========================================================
-       SAVE MESSAGE
-       ========================================================= */
-
-    async function saveMessage(id) {
-        if (!id || !state.user) return;
-
-        const {
-            data: message,
-            error: messageError
-        } = await db
-            .from("messages")
-            .select("*")
-            .eq("id", id)
-            .maybeSingle();
-
-        if (messageError || !message) {
-            showToast(
-                "Could not find message.",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from("saved_messages")
-            .insert({
-                user_id: state.user.id,
-                message_id: id,
-                content:
-                    message.content || "",
-                message_type:
-                    message.message_type || "text",
-                image_url:
-                    message.image_url || null,
-                sticker_url:
-                    message.sticker_url || null
-            });
+            .insert(payload);
 
         if (error) {
-            console.error(error);
-
-            if (error.code === "23505") {
-                showToast("Message already saved.");
+            if (isUniqueError(error)) {
+                toast("Message is already saved.", "info");
             } else {
-                showToast(
-                    "Could not save message.",
-                    "error"
+                showError(
+                    error,
+                    "Could not save message."
                 );
             }
 
             return;
         }
 
-        showToast("Message saved.");
+        toast("Message saved.", "success");
     }
-
-
-    async function loadSavedMessages() {
-        const list =
-            $("#savedMessagesList");
-
-        if (!list || !state.user) return;
-
-        list.innerHTML = `
-            <div class="loading">
-                Loading...
-            </div>
-        `;
-
-        const {
-            data,
-            error
-        } = await db
-            .from("saved_messages")
-            .select("*")
-            .eq("user_id", state.user.id)
-            .order("created_at", {
-                ascending: false
-            });
-
-        if (error) {
-            console.error(error);
-
-            list.innerHTML = `
-                <div class="empty-list">
-                    Could not load saved messages.
-                </div>
-            `;
-
-            return;
-        }
-
-        if (!data?.length) {
-            list.innerHTML = `
-                <div class="empty-list">
-                    No saved messages.
-                </div>
-            `;
-
-            return;
-        }
-
-        list.innerHTML = "";
-
-        data.forEach(item => {
-            const element =
-                document.createElement("div");
-
-            element.className =
-                "saved-message-item";
-
-            element.innerHTML = `
-                <div class="saved-message-content">
-                    ${
-                        item.message_type === "image"
-                            ? `
-                                <img
-                                    src="${escapeHTML(item.image_url || "")}"
-                                    alt=""
-                                >
-                            `
-                            : escapeHTML(
-                                item.content || ""
-                            )
-                    }
-                </div>
-
-                <span class="saved-message-date">
-                    ${escapeHTML(
-                        formatDate(item.created_at)
-                    )}
-                </span>
-            `;
-
-            list.appendChild(element);
-        });
-    }
-
-
-    /* =========================================================
-       MESSAGE SWIPE
-       ========================================================= */
-
-    function setupMessageSwipe(wrapper) {
-        if (!wrapper) return;
-
-        if (wrapper.dataset.swipeReady === "true") {
-            return;
-        }
-
-        wrapper.dataset.swipeReady = "true";
-
-        const bubble =
-            wrapper.querySelector(
-                ".message-bubble"
-            );
-
-        if (!bubble) return;
-
-        let pointerDown = false;
-        let holdStarted = false;
-        let startX = 0;
-        let moved = false;
-        let holdTimer = null;
-
-
-        const start = event => {
-            if (event.pointerType === "mouse" &&
-                event.button !== 0) {
-                return;
-            }
-
-            pointerDown = true;
-            holdStarted = false;
-            moved = false;
-
-            startX = event.clientX;
-
-            holdTimer = setTimeout(() => {
-                if (pointerDown) {
-                    holdStarted = true;
-                }
-            }, 450);
-        };
-
-
-        const move = event => {
-            if (!pointerDown) return;
-
-            const deltaX =
-                event.clientX - startX;
-
-            if (Math.abs(deltaX) > 8) {
-                moved = true;
-            }
-
-            if (
-                holdStarted &&
-                deltaX < 0
-            ) {
-                const amount =
-                    Math.min(
-                        72,
-                        Math.abs(deltaX)
-                    );
-
-                bubble.style.transform =
-                    `translateX(-${amount}px)`;
-            }
-        };
-
-
-        const end = event => {
-            clearTimeout(holdTimer);
-
-            if (!pointerDown) return;
-
-            const deltaX =
-                event.clientX - startX;
-
-            pointerDown = false;
-
-            bubble.style.transform = "";
-
-            if (
-                holdStarted &&
-                moved &&
-                deltaX <= -60
-            ) {
-                $$(".message-wrapper.swiped")
-                    .forEach(other => {
-                        if (other !== wrapper) {
-                            other.classList.remove(
-                                "swiped"
-                            );
-                        }
-                    });
-
-                wrapper.classList.add("swiped");
-            }
-
-            holdStarted = false;
-        };
-
-
-        wrapper.addEventListener(
-            "pointerdown",
-            start
-        );
-
-        wrapper.addEventListener(
-            "pointermove",
-            move
-        );
-
-        wrapper.addEventListener(
-            "pointerup",
-            end
-        );
-
-        wrapper.addEventListener(
-            "pointercancel",
-            end
-        );
-    }
-
-
-    function initializeMessageSwipes() {
-        $$(".message-wrapper")
-            .forEach(setupMessageSwipe);
-    }
-
-
-    document.addEventListener(
-        "click",
-        event => {
-            const action =
-                event.target.closest(
-                    ".message-action"
-                );
-
-            if (action) {
-                const wrapper =
-                    action.closest(
-                        ".message-wrapper"
-                    );
-
-                const id =
-                    wrapper?.dataset.messageId;
-
-                const type =
-                    action.dataset.action;
-
-                if (!id) return;
-
-                if (type === "save") {
-                    saveMessage(id);
-                }
-
-                if (type === "edit") {
-                    startEditMessage(id);
-                }
-
-                if (type === "delete") {
-                    deleteMessage(id);
-                }
-
-                wrapper?.classList.remove(
-                    "swiped"
-                );
-
-                return;
-            }
-
-            if (
-                !event.target.closest(
-                    ".message-wrapper"
-                )
-            ) {
-                $$(".message-wrapper.swiped")
-                    .forEach(wrapper => {
-                        wrapper.classList.remove(
-                            "swiped"
-                        );
-                    });
-            }
-        }
-    );
-
-
-    async function startEditMessage(id) {
-        const {
-            data,
-            error
-        } = await db
-            .from("messages")
-            .select("*")
-            .eq("id", id)
-            .eq("sender_id", state.user.id)
-            .maybeSingle();
-
-        if (error || !data) {
-            showToast(
-                "Could not edit this message.",
-                "error"
-            );
-            return;
-        }
-
-        state.editingMessage = data;
-
-        const input =
-            $("#messageInput");
-
-        input.value =
-            data.content || "";
-
-        input.focus();
-
-        $("#sendButton").innerHTML =
-            `<i class="fa-solid fa-check"></i>`;
-    }
-
-
-    /* =========================================================
-       IMAGE MESSAGE
-       ========================================================= */
-
-    async function sendImage(event) {
-        const file = event.target.files?.[0];
-
-        event.target.value = "";
-
-        if (
-            !file ||
-            !state.user ||
-            !state.currentOtherUser
-        ) return;
-
-        const contacts =
-            await areContacts(
-                state.user.id,
-                state.currentOtherUser.id
-            );
-
-        if (!contacts) {
-            showToast(
-                "Accept the contact request first.",
-                "error"
-            );
-            return;
-        }
-
-        if (!file.type.startsWith("image/")) {
-            showToast(
-                "Please select an image.",
-                "error"
-            );
-            return;
-        }
-
-        if (file.size > 10 * 1024 * 1024) {
-            showToast(
-                "Image must be smaller than 10 MB.",
-                "error"
-            );
-            return;
-        }
-
-        try {
-            showToast("Uploading image...");
-
-            const extension =
-                file.name.split(".").pop() || "jpg";
-
-            const path =
-                `${state.user.id}/${Date.now()}.${extension}`;
-
-            const url =
-                await uploadFile(
-                    "chat-media",
-                    file,
-                    path
-                );
-
-            const {
-                error
-            } = await db
-                .from("messages")
-                .insert({
-                    sender_id: state.user.id,
-                    receiver_id:
-                        state.currentOtherUser.id,
-                    content: "",
-                    message_type: "image",
-                    image_url: url
-                });
-
-            if (error) throw error;
-
-            await refreshCurrentChat();
-
-        } catch (error) {
-            console.error(error);
-
-            showToast(
-                "Could not send image.",
-                "error"
-            );
-        }
-    }
-
-
-    /* =========================================================
-       EMOJI / STICKERS
-       ========================================================= */
-
-    function setupEmojiPanel() {
-        const panel = $("#emojiPanel");
-        const input = $("#messageInput");
-
-        if (!panel || !input) return;
-
-        panel
-            .querySelectorAll("button")
-            .forEach(button => {
-                button.addEventListener(
-                    "click",
-                    () => {
-                        input.value +=
-                            button.textContent;
-
-                        input.focus();
-                    }
-                );
-            });
-    }
-
-
-    function setupStickerPanel() {
-        const panel = $("#stickerPanel");
-        const input = $("#messageInput");
-
-        if (!panel || !input) return;
-
-        panel
-            .querySelectorAll("button")
-            .forEach(button => {
-                button.addEventListener(
-                    "click",
-                    () => {
-                        input.value +=
-                            button.textContent;
-
-                        input.focus();
-
-                        panel.style.display =
-                            "none";
-                    }
-                );
-            });
-    }
-
-
-    function togglePanel(panelId) {
-        const panel =
-            document.getElementById(panelId);
-
-        if (!panel) return;
-
-        const visible =
-            panel.style.display !== "none";
-
-        $("#emojiPanel").style.display =
-            "none";
-
-        $("#stickerPanel").style.display =
-            "none";
-
-        if (!visible) {
-            panel.style.display = "grid";
-        }
-    }
-
 
     /* =========================================================
        GROUPS
-       ========================================================= */
+    ========================================================= */
 
     async function loadGroups() {
-        if (!state.user) return;
-
-        const {
-            data: memberships,
-            error
-        } = await db
-            .from("group_members")
-            .select("group_id, role")
-            .eq("user_id", state.user.id);
-
-        if (error) {
-            console.error(error);
-            return;
-        }
-
-        const ids =
-            (memberships || [])
-                .map(item => item.group_id);
-
-        if (!ids.length) {
-            state.groups = [];
-            renderGroups([]);
-            return;
-        }
-
-        const {
-            data: groups,
-            error: groupError
-        } = await db
-            .from("groups")
-            .select("*")
-            .in("id", ids);
-
-        if (groupError) {
-            console.error(groupError);
-            return;
-        }
-
-        state.groups = groups || [];
-
-        renderGroups(state.groups);
-    }
-
-
-    function renderGroups(groups) {
-        const list =
-            $("#groupsList");
+        const list = $("groupsList");
 
         if (!list) return;
 
-        list.innerHTML = "";
+        const { data: memberships, error } =
+            await db
+                .from("group_members")
+                .select("group_id")
+                .eq("user_id", currentUser.id);
 
-        if (!groups.length) {
+        if (error) {
+            console.error(error);
             list.innerHTML = `
-                <div class="empty-list">
+                <div class="empty-state">
+                    Could not load groups.
+                </div>
+            `;
+            return;
+        }
+
+        const ids = (memberships || [])
+            .map((x) => x.group_id);
+
+        if (!ids.length) {
+            list.innerHTML = `
+                <div class="empty-state">
                     No groups yet.
                 </div>
             `;
 
-            updateCount("#groupCount", 0);
+            if ($("groupCount")) {
+                $("groupCount").textContent = "0";
+            }
+
             return;
         }
 
-        groups.forEach(group => {
-            const item =
-                document.createElement("button");
+        const { data: groups, error: groupError } =
+            await db
+                .from("groups")
+                .select("*")
+                .in("id", ids)
+                .order("created_at", {
+                    ascending: false
+                });
 
-            item.type = "button";
-            item.className = "community-item";
+        if (groupError) {
+            showError(groupError);
+            return;
+        }
 
-            item.innerHTML = `
-                <div class="community-avatar-small">
+        list.innerHTML = "";
 
-                    ${
-                        group.avatar_url
-                            ? `
-                                <img
-                                    src="${escapeHTML(group.avatar_url)}"
-                                    alt=""
-                                >
-                            `
-                            : `
-                                <i class="fa-solid fa-users"></i>
-                            `
-                    }
-
-                </div>
-
-                <div class="community-item-info">
-
-                    <strong>
-                        ${escapeHTML(group.name)}
-                    </strong>
-
-                    <span>
-                        @${escapeHTML(group.username)}
-                    </span>
-
-                </div>
-            `;
-
-            item.addEventListener(
-                "click",
-                () => openGroup(group)
+        (groups || []).forEach((group) => {
+            renderCommunityItem(
+                list,
+                group,
+                "group"
             );
-
-            list.appendChild(item);
         });
 
-        updateCount(
-            "#groupCount",
-            groups.length
-        );
+        if ($("groupCount")) {
+            $("groupCount").textContent =
+                groups?.length || 0;
+        }
     }
 
+    function renderCommunityItem(
+        container,
+        community,
+        type
+    ) {
+        const item =
+            document.createElement("div");
+
+        item.className = "chat-list-item";
+
+        item.innerHTML = `
+            <div class="list-avatar community-avatar">
+                ${
+                    community.avatar_url
+                        ? `
+                            <img
+                                src="${escapeAttr(
+                                    community.avatar_url
+                                )}"
+                                alt=""
+                            >
+                        `
+                        : `
+                            <span>
+                                ${escapeHTML(
+                                    initials(
+                                        community.name
+                                    )
+                                )}
+                            </span>
+                        `
+                }
+            </div>
+
+            <div class="list-user-info">
+                <div class="list-user-name">
+                    ${escapeHTML(community.name)}
+                </div>
+
+                <div class="list-user-username">
+                    @${escapeHTML(
+                        community.username || ""
+                    )}
+                </div>
+            </div>
+        `;
+
+        item.addEventListener("click", () => {
+            openCommunity(
+                community,
+                type
+            );
+        });
+
+        container.appendChild(item);
+    }
 
     async function createGroup(event) {
         event?.preventDefault();
 
         const name =
-            $("#groupName")?.value.trim();
+            $("groupName")?.value.trim();
 
         const username =
-            normalizeUsername(
-                $("#groupUsername")?.value
-            );
+            $("groupUsername")?.value
+                .trim()
+                .toLowerCase();
 
         const bio =
-            $("#groupBio")?.value.trim() || "";
+            $("groupBio")?.value.trim();
 
         const privacy =
             document.querySelector(
@@ -2181,272 +1861,234 @@
             )?.value || "public";
 
         if (!name) {
-            showToast(
-                "Group name is required.",
+            toast("Group name is required.", "error");
+            return;
+        }
+
+        if (!/^[a-z0-9_]{3,32}$/.test(username)) {
+            toast("Invalid group username.", "error");
+            return;
+        }
+
+        const { data: sameGroup } =
+            await db
+                .from("groups")
+                .select("id")
+                .eq("username", username)
+                .maybeSingle();
+
+        if (sameGroup) {
+            toast(
+                "This group username is already taken.",
                 "error"
             );
             return;
         }
 
-        if (!validUsername(username)) {
-            showToast(
-                "Invalid group username.",
+        const { data: sameProfile } =
+            await db
+                .from("profiles")
+                .select("id")
+                .eq("username", username)
+                .maybeSingle();
+
+        if (sameProfile) {
+            toast(
+                "This username is already used by a user.",
                 "error"
             );
             return;
         }
 
-        try {
-            const {
-                data,
-                error
-            } = await db.rpc(
+        const { data: groupId, error } =
+            await db.rpc(
                 "create_group",
                 {
                     p_name: name,
                     p_username: username,
-                    p_bio: bio
+                    p_bio: bio || ""
                 }
             );
 
-            if (error) throw error;
+        if (error) {
+            showError(
+                error,
+                "Could not create group."
+            );
+            return;
+        }
 
-            const groupId = data;
+        const id =
+            typeof groupId === "object"
+                ? groupId?.id
+                : groupId;
 
-            /* privacy */
+        if (id) {
             await db
                 .from("groups")
                 .update({
                     privacy
                 })
-                .eq("id", groupId)
-                .eq("owner_id", state.user.id);
+                .eq("id", id);
+        }
 
-            /* avatar */
-            await uploadCommunityAvatar(
-                "group",
-                groupId
+        const input = $("groupAvatarInput");
+
+        if (id && input?.files?.length) {
+            const url = await uploadCommunityAvatar(
+                input,
+                "group-avatars",
+                "groups"
             );
 
-            closeModal("createGroupModal");
-
-            $("#groupForm")?.reset();
-
-            showToast("Group created.");
-
-            await loadGroups();
-
-        } catch (error) {
-            console.error(error);
-
-            if (
-                error.code === "23505"
-            ) {
-                showToast(
-                    "That group username is already taken.",
-                    "error"
-                );
-            } else {
-                showToast(
-                    error.message ||
-                    "Could not create group.",
-                    "error"
-                );
+            if (url) {
+                await db
+                    .from("groups")
+                    .update({
+                        avatar_url: url
+                    })
+                    .eq("id", id);
             }
         }
+
+        closeModal("createGroupModal");
+
+        $("groupForm")?.reset();
+
+        toast("Group created.", "success");
+
+        await loadGroups();
     }
 
+    async function uploadCommunityAvatar(
+        input,
+        bucket,
+        folder
+    ) {
+        if (!input?.files?.length) return null;
 
-    async function openGroup(group) {
-        if (!group) return;
+        const file = input.files[0];
 
-        state.currentChatType = "group";
-        state.currentGroup = group;
-        state.currentChannel = null;
-        state.currentOtherUser = null;
+        if (!file.type.startsWith("image/")) {
+            toast("Please select an image.", "error");
+            return null;
+        }
 
-        showActiveChat();
+        if (file.size > 5 * 1024 * 1024) {
+            toast("Image must be smaller than 5 MB.", "error");
+            return null;
+        }
 
-        $("#chatName").textContent =
-            group.name;
+        const extension =
+            file.name.split(".").pop() || "jpg";
 
-        $("#chatStatus").textContent =
-            `@${group.username}`;
+        const path =
+            `${folder}/${crypto.randomUUID()}.${extension}`;
 
-        setAvatar(
-            $("#chatAvatar"),
-            $("#chatAvatarInitial"),
-            group.avatar_url,
-            group.name
-        );
-
-        $("#chatVerified").style.display =
-            "none";
-
-        $("#contactActions").style.display =
-            "none";
-
-        enableComposer(true);
-
-        await loadGroupMessages(group.id);
-    }
-
-
-    async function loadGroupMessages(groupId) {
-        const {
-            data,
-            error
-        } = await db
-            .from("group_messages")
-            .select("*")
-            .eq("group_id", groupId)
-            .order("created_at", {
-                ascending: true
+        const { error } = await db.storage
+            .from(bucket)
+            .upload(path, file, {
+                upsert: false,
+                contentType: file.type
             });
 
         if (error) {
-            console.error(error);
-            return;
+            showError(error);
+            return null;
         }
 
-        renderCommunityMessages(data || []);
-    }
+        const { data } = db.storage
+            .from(bucket)
+            .getPublicUrl(path);
 
+        return data.publicUrl;
+    }
 
     /* =========================================================
        CHANNELS
-       ========================================================= */
+    ========================================================= */
 
     async function loadChannels() {
-        if (!state.user) return;
-
-        const {
-            data: memberships,
-            error
-        } = await db
-            .from("channel_members")
-            .select("channel_id, role")
-            .eq("user_id", state.user.id);
-
-        if (error) {
-            console.error(error);
-            return;
-        }
-
-        const ids =
-            (memberships || [])
-                .map(item => item.channel_id);
-
-        if (!ids.length) {
-            state.channels = [];
-            renderChannels([]);
-            return;
-        }
-
-        const {
-            data: channels,
-            error: channelError
-        } = await db
-            .from("channels")
-            .select("*")
-            .in("id", ids);
-
-        if (channelError) {
-            console.error(channelError);
-            return;
-        }
-
-        state.channels = channels || [];
-
-        renderChannels(state.channels);
-    }
-
-
-    function renderChannels(channels) {
-        const list =
-            $("#channelsList");
+        const list = $("channelsList");
 
         if (!list) return;
 
-        list.innerHTML = "";
+        const { data: memberships, error } =
+            await db
+                .from("channel_members")
+                .select("channel_id")
+                .eq("user_id", currentUser.id);
 
-        if (!channels.length) {
+        if (error) {
+            console.error(error);
             list.innerHTML = `
-                <div class="empty-list">
+                <div class="empty-state">
+                    Could not load channels.
+                </div>
+            `;
+            return;
+        }
+
+        const ids = (memberships || [])
+            .map((x) => x.channel_id);
+
+        if (!ids.length) {
+            list.innerHTML = `
+                <div class="empty-state">
                     No channels yet.
                 </div>
             `;
 
-            updateCount("#channelCount", 0);
+            if ($("channelCount")) {
+                $("channelCount").textContent = "0";
+            }
+
             return;
         }
 
-        channels.forEach(channel => {
-            const item =
-                document.createElement("button");
+        const { data: channels, error: channelError } =
+            await db
+                .from("channels")
+                .select("*")
+                .in("id", ids)
+                .order("created_at", {
+                    ascending: false
+                });
 
-            item.type = "button";
-            item.className = "community-item";
+        if (channelError) {
+            showError(channelError);
+            return;
+        }
 
-            item.innerHTML = `
-                <div class="community-avatar-small">
+        list.innerHTML = "";
 
-                    ${
-                        channel.avatar_url
-                            ? `
-                                <img
-                                    src="${escapeHTML(channel.avatar_url)}"
-                                    alt=""
-                                >
-                            `
-                            : `
-                                <i class="fa-solid fa-bullhorn"></i>
-                            `
-                    }
-
-                </div>
-
-                <div class="community-item-info">
-
-                    <strong>
-                        ${escapeHTML(channel.name)}
-                    </strong>
-
-                    <span>
-                        @${escapeHTML(channel.username)}
-                    </span>
-
-                </div>
-            `;
-
-            item.addEventListener(
-                "click",
-                () => openChannel(channel)
+        (channels || []).forEach((channel) => {
+            renderCommunityItem(
+                list,
+                channel,
+                "channel"
             );
-
-            list.appendChild(item);
         });
 
-        updateCount(
-            "#channelCount",
-            channels.length
-        );
+        if ($("channelCount")) {
+            $("channelCount").textContent =
+                channels?.length || 0;
+        }
     }
-
 
     async function createChannel(event) {
         event?.preventDefault();
 
         const name =
-            $("#channelName")?.value.trim();
+            $("channelName")?.value.trim();
 
         const username =
-            normalizeUsername(
-                $("#channelUsername")?.value
-            );
+            $("channelUsername")?.value
+                .trim()
+                .toLowerCase();
 
         const bio =
-            $("#channelBio")?.value.trim() || "";
+            $("channelBio")?.value.trim();
 
         const privacy =
             document.querySelector(
@@ -2454,612 +2096,1008 @@
             )?.value || "public";
 
         if (!name) {
-            showToast(
-                "Channel name is required.",
-                "error"
-            );
+            toast("Channel name is required.", "error");
             return;
         }
 
-        if (!validUsername(username)) {
-            showToast(
+        if (!/^[a-z0-9_]{3,32}$/.test(username)) {
+            toast(
                 "Invalid channel username.",
                 "error"
             );
             return;
         }
 
-        try {
-            const {
-                data,
-                error
-            } = await db.rpc(
+        const { data: existing } =
+            await db
+                .from("channels")
+                .select("id")
+                .eq("username", username)
+                .maybeSingle();
+
+        if (existing) {
+            toast(
+                "This channel username is already taken.",
+                "error"
+            );
+            return;
+        }
+
+        const { data: profileMatch } =
+            await db
+                .from("profiles")
+                .select("id")
+                .eq("username", username)
+                .maybeSingle();
+
+        if (profileMatch) {
+            toast(
+                "This username is already used by a user.",
+                "error"
+            );
+            return;
+        }
+
+        const { data: channelId, error } =
+            await db.rpc(
                 "create_channel",
                 {
                     p_name: name,
                     p_username: username,
-                    p_bio: bio
+                    p_bio: bio || ""
                 }
             );
 
-            if (error) throw error;
+        if (error) {
+            showError(
+                error,
+                "Could not create channel."
+            );
+            return;
+        }
 
-            const channelId = data;
+        const id =
+            typeof channelId === "object"
+                ? channelId?.id
+                : channelId;
 
+        if (id) {
             await db
                 .from("channels")
                 .update({
                     privacy
                 })
-                .eq("id", channelId)
-                .eq("owner_id", state.user.id);
+                .eq("id", id);
+        }
 
-            await uploadCommunityAvatar(
-                "channel",
-                channelId
+        const input = $("channelAvatarInput");
+
+        if (id && input?.files?.length) {
+            const url = await uploadCommunityAvatar(
+                input,
+                "channel-avatars",
+                "channels"
             );
 
-            closeModal("createChannelModal");
+            if (url) {
+                await db
+                    .from("channels")
+                    .update({
+                        avatar_url: url
+                    })
+                    .eq("id", id);
+            }
+        }
 
-            $("#channelForm")?.reset();
+        closeModal("createChannelModal");
 
-            showToast("Channel created.");
+        $("channelForm")?.reset();
 
-            await loadChannels();
+        toast("Channel created.", "success");
 
-        } catch (error) {
-            console.error(error);
+        await loadChannels();
+    }
 
-            if (
-                error.code === "23505"
-            ) {
-                showToast(
-                    "That channel username is already taken.",
-                    "error"
-                );
+    /* =========================================================
+       OPEN COMMUNITY
+    ========================================================= */
+
+    async function openCommunity(
+        community,
+        type
+    ) {
+        activeCommunity = community;
+        activeCommunityType = type;
+        activeChatUser = null;
+
+        const table =
+            type === "group"
+                ? "group_members"
+                : "channel_members";
+
+        const idColumn =
+            type === "group"
+                ? "group_id"
+                : "channel_id";
+
+        const { data: membership } =
+            await db
+                .from(table)
+                .select("*")
+                .eq(idColumn, community.id)
+                .eq("user_id", currentUser.id)
+                .maybeSingle();
+
+        renderCommunityHeader(
+            community,
+            type
+        );
+
+        $("chatEmpty")?.classList.add("hidden");
+        $("activeChat")?.classList.remove("hidden");
+
+        if (!membership) {
+            showDirectComposer(false);
+
+            const actions =
+                $("contactActions");
+
+            if (actions) {
+                actions.style.display = "flex";
+
+                actions.innerHTML = `
+                    <button
+                        id="communityJoinBtn"
+                        class="primary-btn"
+                    >
+                        Join
+                    </button>
+                `;
+
+                $("communityJoinBtn")
+                    ?.addEventListener(
+                        "click",
+                        () => {
+                            if (type === "group") {
+                                openModal(
+                                    "joinGroupModal"
+                                );
+                            } else {
+                                openModal(
+                                    "joinChannelModal"
+                                );
+                            }
+                        }
+                    );
+            }
+
+            $("messages").innerHTML = `
+                <div class="messages-empty">
+                    Join this ${type} to see its messages.
+                </div>
+            `;
+
+            return;
+        }
+
+        if (
+            type === "channel" &&
+            membership.role !== "owner" &&
+            membership.role !== "admin"
+        ) {
+            showDirectComposer(false);
+        } else {
+            showDirectComposer(true);
+        }
+
+        await loadCommunityMessages();
+    }
+
+    function renderCommunityHeader(
+        community,
+        type
+    ) {
+        if ($("chatName")) {
+            $("chatName").textContent =
+                community.name;
+        }
+
+        if ($("chatVerified")) {
+            $("chatVerified").style.display =
+                "none";
+        }
+
+        if ($("chatStatus")) {
+            $("chatStatus").textContent =
+                type === "group"
+                    ? "Group"
+                    : "Channel";
+        }
+
+        const avatar = $("chatAvatar");
+
+        if (avatar) {
+            if (community.avatar_url) {
+                avatar.innerHTML = `
+                    <img
+                        src="${escapeAttr(
+                            community.avatar_url
+                        )}"
+                        alt=""
+                    >
+                `;
             } else {
-                showToast(
-                    error.message ||
-                    "Could not create channel.",
-                    "error"
-                );
+                avatar.innerHTML = `
+                    <span>
+                        ${escapeHTML(
+                            initials(
+                                community.name
+                            )
+                        )}
+                    </span>
+                `;
             }
         }
     }
 
-
-    async function openChannel(channel) {
-        if (!channel) return;
-
-        state.currentChatType = "channel";
-        state.currentChannel = channel;
-        state.currentGroup = null;
-        state.currentOtherUser = null;
-
-        showActiveChat();
-
-        $("#chatName").textContent =
-            channel.name;
-
-        $("#chatStatus").textContent =
-            `@${channel.username}`;
-
-        setAvatar(
-            $("#chatAvatar"),
-            $("#chatAvatarInitial"),
-            channel.avatar_url,
-            channel.name
-        );
-
-        $("#chatVerified").style.display =
-            "none";
-
-        $("#contactActions").style.display =
-            "none";
-
-        enableComposer(
-            await isChannelWriter(channel.id)
-        );
-
-        await loadChannelMessages(
-            channel.id
-        );
-    }
-
-
-    async function isChannelWriter(channelId) {
-        if (!state.user) return false;
-
-        const {
-            data,
-            error
-        } = await db
-            .from("channel_members")
-            .select("role")
-            .eq("channel_id", channelId)
-            .eq("user_id", state.user.id)
-            .maybeSingle();
-
-        if (error) {
-            console.error(error);
-            return false;
+    async function loadCommunityMessages() {
+        if (
+            !activeCommunity ||
+            !activeCommunityType
+        ) {
+            return;
         }
 
-        return (
-            data?.role === "owner" ||
-            data?.role === "admin" ||
-            data?.role === "writer"
-        );
-    }
+        const table =
+            activeCommunityType === "group"
+                ? "group_messages"
+                : "channel_messages";
 
-
-    async function loadChannelMessages(channelId) {
-        const {
-            data,
-            error
-        } = await db
-            .from("channel_messages")
+        const { data, error } = await db
+            .from(table)
             .select("*")
-            .eq("channel_id", channelId)
+            .eq(
+                activeCommunityType === "group"
+                    ? "group_id"
+                    : "channel_id",
+                activeCommunity.id
+            )
             .order("created_at", {
                 ascending: true
             });
 
         if (error) {
-            console.error(error);
+            showError(error);
             return;
         }
 
-        renderCommunityMessages(data || []);
+        currentMessages = data || [];
+
+        await renderMessages(
+            currentMessages,
+            activeCommunityType
+        );
     }
 
+    async function sendCommunityMessage(event) {
+        event?.preventDefault();
 
-    function renderCommunityMessages(messages) {
-        const container =
-            $("#messages");
+        if (
+            !activeCommunity ||
+            !activeCommunityType
+        ) {
+            return;
+        }
 
-        if (!container) return;
+        const input = $("messageInput");
 
-        container.innerHTML = "";
+        const content =
+            input?.value.trim();
 
-        messages.forEach(message => {
-            const row =
-                document.createElement("div");
+        if (!content) return;
 
-            row.className =
-                "message-row " +
-                (
-                    message.sender_id ===
-                    state.user.id
-                        ? "mine"
-                        : "theirs"
-                );
+        const table =
+            activeCommunityType === "group"
+                ? "group_messages"
+                : "channel_messages";
 
-            const wrapper =
-                document.createElement("div");
+        const payload =
+            activeCommunityType === "group"
+                ? {
+                    group_id: activeCommunity.id,
+                    sender_id: currentUser.id,
+                    content,
+                    message_type: "text"
+                }
+                : {
+                    channel_id: activeCommunity.id,
+                    sender_id: currentUser.id,
+                    content,
+                    message_type: "text"
+                };
 
-            wrapper.className =
-                "message-wrapper";
-
-            wrapper.dataset.messageId =
-                message.id;
-
-            const actions =
-                document.createElement("div");
-
-            actions.className =
-                "message-actions";
-
-            const save =
-                document.createElement("button");
-
-            save.type = "button";
-            save.className =
-                "message-action";
-            save.dataset.action =
-                "save";
-
-            save.innerHTML =
-                `<i class="fa-solid fa-bookmark"></i>`;
-
-            actions.appendChild(save);
-
-
-            if (
-                message.sender_id ===
-                state.user.id
-            ) {
-                const edit =
-                    document.createElement("button");
-
-                edit.type = "button";
-                edit.className =
-                    "message-action";
-                edit.dataset.action =
-                    "edit";
-
-                edit.innerHTML =
-                    `<i class="fa-solid fa-pen"></i>`;
-
-                const del =
-                    document.createElement("button");
-
-                del.type = "button";
-                del.className =
-                    "message-action";
-                del.dataset.action =
-                    "delete";
-
-                del.innerHTML =
-                    `<i class="fa-solid fa-trash"></i>`;
-
-                actions.appendChild(edit);
-                actions.appendChild(del);
-            }
-
-
-            const bubble =
-                document.createElement("div");
-
-            bubble.className =
-                "message-bubble";
-
-            bubble.textContent =
-                message.deleted_at
-                    ? "This message was deleted"
-                    : message.content || "";
-
-
-            const time =
-                document.createElement("span");
-
-            time.className =
-                "message-time";
-
-            time.textContent =
-                formatTime(
-                    message.created_at
-                );
-
-            bubble.appendChild(time);
-
-            wrapper.appendChild(actions);
-            wrapper.appendChild(bubble);
-
-            row.appendChild(wrapper);
-
-            container.appendChild(row);
-        });
-
-        initializeMessageSwipes();
-
-        scrollMessagesToBottom();
-    }
-
-
-    /* =========================================================
-       COMMUNITY AVATAR
-       ========================================================= */
-
-    async function uploadCommunityAvatar(
-        type,
-        id
-    ) {
-        const input =
-            type === "group"
-                ? $("#groupAvatarInput")
-                : $("#channelAvatarInput");
-
-        const file =
-            input?.files?.[0];
-
-        if (!file) return;
-
-        try {
-            const extension =
-                file.name.split(".").pop() ||
-                "jpg";
-
-            const bucket =
-                type === "group"
-                    ? "group-avatars"
-                    : "channel-avatars";
-
-            const table =
-                type === "group"
-                    ? "groups"
-                    : "channels";
-
-            const path =
-                `${id}/avatar.${extension}`;
-
-            const url =
-                await uploadFile(
-                    bucket,
-                    file,
-                    path
-                );
-
+        const { error } =
             await db
                 .from(table)
-                .update({
-                    avatar_url: url
-                })
-                .eq("id", id)
-                .eq("owner_id", state.user.id);
+                .insert(payload);
 
-        } catch (error) {
-            console.error(error);
-            showToast(
-                "Community created, but avatar upload failed.",
-                "error"
-            );
+        if (error) {
+            showError(error);
+            return;
         }
+
+        input.value = "";
+
+        await loadCommunityMessages();
     }
 
-
     /* =========================================================
-       JOIN
-       ========================================================= */
+       JOIN BY INVITE
+    ========================================================= */
 
     async function joinGroup() {
+        const input =
+            $("groupInviteInput");
+
         const code =
-            $("#groupInviteInput")
-                ?.value.trim();
+            input?.value.trim();
 
         if (!code) {
-            showToast(
+            toast(
                 "Enter an invite code.",
                 "error"
             );
             return;
         }
 
-        const {
-            error
-        } = await db.rpc(
-            "join_group_by_invite",
-            {
-                p_invite_code: code
-            }
-        );
-
-        if (error) {
-            console.error(error);
-
-            showToast(
-                error.message ||
-                "Could not join group.",
-                "error"
+        const { error } =
+            await db.rpc(
+                "join_group_by_invite",
+                {
+                    p_invite_code: code
+                }
             );
 
+        if (error) {
+            showError(
+                error,
+                "Could not join group."
+            );
             return;
         }
 
         closeModal("joinGroupModal");
 
-        $("#groupInviteInput").value = "";
+        if (input) input.value = "";
 
-        showToast("Joined group.");
+        toast("Joined group.", "success");
 
         await loadGroups();
+
+        if (
+            activeCommunity &&
+            activeCommunityType === "group"
+        ) {
+            await openCommunity(
+                activeCommunity,
+                "group"
+            );
+        }
     }
 
-
     async function joinChannel() {
+        const input =
+            $("channelInviteInput");
+
         const code =
-            $("#channelInviteInput")
-                ?.value.trim();
+            input?.value.trim();
 
         if (!code) {
-            showToast(
+            toast(
                 "Enter an invite code.",
                 "error"
             );
             return;
         }
 
-        const {
-            error
-        } = await db.rpc(
-            "join_channel_by_invite",
-            {
-                p_invite_code: code
-            }
-        );
-
-        if (error) {
-            console.error(error);
-
-            showToast(
-                error.message ||
-                "Could not join channel.",
-                "error"
+        const { error } =
+            await db.rpc(
+                "join_channel_by_invite",
+                {
+                    p_invite_code: code
+                }
             );
 
+        if (error) {
+            showError(
+                error,
+                "Could not join channel."
+            );
             return;
         }
 
         closeModal("joinChannelModal");
 
-        $("#channelInviteInput").value = "";
+        if (input) input.value = "";
 
-        showToast("Joined channel.");
+        toast("Joined channel.", "success");
 
         await loadChannels();
-    }
 
-
-    /* =========================================================
-       GROUP / CHANNEL INFO
-       ========================================================= */
-
-    function showGroupInfo(group) {
-        if (!group) return;
-
-        $("#groupInfoName").textContent =
-            group.name;
-
-        $("#groupInfoUsername").textContent =
-            "@" + group.username;
-
-        $("#groupInfoBio").textContent =
-            group.bio || "No bio";
-
-        $("#groupInfoPrivacy").textContent =
-            group.privacy === "private"
-                ? "Private group"
-                : "Public group";
-
-        setCommunityAvatar(
-            $("#groupInfoAvatar"),
-            group.avatar_url,
-            group.name,
-            "fa-solid fa-users"
-        );
-
-        openModal("groupInfoModal");
-    }
-
-
-    function showChannelInfo(channel) {
-        if (!channel) return;
-
-        $("#channelInfoName").textContent =
-            channel.name;
-
-        $("#channelInfoUsername").textContent =
-            "@" + channel.username;
-
-        $("#channelInfoBio").textContent =
-            channel.bio || "No bio";
-
-        $("#channelInfoPrivacy").textContent =
-            channel.privacy === "private"
-                ? "Private channel"
-                : "Public channel";
-
-        setCommunityAvatar(
-            $("#channelInfoAvatar"),
-            channel.avatar_url,
-            channel.name,
-            "fa-solid fa-bullhorn"
-        );
-
-        openModal("channelInfoModal");
-    }
-
-
-    /* =========================================================
-       MEMBERS
-       ========================================================= */
-
-    async function loadGroupMembers() {
-        if (!state.currentGroup) return;
-
-        $("#membersTitle").textContent =
-            `${state.currentGroup.name} Members`;
-
-        openModal("membersModal");
-
-        const {
-            data: members,
-            error
-        } = await db
-            .from("group_members")
-            .select("user_id, role")
-            .eq(
-                "group_id",
-                state.currentGroup.id
+        if (
+            activeCommunity &&
+            activeCommunityType === "channel"
+        ) {
+            await openCommunity(
+                activeCommunity,
+                "channel"
             );
+        }
+    }
 
-        if (error) {
-            console.error(error);
+    /* =========================================================
+       NICKNAME
+    ========================================================= */
+
+    async function saveNickname() {
+        if (!activeUserProfile) return;
+
+        const input =
+            $("nicknameInput");
+
+        const nickname =
+            input?.value.trim();
+
+        if (!nickname) {
+            toast(
+                "Nickname cannot be empty.",
+                "error"
+            );
             return;
         }
 
-        await renderMembers(
-            members || []
-        );
-    }
-
-
-    async function loadChannelMembers() {
-        if (!state.currentChannel) return;
-
-        $("#membersTitle").textContent =
-            `${state.currentChannel.name} Members`;
-
-        openModal("membersModal");
-
-        const {
-            data: members,
-            error
-        } = await db
-            .from("channel_members")
-            .select("user_id, role")
-            .eq(
-                "channel_id",
-                state.currentChannel.id
-            );
+        const { error } =
+            await db
+                .from("contact_nicknames")
+                .upsert(
+                    {
+                        user_id: currentUser.id,
+                        contact_id:
+                            activeUserProfile.id,
+                        nickname
+                    },
+                    {
+                        onConflict:
+                            "user_id,contact_id"
+                    }
+                );
 
         if (error) {
-            console.error(error);
+            showError(error);
             return;
         }
 
-        await renderMembers(
-            members || []
+        closeModal("nicknameModal");
+
+        toast(
+            "Nickname saved.",
+            "success"
+        );
+
+        await refreshSidebar();
+    }
+
+    async function removeNickname() {
+        if (!activeUserProfile) return;
+
+        const { error } =
+            await db
+                .from("contact_nicknames")
+                .delete()
+                .eq("user_id", currentUser.id)
+                .eq(
+                    "contact_id",
+                    activeUserProfile.id
+                );
+
+        if (error) {
+            showError(error);
+            return;
+        }
+
+        closeModal("nicknameModal");
+
+        toast(
+            "Nickname removed.",
+            "success"
+        );
+
+        await refreshSidebar();
+    }
+
+    /* =========================================================
+       USER PROFILE POPUP
+    ========================================================= */
+
+    async function openUserProfile(profile) {
+        if (!profile) return;
+
+        activeUserProfile = profile;
+
+        if ($("userProfileName")) {
+            $("userProfileName").textContent =
+                profile.full_name ||
+                profile.username;
+        }
+
+        if ($("userProfileUsername")) {
+            $("userProfileUsername").textContent =
+                `@${profile.username}`;
+        }
+
+        if ($("userProfileBio")) {
+            $("userProfileBio").textContent =
+                profile.bio || "";
+        }
+
+        if ($("userProfileVerified")) {
+            $("userProfileVerified").style.display =
+                isVerifiedActive(profile)
+                    ? "inline-flex"
+                    : "none";
+        }
+
+        if ($("userProfileStatus")) {
+            $("userProfileStatus").textContent =
+                profile.last_seen
+                    ? `Last seen ${formatDate(
+                        profile.last_seen
+                    )}`
+                    : "";
+        }
+
+        const avatar =
+            $("userProfileAvatar");
+
+        if (avatar) {
+            if (profile.avatar_url) {
+                avatar.innerHTML = `
+                    <img
+                        src="${escapeAttr(
+                            profile.avatar_url
+                        )}"
+                        alt=""
+                    >
+                `;
+            } else {
+                avatar.innerHTML = `
+                    <span>
+                        ${escapeHTML(
+                            initials(
+                                profile.full_name ||
+                                profile.username
+                            )
+                        )}
+                    </span>
+                `;
+            }
+        }
+
+        openModal("userProfileModal");
+    }
+
+    async function blockUser() {
+        if (!activeUserProfile) return;
+
+        if (
+            !confirm(
+                `Block @${activeUserProfile.username}?`
+            )
+        ) {
+            return;
+        }
+
+        const { error } =
+            await db
+                .from("user_blocks")
+                .insert({
+                    blocker_id: currentUser.id,
+                    blocked_id:
+                        activeUserProfile.id
+                });
+
+        if (error) {
+            if (isUniqueError(error)) {
+                toast(
+                    "User is already blocked.",
+                    "info"
+                );
+            } else {
+                showError(error);
+            }
+
+            return;
+        }
+
+        closeModal("userProfileModal");
+
+        toast(
+            "User blocked.",
+            "success"
         );
     }
 
+    async function reportUser() {
+        if (!activeUserProfile) return;
 
-    async function renderMembers(members) {
+        const reason =
+            document.querySelector(
+                'input[name="reportReason"]:checked'
+            )?.value;
+
+        const description =
+            $("reportDescription")?.value.trim();
+
+        if (!reason) {
+            toast(
+                "Select a report reason.",
+                "error"
+            );
+            return;
+        }
+
+        const { error } =
+            await db
+                .from("reports")
+                .insert({
+                    reporter_id: currentUser.id,
+                    reported_user_id:
+                        activeUserProfile.id,
+                    reason,
+                    description:
+                        description || ""
+                });
+
+        if (error) {
+            showError(error);
+            return;
+        }
+
+        closeModal("reportModal");
+
+        if ($("reportDescription")) {
+            $("reportDescription").value = "";
+        }
+
+        toast(
+            "Report submitted.",
+            "success"
+        );
+    }
+
+    /* =========================================================
+       SAVED MESSAGES
+    ========================================================= */
+
+    async function loadSavedMessages() {
         const list =
-            $("#membersList");
+            $("savedMessagesList");
+
+        if (!list) return;
+
+        const { data, error } =
+            await db
+                .from("saved_messages")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .order("created_at", {
+                    ascending: false
+                });
+
+        if (error) {
+            showError(error);
+            return;
+        }
 
         list.innerHTML = "";
 
-        const ids =
-            members.map(m => m.user_id);
-
-        if (!ids.length) {
+        if (!data?.length) {
             list.innerHTML = `
-                <div class="empty-list">
-                    No members.
+                <div class="empty-state">
+                    No saved messages.
                 </div>
             `;
             return;
         }
 
-        const {
-            data: profiles,
-            error
-        } = await db
-            .from("profiles")
-            .select("*")
-            .in("id", ids);
+        data.forEach((item) => {
+            const row =
+                document.createElement("div");
+
+            row.className =
+                "saved-message-item";
+
+            row.innerHTML = `
+                <div class="saved-message-content">
+                    ${escapeHTML(
+                        item.content || ""
+                    )}
+                </div>
+
+                <div class="saved-message-date">
+                    ${formatDate(
+                        item.created_at
+                    )}
+                </div>
+            `;
+
+            list.appendChild(row);
+        });
+    }
+
+    /* =========================================================
+       UPDATES
+    ========================================================= */
+
+    async function loadUpdates() {
+        const list =
+            $("updatesList");
+
+        if (!list) return;
+
+        const { data, error } =
+            await db
+                .from("app_updates")
+                .select("*")
+                .order("created_at", {
+                    ascending: false
+                });
 
         if (error) {
             console.error(error);
             return;
         }
 
-        const profileMap =
+        list.innerHTML = "";
+
+        if (!data?.length) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    No updates yet.
+                </div>
+            `;
+            return;
+        }
+
+        data.forEach((update) => {
+            const item =
+                document.createElement("div");
+
+            item.className = "update-item";
+
+            item.innerHTML = `
+                <div class="update-type">
+                    ${escapeHTML(
+                        update.type || "update"
+                    )}
+                </div>
+
+                <h3>
+                    ${escapeHTML(
+                        update.title || ""
+                    )}
+                </h3>
+
+                <p>
+                    ${escapeHTML(
+                        update.content || ""
+                    )}
+                </p>
+
+                <small>
+                    ${formatDate(
+                        update.created_at
+                    )}
+                </small>
+            `;
+
+            list.appendChild(item);
+        });
+    }
+
+    async function publishUpdate() {
+        const title =
+            $("updateTitle")?.value.trim();
+
+        const content =
+            $("updateContent")?.value.trim();
+
+        const type =
+            $("updateType")?.value || "update";
+
+        if (!title || !content) {
+            toast(
+                "Title and content are required.",
+                "error"
+            );
+            return;
+        }
+
+        if (
+            currentRole !== "owner" &&
+            currentRole !== "admin"
+        ) {
+            toast(
+                "You do not have permission.",
+                "error"
+            );
+            return;
+        }
+
+        const { error } =
+            await db
+                .from("app_updates")
+                .insert({
+                    type,
+                    title,
+                    content,
+                    created_by: currentUser.id,
+                    published: true
+                });
+
+        if (error) {
+            showError(error);
+            return;
+        }
+
+        if ($("updateTitle"))
+            $("updateTitle").value = "";
+
+        if ($("updateContent"))
+            $("updateContent").value = "";
+
+        toast(
+            "Update published.",
+            "success"
+        );
+
+        await loadUpdates();
+    }
+
+    /* =========================================================
+       GROUP / CHANNEL INFO
+    ========================================================= */
+
+    function renderCommunityInfo(
+        community,
+        type
+    ) {
+        const prefix =
+            type === "group"
+                ? "group"
+                : "channel";
+
+        const modal =
+            type === "group"
+                ? "groupInfoModal"
+                : "channelInfoModal";
+
+        const name =
+            $(`${prefix}InfoName`);
+
+        const username =
+            $(`${prefix}InfoUsername`);
+
+        const bio =
+            $(`${prefix}InfoBio`);
+
+        const privacy =
+            $(`${prefix}InfoPrivacy`);
+
+        const avatar =
+            $(`${prefix}InfoAvatar`);
+
+        if (name) {
+            name.textContent =
+                community.name || "";
+        }
+
+        if (username) {
+            username.textContent =
+                `@${community.username || ""}`;
+        }
+
+        if (bio) {
+            bio.textContent =
+                community.bio || "";
+        }
+
+        if (privacy) {
+            privacy.textContent =
+                community.privacy || "public";
+        }
+
+        if (avatar) {
+            if (community.avatar_url) {
+                avatar.innerHTML = `
+                    <img
+                        src="${escapeAttr(
+                            community.avatar_url
+                        )}"
+                        alt=""
+                    >
+                `;
+            } else {
+                avatar.innerHTML = `
+                    <span>
+                        ${escapeHTML(
+                            initials(
+                                community.name
+                            )
+                        )}
+                    </span>
+                `;
+            }
+        }
+
+        openModal(modal);
+    }
+
+    async function loadMembers(type) {
+        if (!activeCommunity) return;
+
+        const list =
+            $("membersList");
+
+        if (!list) return;
+
+        const table =
+            type === "group"
+                ? "group_members"
+                : "channel_members";
+
+        const idColumn =
+            type === "group"
+                ? "group_id"
+                : "channel_id";
+
+        const { data, error } =
+            await db
+                .from(table)
+                .select("*")
+                .eq(
+                    idColumn,
+                    activeCommunity.id
+                );
+
+        if (error) {
+            showError(error);
+            return;
+        }
+
+        const ids =
+            (data || []).map(
+                (member) => member.user_id
+            );
+
+        const profiles =
+            await getProfiles(ids);
+
+        const map =
             new Map(
-                (profiles || []).map(
-                    profile => [
+                profiles.map(
+                    (profile) => [
                         profile.id,
                         profile
                     ]
                 )
             );
 
-        members.forEach(member => {
+        list.innerHTML = "";
+
+        (data || []).forEach((member) => {
             const profile =
-                profileMap.get(
-                    member.user_id
-                );
+                map.get(member.user_id);
 
             if (!profile) return;
 
@@ -3070,49 +3108,475 @@
                 "member-item";
 
             item.innerHTML = `
-                <div class="chat-avatar">
+                ${avatarHTML(
+                    profile,
+                    "list-avatar"
+                )}
 
-                    ${
-                        profile.avatar_url
-                            ? `
-                                <img
-                                    src="${escapeHTML(profile.avatar_url)}"
-                                    alt=""
-                                >
-                            `
-                            : `
-                                <span>
-                                    ${escapeHTML(
-                                        avatarInitial(
-                                            profile.full_name ||
-                                            profile.username
-                                        )
-                                    )}
-                                </span>
-                            `
-                    }
-
-                </div>
-
-                <div class="member-info">
-
-                    <strong>
+                <div class="list-user-info">
+                    <div class="list-user-name">
                         ${escapeHTML(
                             profile.full_name ||
                             profile.username
+                        )}
+                        ${verifiedHTML(profile)}
+                    </div>
+
+                    <div class="list-user-username">
+                        @${escapeHTML(
+                            profile.username
+                        )}
+                        · ${escapeHTML(
+                            member.role || "member"
+                        )}
+                    </div>
+                </div>
+            `;
+
+            list.appendChild(item);
+        });
+
+        if ($("membersTitle")) {
+            $("membersTitle").textContent =
+                type === "group"
+                    ? "Group members"
+                    : "Channel members";
+        }
+
+        openModal("membersModal");
+    }
+
+    async function leaveCommunity(type) {
+        if (!activeCommunity) return;
+
+        if (
+            !confirm(
+                `Leave this ${type}?`
+            )
+        ) {
+            return;
+        }
+
+        const table =
+            type === "group"
+                ? "group_members"
+                : "channel_members";
+
+        const idColumn =
+            type === "group"
+                ? "group_id"
+                : "channel_id";
+
+        const { error } =
+            await db
+                .from(table)
+                .delete()
+                .eq(
+                    idColumn,
+                    activeCommunity.id
+                )
+                .eq(
+                    "user_id",
+                    currentUser.id
+                );
+
+        if (error) {
+            showError(
+                error,
+                "Could not leave."
+            );
+            return;
+        }
+
+        closeModal(
+            type === "group"
+                ? "groupInfoModal"
+                : "channelInfoModal"
+        );
+
+        activeCommunity = null;
+        activeCommunityType = null;
+
+        $("activeChat")?.classList.add("hidden");
+        $("chatEmpty")?.classList.remove("hidden");
+
+        if (type === "group") {
+            await loadGroups();
+        } else {
+            await loadChannels();
+        }
+
+        toast(
+            `Left ${type}.`,
+            "success"
+        );
+    }
+
+    /* =========================================================
+       INVITES
+    ========================================================= */
+
+    function makeInviteCode() {
+        return (
+            crypto.randomUUID()
+                .replace(/-/g, "")
+                .slice(0, 16)
+        );
+    }
+
+    async function createInvite(type) {
+        if (!activeCommunity) return;
+
+        const table =
+            type === "group"
+                ? "group_invites"
+                : "channel_invites";
+
+        const idColumn =
+            type === "group"
+                ? "group_id"
+                : "channel_id";
+
+        const code =
+            makeInviteCode();
+
+        const payload = {
+            [idColumn]:
+                activeCommunity.id,
+            inviter_id:
+                currentUser.id,
+            invite_code:
+                code
+        };
+
+        const { error } =
+            await db
+                .from(table)
+                .insert(payload);
+
+        if (error) {
+            showError(
+                error,
+                "Could not create invite."
+            );
+            return;
+        }
+
+        await navigator.clipboard
+            ?.writeText(code)
+            .catch(() => {});
+
+        toast(
+            `Invite code: ${code}`,
+            "success"
+        );
+    }
+
+    /* =========================================================
+       OWNER / ADMIN
+    ========================================================= */
+
+    async function loadRole() {
+        try {
+            const { data, error } =
+                await db.rpc(
+                    "get_my_role"
+                );
+
+            if (error) {
+                console.warn(
+                    "get_my_role unavailable:",
+                    error
+                );
+
+                currentRole =
+                    currentProfile?.role ||
+                    "user";
+            } else {
+                currentRole =
+                    data ||
+                    currentProfile?.role ||
+                    "user";
+            }
+        } catch {
+            currentRole =
+                currentProfile?.role ||
+                "user";
+        }
+
+        const ownerButton =
+            $("ownerPanelButton");
+
+        const adminButton =
+            $("adminPanelButton");
+
+        if (ownerButton) {
+            ownerButton.style.display =
+                currentRole === "owner"
+                    ? ""
+                    : "none";
+        }
+
+        if (adminButton) {
+            adminButton.style.display =
+                currentRole === "owner" ||
+                currentRole === "admin"
+                    ? ""
+                    : "none";
+        }
+
+        const createUpdate =
+            $("updateCreateSection");
+
+        if (createUpdate) {
+            createUpdate.style.display =
+                currentRole === "owner" ||
+                currentRole === "admin"
+                    ? ""
+                    : "none";
+        }
+    }
+
+    async function ownerSearchVerified() {
+        const username =
+            $("ownerVerifiedUsername")
+                ?.value
+                .trim()
+                .toLowerCase();
+
+        if (!username) return;
+
+        const { data, error } =
+            await db
+                .from("profiles")
+                .select("*")
+                .eq("username", username)
+                .maybeSingle();
+
+        const result =
+            $("ownerVerifiedResult");
+
+        if (error) {
+            showError(error);
+            return;
+        }
+
+        if (!data) {
+            if (result) {
+                result.innerHTML =
+                    "User not found.";
+            }
+
+            return;
+        }
+
+        if (result) {
+            result.innerHTML = `
+                <div class="owner-user-result">
+                    <strong>
+                        ${escapeHTML(
+                            data.full_name ||
+                            data.username
                         )}
                     </strong>
 
                     <span>
                         @${escapeHTML(
-                            profile.username
+                            data.username
                         )}
                     </span>
 
+                    <span>
+                        ${
+                            isVerifiedActive(data)
+                                ? "Verified"
+                                : "Not verified"
+                        }
+                    </span>
+
+                    ${
+                        data.verified_until
+                            ? `
+                            <span>
+                                Until:
+                                ${formatDate(
+                                    data.verified_until
+                                )}
+                            </span>
+                            `
+                            : ""
+                    }
+
+                    <button
+                        id="ownerToggleVerifiedBtn"
+                    >
+                        ${
+                            isVerifiedActive(data)
+                                ? "Remove verification"
+                                : "Give verification"
+                        }
+                    </button>
                 </div>
+            `;
+
+            $("ownerToggleVerifiedBtn")
+                ?.addEventListener(
+                    "click",
+                    () => toggleOwnerVerified(data)
+                );
+        }
+    }
+
+    async function toggleOwnerVerified(profile) {
+        if (currentRole !== "owner") {
+            toast(
+                "Owner permission required.",
+                "error"
+            );
+            return;
+        }
+
+        const active =
+            isVerifiedActive(profile);
+
+        const duration =
+            Number(
+                $("verifiedDuration")?.value || 30
+            );
+
+        const action =
+            active ? "remove" : "give";
+
+        /*
+         * Existing RPC only accepts:
+         * owner_set_verified(uuid, text)
+         *
+         * So we intentionally do NOT call a
+         * nonexistent duration RPC.
+         */
+
+        const { error } =
+            await db.rpc(
+                "owner_set_verified",
+                {
+                    p_user_id:
+                        profile.id,
+                    p_action:
+                        action
+                }
+            );
+
+        if (error) {
+            showError(error);
+            return;
+        }
+
+        /*
+         * If owner RLS allows direct expiry update,
+         * save expiry. Otherwise the verified RPC
+         * itself still controls verification.
+         */
+
+        if (!active && duration > 0) {
+            const until =
+                new Date(
+                    Date.now() +
+                    duration *
+                    24 *
+                    60 *
+                    60 *
+                    1000
+                ).toISOString();
+
+            const { error: expiryError } =
+                await db
+                    .from("profiles")
+                    .update({
+                        verified_until:
+                            until
+                    })
+                    .eq(
+                        "id",
+                        profile.id
+                    );
+
+            if (expiryError) {
+                console.warn(
+                    "Could not set verified expiry:",
+                    expiryError
+                );
+
+                toast(
+                    "Verified status changed, but expiry needs the owner expiry RPC/policy.",
+                    "warning"
+                );
+            }
+        }
+
+        toast(
+            active
+                ? "Verification removed."
+                : "Verification updated.",
+            "success"
+        );
+
+        await ownerSearchVerified();
+    }
+
+    async function loadOwnerReports() {
+        const list =
+            $("ownerReportsList");
+
+        if (!list) return;
+
+        const { data, error } =
+            await db
+                .from("reports")
+                .select("*")
+                .order("created_at", {
+                    ascending: false
+                });
+
+        if (error) {
+            console.error(error);
+            return;
+        }
+
+        list.innerHTML = "";
+
+        if (!data?.length) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    No reports.
+                </div>
+            `;
+            return;
+        }
+
+        data.forEach((report) => {
+            const item =
+                document.createElement("div");
+
+            item.className =
+                "owner-report-item";
+
+            item.innerHTML = `
+                <strong>
+                    ${escapeHTML(
+                        report.reason || "Report"
+                    )}
+                </strong>
+
+                <p>
+                    ${escapeHTML(
+                        report.description || ""
+                    )}
+                </p>
 
                 <small>
-                    ${escapeHTML(member.role || "member")}
+                    ${formatDate(
+                        report.created_at
+                    )}
                 </small>
             `;
 
@@ -3120,1016 +3584,175 @@
         });
     }
 
-
     /* =========================================================
-       INVITES
-       ========================================================= */
-
-    async function createInvite(type) {
-        const id =
-            type === "group"
-                ? state.currentGroup?.id
-                : state.currentChannel?.id;
-
-        if (!id) return;
-
-        const table =
-            type === "group"
-                ? "group_invites"
-                : "channel_invites";
-
-        const foreignKey =
-            type === "group"
-                ? "group_id"
-                : "channel_id";
-
-        const code =
-            crypto.randomUUID()
-                .replace(/-/g, "")
-                .slice(0, 12);
-
-        const {
-            data,
-            error
-        } = await db
-            .from(table)
-            .insert({
-                [foreignKey]: id,
-                created_by: state.user.id,
-                invite_code: code
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error(error);
-
-            showToast(
-                "Could not create invite.",
-                "error"
-            );
-
-            return;
-        }
-
-        const text =
-            data.invite_code || code;
-
-        try {
-            await navigator.clipboard.writeText(
-                text
-            );
-
-            showToast(
-                `Invite code copied: ${text}`
-            );
-        } catch {
-            showToast(
-                `Invite code: ${text}`
-            );
-        }
-    }
-
-
-    /* =========================================================
-       LEAVE
-       ========================================================= */
-
-    async function leaveGroup() {
-        if (!state.currentGroup) return;
-
-        const {
-            error
-        } = await db
-            .from("group_members")
-            .delete()
-            .eq(
-                "group_id",
-                state.currentGroup.id
-            )
-            .eq(
-                "user_id",
-                state.user.id
-            );
-
-        if (error) {
-            console.error(error);
-
-            showToast(
-                "You cannot leave this group from the current permissions.",
-                "error"
-            );
-
-            return;
-        }
-
-        closeModal("groupInfoModal");
-
-        state.currentGroup = null;
-
-        await loadGroups();
-
-        showEmptyChat();
-
-        showToast("You left the group.");
-    }
-
-
-    async function leaveChannel() {
-        if (!state.currentChannel) return;
-
-        const {
-            error
-        } = await db
-            .from("channel_members")
-            .delete()
-            .eq(
-                "channel_id",
-                state.currentChannel.id
-            )
-            .eq(
-                "user_id",
-                state.user.id
-            );
-
-        if (error) {
-            console.error(error);
-
-            showToast(
-                "You cannot leave this channel from the current permissions.",
-                "error"
-            );
-
-            return;
-        }
-
-        closeModal("channelInfoModal");
-
-        state.currentChannel = null;
-
-        await loadChannels();
-
-        showEmptyChat();
-
-        showToast("You left the channel.");
-    }
-
-
-    /* =========================================================
-       SEARCH
-       ========================================================= */
-
-    function setupSearch() {
-        const input =
-            $("#searchInput");
-
-        if (!input) return;
-
-        input.addEventListener(
-            "input",
-            () => {
-                const value =
-                    input.value.trim();
-
-                const clear =
-                    $("#clearSearchBtn");
-
-                if (clear) {
-                    clear.style.display =
-                        value
-                            ? "flex"
-                            : "none";
-                }
-
-                clearTimeout(
-                    state.searchTimer
-                );
-
-                state.searchTimer =
-                    setTimeout(
-                        () => performSearch(value),
-                        250
-                    );
-            }
-        );
-    }
-
-
-    async function performSearch(value) {
-        if (!value) {
-            await restoreSidebarLists();
-            return;
-        }
-
-        const username =
-            normalizeUsername(value);
-
-        const [
-            people,
-            groups,
-            channels
-        ] = await Promise.all([
-            searchProfiles(username),
-            searchGroups(username),
-            searchChannels(username)
-        ]);
-
-        renderSearchResults(
-            people,
-            groups,
-            channels
-        );
-    }
-
-
-    async function searchProfiles(username) {
-        const {
-            data,
-            error
-        } = await db
-            .from("profiles")
-            .select("*")
-            .ilike(
-                "username",
-                `%${username}%`
-            )
-            .neq("id", state.user.id)
-            .limit(20);
-
-        if (error) {
-            console.error(error);
-            return [];
-        }
-
-        return data || [];
-    }
-
-
-    async function searchGroups(username) {
-        const {
-            data,
-            error
-        } = await db
-            .from("groups")
-            .select("*")
-            .ilike(
-                "username",
-                `%${username}%`
-            )
-            .limit(20);
-
-        if (error) {
-            console.error(error);
-            return [];
-        }
-
-        return data || [];
-    }
-
-
-    async function searchChannels(username) {
-        const {
-            data,
-            error
-        } = await db
-            .from("channels")
-            .select("*")
-            .ilike(
-                "username",
-                `%${username}%`
-            )
-            .limit(20);
-
-        if (error) {
-            console.error(error);
-            return [];
-        }
-
-        return data || [];
-    }
-
-
-    function renderSearchResults(
-        people,
-        groups,
-        channels
-    ) {
-        const list =
-            $("#userList");
-
-        if (!list) return;
-
-        list.innerHTML = "";
-
-        const title =
-            document.createElement("div");
-
-        title.className =
-            "search-results-title";
-
-        title.textContent =
-            "Search results";
-
-        list.appendChild(title);
-
-
-        people.forEach(profile => {
-            list.appendChild(
-                createContactElement(profile)
-            );
-        });
-
-
-        groups.forEach(group => {
-            const item =
-                document.createElement("button");
-
-            item.type = "button";
-            item.className =
-                "community-item";
-
-            item.innerHTML = `
-                <div class="community-avatar-small">
-                    <i class="fa-solid fa-users"></i>
-                </div>
-
-                <div class="community-item-info">
-                    <strong>
-                        ${escapeHTML(group.name)}
-                    </strong>
-
-                    <span>
-                        @${escapeHTML(group.username)}
-                    </span>
-                </div>
-            `;
-
-            item.addEventListener(
-                "click",
-                () => {
-                    openGroup(group);
-                }
-            );
-
-            list.appendChild(item);
-        });
-
-
-        channels.forEach(channel => {
-            const item =
-                document.createElement("button");
-
-            item.type = "button";
-            item.className =
-                "community-item";
-
-            item.innerHTML = `
-                <div class="community-avatar-small">
-                    <i class="fa-solid fa-bullhorn"></i>
-                </div>
-
-                <div class="community-item-info">
-                    <strong>
-                        ${escapeHTML(channel.name)}
-                    </strong>
-
-                    <span>
-                        @${escapeHTML(channel.username)}
-                    </span>
-                </div>
-            `;
-
-            item.addEventListener(
-                "click",
-                () => {
-                    openChannel(channel);
-                }
-            );
-
-            list.appendChild(item);
-        });
-
-
-        if (
-            !people.length &&
-            !groups.length &&
-            !channels.length
-        ) {
-            list.innerHTML += `
-                <div class="empty-list">
-                    No results found.
-                </div>
-            `;
-        }
-    }
-
-
-    async function restoreSidebarLists() {
-        const activeTab =
-            document.querySelector(
-                ".sidebar-tab.active"
-            )?.dataset.tab ||
-            "contacts";
-
-        if (activeTab === "contacts") {
-            await loadContacts();
-        }
-
-        if (activeTab === "groups") {
-            await loadGroups();
-        }
-
-        if (activeTab === "channels") {
-            await loadChannels();
-        }
-    }
-
-
-    /* =========================================================
-       USER PROFILE POPUP
-       ========================================================= */
-
-    async function openUserProfile(profile) {
-        if (!profile) return;
-
-        state.currentProfileUser =
-            profile;
-
-        $("#userProfileName").textContent =
-            profile.full_name ||
-            profile.username;
-
-        $("#userProfileUsername").textContent =
-            "@" + profile.username;
-
-        $("#userProfileBio").textContent =
-            profile.bio ||
-            "No bio";
-
-        $("#userProfileStatus").textContent =
-            profile.show_online === false
-                ? "Offline"
-                : (
-                    profile.last_seen
-                        ? `Last seen ${formatDate(profile.last_seen)}`
-                        : "Offline"
-                );
-
-        setAvatar(
-            $("#userProfileAvatar"),
-            $("#userProfileAvatarInitial"),
-            profile.avatar_url,
-            profile.full_name ||
-            profile.username
-        );
-
-        $("#userProfileVerified").style.display =
-            isVerified(profile)
-                ? "inline-flex"
-                : "none";
-
-        $("#userProfileMenu").style.display =
-            "none";
-
-        openModal("userProfileModal");
-    }
-
-
-    /* =========================================================
-       NICKNAMES
-       ========================================================= */
-
-    async function saveNickname() {
-        const profile =
-            state.currentProfileUser;
-
-        if (!profile) return;
-
-        const nickname =
-            $("#nicknameInput")
-                ?.value.trim() || "";
-
-        if (!nickname) {
-            showToast(
-                "Nickname cannot be empty.",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            error
-        } = await db
-            .from("contact_nicknames")
-            .upsert({
-                owner_id: state.user.id,
-                contact_id: profile.id,
-                nickname
-            }, {
-                onConflict:
-                    "owner_id,contact_id"
-            });
-
-        if (error) {
-            console.error(error);
-
-            showToast(
-                "Could not save nickname.",
-                "error"
-            );
-
-            return;
-        }
-
-        closeModal("nicknameModal");
-
-        showToast("Nickname saved.");
-    }
-
-
-    async function removeNickname() {
-        const profile =
-            state.currentProfileUser;
-
-        if (!profile) return;
-
-        const {
-            error
-        } = await db
-            .from("contact_nicknames")
-            .delete()
-            .eq(
-                "owner_id",
-                state.user.id
-            )
-            .eq(
-                "contact_id",
-                profile.id
-            );
-
-        if (error) {
-            console.error(error);
-
-            showToast(
-                "Could not delete nickname.",
-                "error"
-            );
-
-            return;
-        }
-
-        closeModal("nicknameModal");
-
-        showToast("Nickname deleted.");
-    }
-
-
-    /* =========================================================
-       BLOCK
-       ========================================================= */
-
-    async function blockUser() {
-        const profile =
-            state.currentProfileUser;
-
-        if (!profile) return;
-
-        const {
-            error
-        } = await db
-            .from("user_blocks")
-            .upsert({
-                blocker_id: state.user.id,
-                blocked_id: profile.id
-            }, {
-                onConflict:
-                    "blocker_id,blocked_id"
-            });
-
-        if (error) {
-            console.error(error);
-
-            showToast(
-                "Could not block user.",
-                "error"
-            );
-
-            return;
-        }
-
-        closeModal("userProfileModal");
-
-        showToast("User blocked.");
-    }
-
-
-    /* =========================================================
-       REPORT
-       ========================================================= */
-
-    function openReport() {
-        if (!state.currentProfileUser) {
-            return;
-        }
-
-        openModal("reportModal");
-    }
-
-
-    async function submitReport() {
-        const profile =
-            state.currentProfileUser;
-
-        if (!profile) return;
-
-        const reason =
-            document.querySelector(
-                'input[name="reportReason"]:checked'
-            )?.value || "other";
-
-        const description =
-            $("#reportDescription")
-                ?.value.trim() || "";
-
-        const {
-            error
-        } = await db
-            .from("reports")
-            .insert({
-                reporter_id: state.user.id,
-                reported_user_id: profile.id,
-                reason,
-                description,
-                status: "open"
-            });
-
-        if (error) {
-            console.error(error);
-
-            showToast(
-                "Could not submit report.",
-                "error"
-            );
-
-            return;
-        }
-
-        $("#reportDescription").value = "";
-
-        closeModal("reportModal");
-        closeModal("userProfileModal");
-
-        showToast("Report submitted.");
-    }
-
-
-    /* =========================================================
-       OWNER
-       ========================================================= */
-
-    async function checkOwner() {
-        if (!state.user) return false;
-
-        const {
-            data,
-            error
-        } = await db.rpc(
-            "get_my_role"
-        );
-
-        if (error) {
-            console.error(error);
-            return false;
-        }
-
-        return data === "owner";
-    }
-
-
-    async function setupOwnerUI() {
-        const isOwner =
-            await checkOwner();
-
-        const ownerButton =
-            $("#ownerPanelButton");
-
-        if (ownerButton) {
-            ownerButton.style.display =
-                isOwner
-                    ? "flex"
-                    : "none";
-        }
-    }
-
-
-    async function searchVerifiedUser() {
-        const username =
-            normalizeUsername(
-                $("#ownerVerifiedUsername")
-                    ?.value
-            );
-
-        const result =
-            $("#ownerVerifiedResult");
-
-        if (!result) return;
-
-        if (!username) {
-            result.innerHTML = "";
-            return;
-        }
-
-        const {
-            data,
-            error
-        } = await db
-            .from("profiles")
-            .select("*")
-            .eq("username", username)
-            .maybeSingle();
-
-        if (error) {
-            console.error(error);
-            result.textContent =
-                "Search failed.";
-            return;
-        }
-
-        if (!data) {
-            result.innerHTML = `
-                <div class="empty-list">
-                    User not found.
-                </div>
-            `;
-            return;
-        }
-
-        result.innerHTML = `
-            <div class="owner-user-result">
-
-                <strong>
-                    ${escapeHTML(
-                        data.full_name ||
-                        data.username
-                    )}
-                </strong>
-
-                <span>
-                    @${escapeHTML(data.username)}
-                </span>
-
-                <span>
-                    ${
-                        isVerified(data)
-                            ? (
-                                data.verified_until
-                                    ? formatRemaining(
-                                        data.verified_until
-                                    )
-                                    : "Permanent"
-                            )
-                            : "Not verified"
-                    }
-                </span>
-
-                <button
-                    type="button"
-                    id="ownerVerifiedActionBtn"
-                    class="primary-btn"
-                >
-                    ${
-                        isVerified(data)
-                            ? "Remove Verification"
-                            : "Give Verification"
-                    }
-                </button>
-
-            </div>
-        `;
-
-        $("#ownerVerifiedActionBtn")
-            ?.addEventListener(
-                "click",
-                () => toggleVerified(data)
-            );
-    }
-
-
-    async function toggleVerified(profile) {
-        if (!profile) return;
-
-        const verified =
-            isVerified(profile);
-
-        const duration =
-            Number(
-                $("#verifiedDuration")
-                    ?.value || 0
-            );
-
-        /*
-         * Current known RPC:
-         * owner_set_verified(uuid,text)
-         *
-         * It does not safely accept duration yet.
-         * We therefore call the existing RPC here.
-         */
-
-        const {
-            error
-        } = await db.rpc(
-            "owner_set_verified",
-            {
-                p_user_id: profile.id,
-                p_action:
-                    verified
-                        ? "remove"
-                        : "give"
-            }
-        );
-
-        if (error) {
-            console.error(error);
-
-            showToast(
-                error.message ||
-                "Could not change verification.",
-                "error"
-            );
-
-            return;
-        }
-
-        /*
-         * Duration cannot be safely written from
-         * frontend unless the owner RPC supports it.
-         * The selected value is therefore not falsely
-         * presented as saved.
-         */
-
-        if (!verified && duration > 0) {
-            showToast(
-                "Verification given. Duration storage requires the duration-enabled owner RPC."
+       SETTINGS / THEME / LANGUAGE
+    ========================================================= */
+
+    function applyTheme(theme) {
+        const root =
+            document.documentElement;
+
+        if (theme === "system") {
+            root.removeAttribute(
+                "data-theme"
             );
         } else {
-            showToast(
-                verified
-                    ? "Verification removed."
-                    : "Verification given."
+            root.setAttribute(
+                "data-theme",
+                theme
             );
         }
 
-        await searchVerifiedUser();
-    }
-
-
-    /* =========================================================
-       MODAL / UI
-       ========================================================= */
-
-    function showActiveChat() {
-        $("#chatEmpty").style.display =
-            "none";
-
-        $("#activeChat").style.display =
-            "flex";
-    }
-
-
-    function showEmptyChat() {
-        $("#chatEmpty").style.display =
-            "flex";
-
-        $("#activeChat").style.display =
-            "none";
-
-        state.currentChat = null;
-        state.currentChatType = null;
-        state.currentOtherUser = null;
-        state.currentGroup = null;
-        state.currentChannel = null;
-    }
-
-
-    function enableComposer(enabled) {
-        const form =
-            $("#messageForm");
-
-        const input =
-            $("#messageInput");
-
-        const send =
-            $("#sendButton");
-
-        const image =
-            $("#imageBtn");
-
-        const emoji =
-            $("#emojiBtn");
-
-        const sticker =
-            $("#stickerBtn");
-
-        if (!form) return;
-
-        [
-            input,
-            send,
-            image,
-            emoji,
-            sticker
-        ].forEach(element => {
-            if (element) {
-                element.disabled =
-                    !enabled;
-            }
-        });
-
-        form.classList.toggle(
-            "disabled",
-            !enabled
+        localStorage.setItem(
+            "megchatbox-theme",
+            theme
         );
     }
 
+    function applyDensity(density) {
+        document.documentElement
+            .setAttribute(
+                "data-density",
+                density
+            );
 
-    function scrollMessagesToBottom() {
-        const container =
-            $("#messages");
-
-        if (!container) return;
-
-        requestAnimationFrame(() => {
-            container.scrollTop =
-                container.scrollHeight;
-        });
+        localStorage.setItem(
+            "megchatbox-density",
+            density
+        );
     }
 
+    function applyLanguage(language) {
+        localStorage.setItem(
+            "megchatbox-language",
+            language
+        );
 
-    function updateCount(selector, value) {
-        const element =
-            $(selector);
-
-        if (element) {
-            element.textContent =
-                String(value);
-        }
+        document.documentElement
+            .setAttribute(
+                "lang",
+                language
+            );
     }
 
+    function loadAppearance() {
+        const theme =
+            localStorage.getItem(
+                "megchatbox-theme"
+            ) || "dark";
+
+        const density =
+            localStorage.getItem(
+                "megchatbox-density"
+            ) || "comfortable";
+
+        const language =
+            localStorage.getItem(
+                "megchatbox-language"
+            ) || "en";
+
+        applyTheme(theme);
+        applyDensity(density);
+        applyLanguage(language);
+
+        document
+            .querySelectorAll(
+                ".appearance-option[data-theme]"
+            )
+            .forEach((el) => {
+                el.classList.toggle(
+                    "active",
+                    el.dataset.theme === theme
+                );
+            });
+
+        document
+            .querySelectorAll(
+                ".appearance-option[data-density]"
+            )
+            .forEach((el) => {
+                el.classList.toggle(
+                    "active",
+                    el.dataset.density === density
+                );
+            });
+
+        document
+            .querySelectorAll(
+                ".language-option[data-language]"
+            )
+            .forEach((el) => {
+                el.classList.toggle(
+                    "active",
+                    el.dataset.language === language
+                );
+            });
+    }
 
     /* =========================================================
-       TABS
-       ========================================================= */
+       SIDEBAR
+    ========================================================= */
+
+    async function refreshSidebar() {
+        await Promise.all([
+            renderContacts(),
+            loadGroups(),
+            loadChannels()
+        ]);
+    }
 
     function setupTabs() {
-        $$(".sidebar-tab")
-            .forEach(tab => {
+        document
+            .querySelectorAll(
+                ".sidebar-tab[data-tab]"
+            )
+            .forEach((tab) => {
                 tab.addEventListener(
                     "click",
                     async () => {
-
-                        $$(".sidebar-tab")
-                            .forEach(item =>
-                                item.classList.remove(
+                        document
+                            .querySelectorAll(
+                                ".sidebar-tab"
+                            )
+                            .forEach((x) =>
+                                x.classList.remove(
                                     "active"
                                 )
                             );
 
-                        tab.classList.add("active");
+                        tab.classList.add(
+                            "active"
+                        );
 
                         const name =
                             tab.dataset.tab;
 
-                        $("#chatsTab").style.display =
-                            name === "contacts"
-                                ? "block"
-                                : "none";
+                        document
+                            .querySelectorAll(
+                                "#userList,#groupsList,#channelsList"
+                            )
+                            .forEach(
+                                (list) => {
+                                    list.style.display =
+                                        "none";
+                                }
+                            );
 
-                        $("#groupsTab").style.display =
-                            name === "groups"
-                                ? "block"
-                                : "none";
-
-                        $("#channelsTab").style.display =
-                            name === "channels"
-                                ? "block"
-                                : "none";
-
-                        const search =
-                            $("#searchInput");
-
-                        if (search) {
-                            search.value = "";
-                        }
-
-                        if (name === "contacts") {
-                            await loadContacts();
+                        if (name === "chats") {
+                            $("userList").style.display =
+                                "";
+                            await renderContacts();
                         }
 
                         if (name === "groups") {
+                            $("groupsList").style.display =
+                                "";
                             await loadGroups();
                         }
 
                         if (name === "channels") {
+                            $("channelsList").style.display =
+                                "";
                             await loadChannels();
                         }
                     }
@@ -4137,873 +3760,710 @@
             });
     }
 
-
     /* =========================================================
-       THEME / DENSITY / LANGUAGE
-       ========================================================= */
-
-    function applyTheme(theme) {
-        state.theme = theme;
-
-        localStorage.setItem(
-            "megchatbox_theme",
-            theme
-        );
-
-        document.body.dataset.theme =
-            theme;
-
-        $$(".appearance-option[data-theme]")
-            .forEach(button => {
-                button.classList.toggle(
-                    "selected",
-                    button.dataset.theme ===
-                    theme
-                );
-            });
-    }
-
-
-    function applyDensity(density) {
-        state.density = density;
-
-        localStorage.setItem(
-            "megchatbox_density",
-            density
-        );
-
-        document.body.dataset.density =
-            density;
-
-        $$(".appearance-option[data-density]")
-            .forEach(button => {
-                button.classList.toggle(
-                    "selected",
-                    button.dataset.density ===
-                    density
-                );
-            });
-    }
-
-
-    function applyLanguage(language) {
-        state.language = language;
-
-        localStorage.setItem(
-            "megchatbox_language",
-            language
-        );
-
-        $$(".language-option")
-            .forEach(button => {
-                button.classList.toggle(
-                    "selected",
-                    button.dataset.language ===
-                    language
-                );
-            });
-    }
-
-
-    /* =========================================================
-       REFRESH
-       ========================================================= */
-
-    async function refreshCurrentChat() {
-        if (
-            state.currentChatType ===
-            "direct"
-        ) {
-            await loadDirectMessages();
-        }
-
-        if (
-            state.currentChatType ===
-            "group"
-        ) {
-            await loadGroupMessages(
-                state.currentGroup.id
-            );
-        }
-
-        if (
-            state.currentChatType ===
-            "channel"
-        ) {
-            await loadChannelMessages(
-                state.currentChannel.id
-            );
-        }
-    }
-
-
-    async function refreshAll() {
-        await loadContacts();
-        await loadGroups();
-        await loadChannels();
-    }
-
-
-    /* =========================================================
-       REALTIME
-       ========================================================= */
-
-    function cleanupRealtime() {
-        state.realtimeChannels
-            .forEach(channel => {
-                try {
-                    db.removeChannel(channel);
-                } catch {}
-            });
-
-        state.realtimeChannels = [];
-    }
-
-
-    function setupRealtime() {
-        cleanupRealtime();
-
-        if (!state.user) return;
-
-
-        /* CONTACT REQUESTS */
-
-        const contactsChannel =
-            db
-                .channel(
-                    `contact-requests-${state.user.id}`
-                )
-                .on(
-                    "postgres_changes",
-                    {
-                        event: "*",
-                        schema: "public",
-                        table: "contact_requests"
-                    },
-                    async payload => {
-
-                        const row =
-                            payload.new ||
-                            payload.old;
-
-                        if (!row) return;
-
-                        if (
-                            row.sender_id !==
-                                state.user.id &&
-                            row.receiver_id !==
-                                state.user.id
-                        ) {
-                            return;
-                        }
-
-                        await loadContacts();
-
-                        if (
-                            state.currentOtherUser
-                        ) {
-                            await updateContactActions();
-                        }
-                    }
-                )
-                .subscribe();
-
-        state.realtimeChannels.push(
-            contactsChannel
-        );
-
-
-        /* DIRECT MESSAGES */
-
-        const messagesChannel =
-            db
-                .channel(
-                    `messages-${state.user.id}`
-                )
-                .on(
-                    "postgres_changes",
-                    {
-                        event: "*",
-                        schema: "public",
-                        table: "messages"
-                    },
-                    async payload => {
-
-                        const row =
-                            payload.new ||
-                            payload.old;
-
-                        if (!row) return;
-
-                        if (
-                            row.sender_id !==
-                                state.user.id &&
-                            row.receiver_id !==
-                                state.user.id
-                        ) {
-                            return;
-                        }
-
-                        if (
-                            state.currentChatType ===
-                                "direct" &&
-                            state.currentOtherUser
-                        ) {
-                            const belongs =
-                                row.sender_id ===
-                                    state.currentOtherUser.id ||
-                                row.receiver_id ===
-                                    state.currentOtherUser.id;
-
-                            if (belongs) {
-                                await loadDirectMessages();
-                            }
-                        }
-                    }
-                )
-                .subscribe();
-
-        state.realtimeChannels.push(
-            messagesChannel
-        );
-
-
-        /* GROUP MESSAGES */
-
-        const groupChannel =
-            db
-                .channel(
-                    `group-messages-${state.user.id}`
-                )
-                .on(
-                    "postgres_changes",
-                    {
-                        event: "*",
-                        schema: "public",
-                        table: "group_messages"
-                    },
-                    async payload => {
-
-                        const row =
-                            payload.new ||
-                            payload.old;
-
-                        if (
-                            state.currentChatType ===
-                                "group" &&
-                            state.currentGroup &&
-                            row?.group_id ===
-                                state.currentGroup.id
-                        ) {
-                            await loadGroupMessages(
-                                state.currentGroup.id
-                            );
-                        }
-                    }
-                )
-                .subscribe();
-
-        state.realtimeChannels.push(
-            groupChannel
-        );
-
-
-        /* CHANNEL MESSAGES */
-
-        const channel =
-            db
-                .channel(
-                    `channel-messages-${state.user.id}`
-                )
-                .on(
-                    "postgres_changes",
-                    {
-                        event: "*",
-                        schema: "public",
-                        table: "channel_messages"
-                    },
-                    async payload => {
-
-                        const row =
-                            payload.new ||
-                            payload.old;
-
-                        if (
-                            state.currentChatType ===
-                                "channel" &&
-                            state.currentChannel &&
-                            row?.channel_id ===
-                                state.currentChannel.id
-                        ) {
-                            await loadChannelMessages(
-                                state.currentChannel.id
-                            );
-                        }
-                    }
-                )
-                .subscribe();
-
-        state.realtimeChannels.push(
-            channel
-        );
-    }
-
-
-    /* =========================================================
-       LOGOUT
-       ========================================================= */
+       LOGOUT / DELETE ACCOUNT
+    ========================================================= */
 
     async function logout() {
-        cleanupRealtime();
+        await db.auth.signOut();
 
-        const {
-            error
-        } = await db.auth.signOut();
-
-        if (error) {
-            console.error(error);
-        }
-
-        localStorage.removeItem(
-            "messageAppLoggedIn"
-        );
-
-        localStorage.removeItem(
-            "messageAppUser"
-        );
-
-        window.location.href =
-            "index.html";
+        location.href = "index.html";
     }
-
-
-    /* =========================================================
-       DELETE ACCOUNT
-       ========================================================= */
 
     async function deleteAccount() {
-        showToast(
-            "Account deletion must be handled by a secure server-side function.",
-            "error"
+        /*
+         * Browser-side Supabase client cannot securely
+         * delete auth.users without a trusted server
+         * function.
+         *
+         * Never pretend the account was deleted.
+         */
+
+        toast(
+            "Secure account deletion is not configured yet.",
+            "warning"
         );
     }
-
 
     /* =========================================================
        EVENTS
-       ========================================================= */
+    ========================================================= */
 
     function setupEvents() {
-
-        /* SETTINGS */
-
-        $("#settingsBtn")
+        $("settingsBtn")
             ?.addEventListener(
                 "click",
-                () => openModal("settingsModal")
+                () => openModal(
+                    "settingsModal"
+                )
             );
 
-
-        $("#profileSettingsBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    fillProfileForm();
-                    closeModal("settingsModal");
-                    openModal("profileModal");
-                }
-            );
-
-
-        $("#privacySettingsBtn")
+        $("profileSettingsBtn")
             ?.addEventListener(
                 "click",
                 () => {
-                    fillPrivacySettings();
-                    closeModal("settingsModal");
-                    openModal("privacyModal");
+                    if (currentProfile) {
+                        $("profileFullName").value =
+                            currentProfile.full_name || "";
+
+                        $("profileUsername").value =
+                            currentProfile.username || "";
+
+                        $("profileBio").value =
+                            currentProfile.bio || "";
+                    }
+
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    openModal(
+                        "profileModal"
+                    );
                 }
             );
 
-
-        $("#appearanceSettingsBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    closeModal("settingsModal");
-                    openModal("appearanceModal");
-                }
-            );
-
-
-        $("#languageSettingsBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    closeModal("settingsModal");
-                    openModal("languageModal");
-                }
-            );
-
-
-        $("#savedMessagesBtn")
+        $("privacySettingsBtn")
             ?.addEventListener(
                 "click",
                 async () => {
-                    closeModal("settingsModal");
-                    openModal("savedMessagesModal");
-                    await loadSavedMessages();
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    await loadPrivacy();
+
+                    openModal(
+                        "privacyModal"
+                    );
                 }
             );
 
+        $("appearanceSettingsBtn")
+            ?.addEventListener(
+                "click",
+                () => {
+                    closeModal(
+                        "settingsModal"
+                    );
 
-        $("#savedMessagesChat")
+                    openModal(
+                        "appearanceModal"
+                    );
+                }
+            );
+
+        $("languageSettingsBtn")
+            ?.addEventListener(
+                "click",
+                () => {
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    openModal(
+                        "languageModal"
+                    );
+                }
+            );
+
+        $("savedMessagesBtn")
             ?.addEventListener(
                 "click",
                 async () => {
-                    openModal("savedMessagesModal");
+                    closeModal(
+                        "settingsModal"
+                    );
+
                     await loadSavedMessages();
+
+                    openModal(
+                        "savedMessagesModal"
+                    );
                 }
             );
 
-
-        $("#updatesSettingsBtn")
+        $("updatesSettingsBtn")
             ?.addEventListener(
                 "click",
-                () => {
-                    closeModal("settingsModal");
-                    openModal("updatesModal");
+                async () => {
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    await loadUpdates();
+
+                    openModal(
+                        "updatesModal"
+                    );
                 }
             );
 
-
-        $("#ownerPanelButton")
-            ?.addEventListener(
-                "click",
-                () => {
-                    closeModal("settingsModal");
-                    openModal("ownerModal");
-                }
-            );
-
-
-        $("#adminPanelButton")
-            ?.addEventListener(
-                "click",
-                () => {
-                    closeModal("settingsModal");
-                    openModal("adminModal");
-                }
-            );
-
-
-        $("#settingsLogoutBtn")
+        $("settingsLogoutBtn")
             ?.addEventListener(
                 "click",
                 logout
             );
 
-
-        $("#logoutBtn")
+        $("logoutBtn")
             ?.addEventListener(
                 "click",
                 logout
             );
 
-
-        $("#deleteAccountBtn")
+        $("deleteAccountBtn")
             ?.addEventListener(
                 "click",
                 () => {
-                    closeModal("settingsModal");
-                    openModal("deleteAccountModal");
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    openModal(
+                        "deleteAccountModal"
+                    );
                 }
             );
 
-
-        $("#confirmDeleteAccountBtn")
+        $("confirmDeleteAccountBtn")
             ?.addEventListener(
                 "click",
                 deleteAccount
             );
 
-
-        /* PROFILE */
-
-        $("#myProfileCard")
+        $("profileForm")
             ?.addEventListener(
-                "click",
-                () => {
-                    fillProfileForm();
-                    openModal("profileModal");
+                "submit",
+                (event) => {
+                    event.preventDefault();
+                    saveProfile();
                 }
             );
 
-
-        $("#profileForm")
-            ?.addEventListener(
-                "submit",
-                saveProfile
-            );
-
-
-        $("#profileAvatarInput")
+        $("profileAvatarInput")
             ?.addEventListener(
                 "change",
-                changeProfileAvatar
+                handleProfileAvatar
             );
 
-
-        $("#savePrivacyBtn")
+        $("showOnlineToggle")
             ?.addEventListener(
-                "click",
+                "change",
                 savePrivacy
             );
 
-
-        /* CONTACT */
-
-        $("#addContactBtn")
-            ?.addEventListener(
-                "click",
-                sendContactRequest
-            );
-
-
-        $("#acceptContactBtn")
-            ?.addEventListener(
-                "click",
-                acceptContactRequest
-            );
-
-
-        $("#declineContactBtn")
-            ?.addEventListener(
-                "click",
-                declineContactRequest
-            );
-
-
-        /* MESSAGE */
-
-        $("#messageForm")
-            ?.addEventListener(
-                "submit",
-                sendMessage
-            );
-
-
-        $("#imageBtn")
-            ?.addEventListener(
-                "click",
-                () => $("#imageInput")?.click()
-            );
-
-
-        $("#imageInput")
+        $("showLastSeenToggle")
             ?.addEventListener(
                 "change",
-                sendImage
+                savePrivacy
             );
 
+        $("searchInput")
+            ?.addEventListener(
+                "input",
+                (event) => {
+                    clearTimeout(
+                        searchTimer
+                    );
 
-        $("#emojiBtn")
+                    searchTimer =
+                        setTimeout(
+                            () =>
+                                searchEverything(
+                                    event.target.value
+                                ),
+                            300
+                        );
+                }
+            );
+
+        $("clearSearchBtn")
             ?.addEventListener(
                 "click",
-                () => togglePanel("emojiPanel")
+                async () => {
+                    if ($("searchInput")) {
+                        $("searchInput").value = "";
+                    }
+
+                    await refreshSidebar();
+                }
             );
 
-
-        $("#stickerBtn")
-            ?.addEventListener(
-                "click",
-                () => togglePanel("stickerPanel")
-            );
-
-
-        /* GROUP */
-
-        $("#createGroupBtn")
-            ?.addEventListener(
-                "click",
-                () => openModal("createGroupModal")
-            );
-
-
-        $("#groupForm")
+        $("messageForm")
             ?.addEventListener(
                 "submit",
-                createGroup
+                async (event) => {
+                    if (
+                        activeCommunity
+                    ) {
+                        await sendCommunityMessage(
+                            event
+                        );
+                    } else {
+                        await sendMessage(
+                            event
+                        );
+                    }
+                }
             );
 
-
-        $("#joinGroupOpenBtn")
+        $("imageBtn")
             ?.addEventListener(
                 "click",
-                () => openModal("joinGroupModal")
+                () => $("imageInput")?.click()
             );
 
+        $("imageInput")
+            ?.addEventListener(
+                "change",
+                async (event) => {
+                    const file =
+                        event.target.files?.[0];
 
-        $("#joinGroupBtn")
+                    if (file) {
+                        await sendImage(file);
+                    }
+
+                    event.target.value = "";
+                }
+            );
+
+        $("emojiBtn")
             ?.addEventListener(
                 "click",
-                joinGroup
+                () => {
+                    $("emojiPanel")
+                        ?.classList.toggle(
+                            "open"
+                        );
+                }
             );
 
-
-        $("#groupInviteBtn")
+        $("stickerBtn")
             ?.addEventListener(
                 "click",
-                () => createInvite("group")
+                () => {
+                    toast(
+                        "Sticker panel is not available in this HTML yet.",
+                        "info"
+                    );
+                }
             );
 
-
-        $("#groupMembersBtn")
+        $("emojiPanel")
             ?.addEventListener(
                 "click",
-                loadGroupMembers
+                (event) => {
+                    const emoji =
+                        event.target.closest(
+                            "[data-emoji]"
+                        );
+
+                    if (!emoji) return;
+
+                    const input =
+                        $("messageInput");
+
+                    if (!input) return;
+
+                    input.value +=
+                        emoji.dataset.emoji;
+
+                    input.focus();
+                }
             );
 
-
-        $("#leaveGroupBtn")
+        $("addContactBtn")
             ?.addEventListener(
                 "click",
-                leaveGroup
+                () => {
+                    if (activeChatUser) {
+                        sendContactRequest(
+                            activeChatUser.id
+                        );
+                    }
+                }
             );
 
-
-        /* CHANNEL */
-
-        $("#createChannelBtn")
+        $("acceptContactBtn")
             ?.addEventListener(
                 "click",
-                () => openModal("createChannelModal")
+                async () => {
+                    const relationship =
+                        await getRelationship(
+                            activeChatUser?.id
+                        );
+
+                    if (relationship) {
+                        await acceptContactRequest(
+                            relationship.id
+                        );
+                    }
+                }
             );
 
-
-        $("#channelForm")
-            ?.addEventListener(
-                "submit",
-                createChannel
-            );
-
-
-        $("#joinChannelOpenBtn")
-            ?.addEventListener(
-                "click",
-                () => openModal("joinChannelModal")
-            );
-
-
-        $("#joinChannelBtn")
+        $("declineContactBtn")
             ?.addEventListener(
                 "click",
-                joinChannel
+                async () => {
+                    const relationship =
+                        await getRelationship(
+                            activeChatUser?.id
+                        );
+
+                    if (relationship) {
+                        await declineContactRequest(
+                            relationship.id
+                        );
+                    }
+                }
             );
 
-
-        $("#channelInviteBtn")
-            ?.addEventListener(
-                "click",
-                () => createInvite("channel")
-            );
-
-
-        $("#channelMembersBtn")
-            ?.addEventListener(
-                "click",
-                loadChannelMembers
-            );
-
-
-        $("#leaveChannelBtn")
-            ?.addEventListener(
-                "click",
-                leaveChannel
-            );
-
-
-        /* USER PROFILE */
-
-        $("#chatAvatarButton")
+        $("chatAvatarButton")
             ?.addEventListener(
                 "click",
                 () => {
                     if (
-                        state.currentOtherUser
+                        activeChatUser
                     ) {
                         openUserProfile(
-                            state.currentOtherUser
+                            activeChatUser
                         );
-                    }
-
-                    if (
-                        state.currentGroup
+                    } else if (
+                        activeCommunity
                     ) {
-                        showGroupInfo(
-                            state.currentGroup
-                        );
-                    }
-
-                    if (
-                        state.currentChannel
-                    ) {
-                        showChannelInfo(
-                            state.currentChannel
+                        renderCommunityInfo(
+                            activeCommunity,
+                            activeCommunityType
                         );
                     }
                 }
             );
 
-
-        $("#userProfileMenuBtn")
-            ?.addEventListener(
-                "click",
-                event => {
-                    event.stopPropagation();
-
-                    const menu =
-                        $("#userProfileMenu");
-
-                    menu.style.display =
-                        menu.style.display ===
-                        "none"
-                            ? "flex"
-                            : "none";
-                }
-            );
-
-
-        $("#editNicknameBtn")
+        $("chatMoreBtn")
             ?.addEventListener(
                 "click",
                 () => {
-                    $("#userProfileMenu").style.display =
-                        "none";
+                    if (
+                        activeChatUser
+                    ) {
+                        openUserProfile(
+                            activeChatUser
+                        );
+                    }
 
-                    $("#nicknameInput").value =
-                        "";
-
-                    openModal("nicknameModal");
+                    if (
+                        activeCommunity
+                    ) {
+                        renderCommunityInfo(
+                            activeCommunity,
+                            activeCommunityType
+                        );
+                    }
                 }
             );
 
+        $("userProfileMenuBtn")
+            ?.addEventListener(
+                "click",
+                (event) => {
+                    event.stopPropagation();
 
-        $("#removeNicknameBtn")
+                    $("userProfileMenu")
+                        ?.classList.toggle(
+                            "open"
+                        );
+                }
+            );
+
+        $("editNicknameBtn")
+            ?.addEventListener(
+                "click",
+                () => {
+                    closeModal(
+                        "userProfileModal"
+                    );
+
+                    openModal(
+                        "nicknameModal"
+                    );
+                }
+            );
+
+        $("removeNicknameBtn")
             ?.addEventListener(
                 "click",
                 removeNickname
             );
 
-
-        $("#removeNicknameBtn2")
+        $("removeNicknameBtnModal")
             ?.addEventListener(
                 "click",
                 removeNickname
             );
 
-
-        $("#saveNicknameBtn")
+        $("saveNicknameBtn")
             ?.addEventListener(
                 "click",
                 saveNickname
             );
 
-
-        $("#removeNicknameBtnModal")
-            ?.addEventListener(
-                "click",
-                removeNickname
-            );
-
-
-        $("#blockUserBtn")
+        $("blockUserBtn")
             ?.addEventListener(
                 "click",
                 blockUser
             );
 
-
-        $("#reportUserBtn")
+        $("reportUserBtn")
             ?.addEventListener(
                 "click",
-                openReport
-            );
+                () => {
+                    closeModal(
+                        "userProfileModal"
+                    );
 
-
-        $("#submitReportBtn")
-            ?.addEventListener(
-                "click",
-                submitReport
-            );
-
-
-        /* SEARCH */
-
-        $("#clearSearchBtn")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    $("#searchInput").value = "";
-                    $("#clearSearchBtn").style.display =
-                        "none";
-
-                    await restoreSidebarLists();
+                    openModal(
+                        "reportModal"
+                    );
                 }
             );
 
-
-        /* OWNER */
-
-        $("#ownerVerifiedSearchBtn")
+        $("submitReportBtn")
             ?.addEventListener(
                 "click",
-                searchVerifiedUser
+                reportUser
             );
 
+        $("createGroupBtn")
+            ?.addEventListener(
+                "click",
+                () => openModal(
+                    "createGroupModal"
+                )
+            );
 
-        /* THEME */
+        $("createChannelBtn")
+            ?.addEventListener(
+                "click",
+                () => openModal(
+                    "createChannelModal"
+                )
+            );
 
-        $$(".appearance-option[data-theme]")
-            .forEach(button => {
+        $("joinGroupOpenBtn")
+            ?.addEventListener(
+                "click",
+                () => openModal(
+                    "joinGroupModal"
+                )
+            );
+
+        $("joinChannelOpenBtn")
+            ?.addEventListener(
+                "click",
+                () => openModal(
+                    "joinChannelModal"
+                )
+            );
+
+        $("groupForm")
+            ?.addEventListener(
+                "submit",
+                createGroup
+            );
+
+        $("channelForm")
+            ?.addEventListener(
+                "submit",
+                createChannel
+            );
+
+        $("joinGroupBtn")
+            ?.addEventListener(
+                "click",
+                joinGroup
+            );
+
+        $("joinChannelBtn")
+            ?.addEventListener(
+                "click",
+                joinChannel
+            );
+
+        $("groupInviteBtn")
+            ?.addEventListener(
+                "click",
+                () => createInvite(
+                    "group"
+                )
+            );
+
+        $("channelInviteBtn")
+            ?.addEventListener(
+                "click",
+                () => createInvite(
+                    "channel"
+                )
+            );
+
+        $("groupMembersBtn")
+            ?.addEventListener(
+                "click",
+                () => loadMembers(
+                    "group"
+                )
+            );
+
+        $("channelMembersBtn")
+            ?.addEventListener(
+                "click",
+                () => loadMembers(
+                    "channel"
+                )
+            );
+
+        $("leaveGroupBtn")
+            ?.addEventListener(
+                "click",
+                () => leaveCommunity(
+                    "group"
+                )
+            );
+
+        $("leaveChannelBtn")
+            ?.addEventListener(
+                "click",
+                () => leaveCommunity(
+                    "channel"
+                )
+            );
+
+        $("publishUpdateBtn")
+            ?.addEventListener(
+                "click",
+                publishUpdate
+            );
+
+        $("ownerVerifiedSearchBtn")
+            ?.addEventListener(
+                "click",
+                ownerSearchVerified
+            );
+
+        $("ownerPanelButton")
+            ?.addEventListener(
+                "click",
+                async () => {
+                    if (
+                        currentRole !== "owner"
+                    ) {
+                        toast(
+                            "Owner permission required.",
+                            "error"
+                        );
+                        return;
+                    }
+
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    await loadOwnerReports();
+
+                    openModal(
+                        "ownerModal"
+                    );
+                }
+            );
+
+        $("adminPanelButton")
+            ?.addEventListener(
+                "click",
+                () => {
+                    if (
+                        currentRole !== "owner" &&
+                        currentRole !== "admin"
+                    ) {
+                        return;
+                    }
+
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    openModal(
+                        "adminModal"
+                    );
+                }
+            );
+
+        $("openAdminReportsBtn")
+            ?.addEventListener(
+                "click",
+                async () => {
+                    await loadOwnerReports();
+                    openModal(
+                        "ownerModal"
+                    );
+                }
+            );
+
+        document
+            .querySelectorAll(
+                ".appearance-option[data-theme]"
+            )
+            .forEach((button) => {
                 button.addEventListener(
                     "click",
-                    () =>
+                    () => {
                         applyTheme(
                             button.dataset.theme
-                        )
+                        );
+
+                        loadAppearance();
+                    }
                 );
             });
 
-
-        $$(".appearance-option[data-density]")
-            .forEach(button => {
+        document
+            .querySelectorAll(
+                ".appearance-option[data-density]"
+            )
+            .forEach((button) => {
                 button.addEventListener(
                     "click",
-                    () =>
+                    () => {
                         applyDensity(
                             button.dataset.density
-                        )
+                        );
+
+                        loadAppearance();
+                    }
                 );
             });
 
-
-        $$(".language-option")
-            .forEach(button => {
+        document
+            .querySelectorAll(
+                ".language-option[data-language]"
+            )
+            .forEach((button) => {
                 button.addEventListener(
                     "click",
-                    () =>
+                    () => {
                         applyLanguage(
                             button.dataset.language
-                        )
+                        );
+
+                        loadAppearance();
+                    }
                 );
             });
 
-
-        /* MODAL CLOSE */
-
-        $$("[data-close-modal]")
-            .forEach(button => {
+        document
+            .querySelectorAll(
+                "[data-close-modal]"
+            )
+            .forEach((button) => {
                 button.addEventListener(
                     "click",
                     () => {
@@ -5014,133 +4474,259 @@
                 );
             });
 
-
-        /* BACKDROP */
-
-        $$(".modal")
-            .forEach(modal => {
+        document
+            .querySelectorAll(".modal")
+            .forEach((modal) => {
                 modal.addEventListener(
                     "click",
-                    event => {
+                    (event) => {
                         if (
                             event.target ===
                             modal
                         ) {
-                            modal.classList.remove(
-                                "open"
+                            closeModal(
+                                modal.id
                             );
-
-                            modal.style.display =
-                                "none";
                         }
                     }
                 );
             });
 
+        document
+            .querySelectorAll(
+                ".request-accept"
+            )
+            .forEach((button) => {
+                button.addEventListener(
+                    "click",
+                    () =>
+                        acceptContactRequest(
+                            button.dataset.requestId
+                        )
+                );
+            });
 
-        /* ESCAPE */
+        document
+            .querySelectorAll(
+                ".request-decline"
+            )
+            .forEach((button) => {
+                button.addEventListener(
+                    "click",
+                    () =>
+                        declineContactRequest(
+                            button.dataset.requestId
+                        )
+                );
+            });
+
+        document.addEventListener(
+            "click",
+            () => {
+                $("userProfileMenu")
+                    ?.classList.remove(
+                        "open"
+                    );
+
+                document
+                    .querySelectorAll(
+                        ".message-wrapper.swiped"
+                    )
+                    .forEach(
+                        resetMessageSwipe
+                    );
+            }
+        );
 
         document.addEventListener(
             "keydown",
-            event => {
-                if (event.key === "Escape") {
+            (event) => {
+                if (
+                    event.key === "Escape"
+                ) {
                     closeAllModals();
                 }
             }
         );
 
-
-        /* MOBILE BACK */
-
-        const mobileBack =
-            $("#mobileBackBtn");
-
-        mobileBack?.addEventListener(
-            "click",
-            () => {
-                $(".sidebar")
-                    ?.classList.remove(
-                        "mobile-hidden"
-                    );
-
-                $(".chat-area")
-                    ?.classList.remove(
-                        "mobile-active"
-                    );
-            }
-        );
+        setupTabs();
     }
 
-
     /* =========================================================
-       INIT
-       ========================================================= */
+       REALTIME
+    ========================================================= */
 
-    async function init() {
-        try {
-            state.user =
-                await getCurrentUser();
-
-            if (!state.user) {
-                window.location.href =
-                    "index.html";
-                return;
-            }
-
-
-            await loadMyProfile();
-
-            if (!state.profile) {
-                showToast(
-                    "Profile not found.",
-                    "error"
-                );
-                return;
-            }
-
-
-            renderMyProfile();
-
-            applyTheme(state.theme);
-            applyDensity(state.density);
-            applyLanguage(state.language);
-
-            setupEvents();
-            setupTabs();
-            setupSearch();
-
-            setupEmojiPanel();
-            setupStickerPanel();
-
-            await refreshAll();
-
-            await setupOwnerUI();
-
-            setupRealtime();
-
-            showEmptyChat();
-
-            console.log(
-                "MegChatBox dashboard initialized."
-            );
-
-        } catch (error) {
-            console.error(
-                "Dashboard initialization error:",
-                error
-            );
-
-            showToast(
-                "Dashboard failed to initialize.",
-                "error"
+    function setupRealtime() {
+        if (realtimeChannel) {
+            db.removeChannel(
+                realtimeChannel
             );
         }
+
+        realtimeChannel =
+            db.channel(
+                "megchatbox-dashboard"
+            );
+
+        realtimeChannel
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "contact_requests"
+                },
+                async () => {
+                    await refreshSidebar();
+
+                    if (
+                        activeChatUser
+                    ) {
+                        const relationship =
+                            await getRelationship(
+                                activeChatUser.id
+                            );
+
+                        if (
+                            relationship?.status ===
+                            "accepted"
+                        ) {
+                            showDirectComposer(
+                                true
+                            );
+
+                            await loadDirectMessages();
+                        } else {
+                            showDirectComposer(
+                                false
+                            );
+
+                            renderContactActions(
+                                relationship
+                            );
+                        }
+                    }
+                }
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "messages"
+                },
+                async () => {
+                    if (
+                        activeChatUser
+                    ) {
+                        await loadDirectMessages();
+                    }
+                }
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "group_messages"
+                },
+                async () => {
+                    if (
+                        activeCommunityType ===
+                        "group"
+                    ) {
+                        await loadCommunityMessages();
+                    }
+                }
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "channel_messages"
+                },
+                async () => {
+                    if (
+                        activeCommunityType ===
+                        "channel"
+                    ) {
+                        await loadCommunityMessages();
+                    }
+                }
+            )
+            .subscribe();
     }
 
+    /* =========================================================
+       HEARTBEAT
+    ========================================================= */
+
+    async function updateLastSeen() {
+        if (!currentUser) return;
+
+        await db
+            .from("profiles")
+            .update({
+                last_seen:
+                    new Date().toISOString()
+            })
+            .eq(
+                "id",
+                currentUser.id
+            );
+    }
 
     /* =========================================================
-       START
-       ========================================================= */
+       INITIALIZATION
+    ========================================================= */
+
+    async function init() {
+        const authenticated =
+            await initAuth();
+
+        if (!authenticated) return;
+
+        loadAppearance();
+
+        renderMyProfile();
+
+        setupEvents();
+
+        await loadRole();
+
+        await updateLastSeen();
+
+        await refreshSidebar();
+
+        await loadUpdates();
+
+        setupRealtime();
+
+        setInterval(
+            updateLastSeen,
+            60 * 1000
+        );
+
+        setInterval(
+            async () => {
+                if (
+                    activeChatUser
+                ) {
+                    renderChatHeader(
+                        activeChatUser
+                    );
+                }
+
+                renderMyProfile();
+            },
+            60 * 1000
+        );
+
+        console.log(
+            "MegChatBox dashboard initialized."
+        );
+    }
 
     init();
 
