@@ -1,3 +1,5 @@
+(async function () {
+
 const supabase = supabaseClient;
 
 let currentUser = null;
@@ -182,6 +184,7 @@ function $(id) {
 
 
 function showToast(message) {
+
     const toast = $("toast");
 
     if (!toast) return;
@@ -196,6 +199,7 @@ function showToast(message) {
 
 
 function openModal(id) {
+
     const modal = $(id);
 
     if (modal) {
@@ -205,6 +209,7 @@ function openModal(id) {
 
 
 function closeModal(id) {
+
     const modal = $(id);
 
     if (modal) {
@@ -214,7 +219,11 @@ function closeModal(id) {
 
 
 function getInitial(name) {
-    return (name || "?").trim().charAt(0).toUpperCase();
+
+    return (name || "?")
+        .trim()
+        .charAt(0)
+        .toUpperCase();
 }
 
 
@@ -235,17 +244,25 @@ function escapeHtml(value) {
 
 function applyLanguage() {
 
-    document.documentElement.lang = currentLanguage;
+    document.documentElement.lang =
+        currentLanguage;
 
-    document.querySelectorAll("[data-i18n]").forEach(element => {
 
-        const key = element.dataset.i18n;
+    document
+        .querySelectorAll("[data-i18n]")
+        .forEach(element => {
 
-        if (translations[currentLanguage]?.[key]) {
-            element.textContent = translations[currentLanguage][key];
-        }
+            const key =
+                element.dataset.i18n;
 
-    });
+            if (translations[currentLanguage]?.[key]) {
+
+                element.textContent =
+                    translations[currentLanguage][key];
+
+            }
+
+        });
 
 
     $("searchInput")?.setAttribute(
@@ -253,26 +270,35 @@ function applyLanguage() {
         t("searchUsername")
     );
 
+
     $("messageInput")?.setAttribute(
         "placeholder",
         t("typeMessage")
     );
 
 
-    $("currentLanguageText").textContent =
-        currentLanguage === "en"
-            ? "English"
-            : currentLanguage === "uz"
-                ? "O‘zbek"
-                : "Русский";
+    if ($("currentLanguageText")) {
+
+        $("currentLanguageText").textContent =
+            currentLanguage === "en"
+                ? "English"
+                : currentLanguage === "uz"
+                    ? "O‘zbek"
+                    : "Русский";
+
+    }
 
 
-    document.querySelectorAll(".language-check").forEach(check => {
-        check.style.display =
-            check.dataset.check === currentLanguage
-                ? "block"
-                : "none";
-    });
+    document
+        .querySelectorAll(".language-check")
+        .forEach(check => {
+
+            check.style.display =
+                check.dataset.check === currentLanguage
+                    ? "block"
+                    : "none";
+
+        });
 }
 
 
@@ -307,17 +333,55 @@ function setLanguage(language) {
 
 async function loadSession() {
 
-    const { data, error } =
-        await supabase.auth.getSession();
+    try {
 
-    if (error || !data.session) {
-        window.location.href = "index.html";
+        const {
+            data,
+            error
+        } = await supabase.auth.getSession();
+
+
+        if (error) {
+
+            console.error(
+                "Session error:",
+                error
+            );
+
+            window.location.href =
+                "index.html";
+
+            return false;
+        }
+
+
+        if (!data?.session) {
+
+            window.location.href =
+                "index.html";
+
+            return false;
+        }
+
+
+        currentUser =
+            data.session.user;
+
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            "Session exception:",
+            error
+        );
+
+        window.location.href =
+            "index.html";
+
         return false;
     }
-
-    currentUser = data.session.user;
-
-    return true;
 }
 
 
@@ -327,24 +391,53 @@ async function loadSession() {
 
 async function loadMyProfile() {
 
-    const { data, error } = await supabase
+    if (!currentUser) return false;
+
+
+    const {
+        data,
+        error
+    } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", currentUser.id)
-        .single();
+        .maybeSingle();
 
-    if (error || !data) {
 
-        console.error("Profile error:", error);
+    if (error) {
 
-        showToast("Profile could not be loaded");
+        console.error(
+            "Profile error:",
+            error
+        );
+
+        showToast(
+            "Profile could not be loaded"
+        );
 
         return false;
     }
 
+
+    if (!data) {
+
+        console.error(
+            "No profile found for:",
+            currentUser.id
+        );
+
+        showToast(
+            "Profile not found"
+        );
+
+        return false;
+    }
+
+
     currentProfile = data;
 
     renderMyProfile();
+
     setupRoleUI();
 
     return true;
@@ -355,69 +448,123 @@ function renderMyProfile() {
 
     if (!currentProfile) return;
 
-    $("myName").textContent =
-        currentProfile.full_name || "User";
 
-    $("myUsername").textContent =
-        "@" + (currentProfile.username || "");
-
-    $("myAvatar").textContent =
-        getInitial(currentProfile.full_name);
+    const name =
+        currentProfile.full_name ||
+        currentProfile.username ||
+        "User";
 
 
-    if (currentProfile.avatar_url) {
+    if ($("myName")) {
 
-        $("myAvatar").style.backgroundImage =
-            `url("${currentProfile.avatar_url}")`;
+        $("myName").textContent =
+            name;
 
-        $("myAvatar").style.backgroundSize = "cover";
-        $("myAvatar").style.backgroundPosition = "center";
-        $("myAvatar").textContent = "";
-
-    } else {
-
-        $("myAvatar").style.backgroundImage = "";
     }
 
 
-    $("myVerified").style.display =
-        currentProfile.is_verified === true
-            ? "inline-flex"
-            : "none";
+    if ($("myUsername")) {
+
+        $("myUsername").textContent =
+            "@" +
+            (currentProfile.username || "");
+
+    }
+
+
+    if ($("myAvatar")) {
+
+        $("myAvatar").textContent =
+            getInitial(name);
+
+
+        if (currentProfile.avatar_url) {
+
+            $("myAvatar").style.backgroundImage =
+                `url("${currentProfile.avatar_url}")`;
+
+            $("myAvatar").style.backgroundSize =
+                "cover";
+
+            $("myAvatar").style.backgroundPosition =
+                "center";
+
+            $("myAvatar").textContent = "";
+
+        } else {
+
+            $("myAvatar").style.backgroundImage =
+                "";
+
+            $("myAvatar").style.backgroundSize =
+                "";
+
+            $("myAvatar").style.backgroundPosition =
+                "";
+
+        }
+
+    }
+
+
+    if ($("myVerified")) {
+
+        $("myVerified").style.display =
+            currentProfile.is_verified === true
+                ? "inline-flex"
+                : "none";
+
+    }
 }
 
 
 function setupRoleUI() {
 
+    if (!currentProfile) return;
+
+
     const isOwner =
-        currentProfile?.role === "owner";
+        currentProfile.role === "owner";
+
 
     const isAdmin =
-        currentProfile?.role === "admin";
+        currentProfile.role === "admin";
 
 
-    $("ownerPanelButton").style.display =
-        isOwner
-            ? "flex"
-            : "none";
+    if ($("ownerPanelButton")) {
+
+        $("ownerPanelButton").style.display =
+            isOwner
+                ? "flex"
+                : "none";
+
+    }
 
 
-    $("adminPanelButton").style.display =
-        isOwner || isAdmin
-            ? "flex"
-            : "none";
+    if ($("adminPanelButton")) {
+
+        $("adminPanelButton").style.display =
+            isOwner || isAdmin
+                ? "flex"
+                : "none";
+
+    }
 
 
-    $("createGroupBtn").style.display =
-        isOwner || isAdmin
-            ? "flex"
-            : "flex";
+    if ($("createGroupBtn")) {
+
+        $("createGroupBtn").style.display =
+            "flex";
+
+    }
 
 
-    $("createChannelBtn").style.display =
-        isOwner || isAdmin
-            ? "flex"
-            : "flex";
+    if ($("createChannelBtn")) {
+
+        $("createChannelBtn").style.display =
+            "flex";
+
+    }
 }
 
 
@@ -429,16 +576,21 @@ function isBlocked(profile) {
 
     if (!profile) return false;
 
+
     if (profile.account_blocked === true) {
         return true;
     }
 
+
     if (
         profile.account_blocked_until &&
-        new Date(profile.account_blocked_until) > new Date()
+        new Date(profile.account_blocked_until) >
+        new Date()
     ) {
+
         return true;
     }
+
 
     return false;
 }
@@ -448,16 +600,21 @@ function isMessagingBlocked(profile) {
 
     if (!profile) return false;
 
+
     if (profile.messaging_blocked === true) {
         return true;
     }
 
+
     if (
         profile.messaging_blocked_until &&
-        new Date(profile.messaging_blocked_until) > new Date()
+        new Date(profile.messaging_blocked_until) >
+        new Date()
     ) {
+
         return true;
     }
+
 
     return false;
 }
@@ -469,18 +626,28 @@ function isMessagingBlocked(profile) {
 
 let searchTimer = null;
 
+
 function setupSearch() {
 
-    $("searchInput").addEventListener(
+    const searchInput =
+        $("searchInput");
+
+
+    if (!searchInput) return;
+
+
+    searchInput.addEventListener(
         "input",
         () => {
 
             clearTimeout(searchTimer);
 
+
             const username =
-                $("searchInput").value
+                searchInput.value
                     .trim()
                     .toLowerCase();
+
 
             if (!username) {
 
@@ -489,10 +656,13 @@ function setupSearch() {
                 return;
             }
 
-            searchTimer = setTimeout(
-                () => searchUsers(username),
-                300
-            );
+
+            searchTimer =
+                setTimeout(
+                    () => searchUsers(username),
+                    300
+                );
+
         }
     );
 }
@@ -500,34 +670,68 @@ function setupSearch() {
 
 async function searchUsers(username) {
 
-    const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .ilike("username", username)
-        .limit(10);
+    if (!username) {
 
-    if (error) {
-
-        console.error(error);
-
-        showToast("Search failed");
+        await loadDefaultList();
 
         return;
     }
 
 
-    renderUserResults(data || []);
+    const {
+        data,
+        error
+    } = await supabase
+        .from("profiles")
+        .select("*")
+        .ilike(
+            "username",
+            `%${username}%`
+        )
+        .limit(10);
+
+
+    if (error) {
+
+        console.error(
+            "Search error:",
+            error
+        );
+
+        showToast(
+            "Search failed"
+        );
+
+        return;
+    }
+
+
+    renderUserResults(
+        data || []
+    );
 }
 
 
 function renderUserResults(users) {
 
-    const list = $("userList");
+    const list =
+        $("userList");
+
+
+    if (!list) return;
+
 
     list.innerHTML = "";
 
 
-    if (!users.length) {
+    const filtered =
+        users.filter(
+            user =>
+                user.id !== currentUser?.id
+        );
+
+
+    if (!filtered.length) {
 
         list.innerHTML = `
             <div class="empty-state">
@@ -540,38 +744,75 @@ function renderUserResults(users) {
     }
 
 
-    users.forEach(user => {
+    filtered.forEach(user => {
 
-        if (user.id === currentUser.id) return;
+        const item =
+            document.createElement("div");
 
-        const item = document.createElement("div");
 
-        item.className = "chat-item";
+        item.className =
+            "chat-item";
+
+
+        const avatarStyle =
+            user.avatar_url
+                ? `style="background-image:url('${escapeHtml(user.avatar_url)}');background-size:cover;background-position:center;"`
+                : "";
+
 
         item.innerHTML = `
-            <div class="profile-avatar">
-                ${escapeHtml(getInitial(user.full_name))}
+
+            <div
+                class="profile-avatar"
+                ${avatarStyle}
+            >
+                ${
+                    user.avatar_url
+                        ? ""
+                        : escapeHtml(
+                            getInitial(
+                                user.full_name
+                            )
+                        )
+                }
             </div>
 
             <div class="chat-item-info">
+
                 <h3>
-                    ${escapeHtml(user.full_name)}
+
+                    ${escapeHtml(
+                        user.full_name ||
+                        user.username
+                    )}
 
                     ${
                         user.is_verified
-                            ? `<span class="verified-badge">✓</span>`
+                            ? `
+                                <span class="verified-badge">
+                                    ✓
+                                </span>
+                            `
                             : ""
                     }
+
                 </h3>
 
-                <p>@${escapeHtml(user.username)}</p>
+                <p>
+                    @${escapeHtml(
+                        user.username
+                    )}
+                </p>
+
             </div>
         `;
+
 
         item.addEventListener(
             "click",
             () => openUserChat(user)
         );
+
 
         list.appendChild(item);
     });
@@ -586,21 +827,27 @@ async function loadDefaultList() {
 
     if (!currentUser) return;
 
+
     if (currentTab !== "chats") {
 
         if (currentTab === "groups") {
             await loadGroups();
         }
 
+
         if (currentTab === "channels") {
             await loadChannels();
         }
+
 
         return;
     }
 
 
-    const { data, error } = await supabase
+    const {
+        data,
+        error
+    } = await supabase
         .from("contact_requests")
         .select("*")
         .eq("status", "accepted")
@@ -611,43 +858,83 @@ async function loadDefaultList() {
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            "Contacts error:",
+            error
+        );
 
-        renderUserResults([]);
+        if ($("userList")) {
+
+            $("userList").innerHTML = `
+                <div class="empty-state">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <p>${escapeHtml(error.message)}</p>
+                </div>
+            `;
+
+        }
 
         return;
     }
 
 
-    const ids = (data || []).map(request => {
+    const ids =
+        (data || []).map(request => {
 
-        return request.sender_id === currentUser.id
-            ? request.receiver_id
-            : request.sender_id;
+            return request.sender_id ===
+                currentUser.id
 
-    });
+                ? request.receiver_id
+
+                : request.sender_id;
+
+        });
 
 
     if (!ids.length) {
 
-        $("userList").innerHTML = `
-            <div class="empty-state">
-                <i class="fa-solid fa-comments"></i>
-                <p>${escapeHtml(t("searchToChat"))}</p>
-            </div>
-        `;
+        if ($("userList")) {
+
+            $("userList").innerHTML = `
+                <div class="empty-state">
+                    <i class="fa-solid fa-comments"></i>
+                    <p>
+                        ${escapeHtml(
+                            t("searchToChat")
+                        )}
+                    </p>
+                </div>
+            `;
+
+        }
 
         return;
     }
 
 
-    const { data: users } = await supabase
+    const {
+        data: users,
+        error: usersError
+    } = await supabase
         .from("profiles")
         .select("*")
         .in("id", ids);
 
 
-    renderUserResults(users || []);
+    if (usersError) {
+
+        console.error(
+            "Users load error:",
+            usersError
+        );
+
+        return;
+    }
+
+
+    renderUserResults(
+        users || []
+    );
 }
 
 
@@ -659,32 +946,79 @@ async function openUserChat(user) {
 
     if (!user) return;
 
+
     selectedUser = user;
 
-    $("chatName").textContent =
-        user.full_name || user.username;
 
-    $("chatStatus").textContent =
-        user.last_seen
-            ? t("offline")
-            : t("offline");
+    if ($("chatName")) {
 
+        $("chatName").textContent =
+            user.full_name ||
+            user.username;
 
-    $("chatAvatar").textContent =
-        getInitial(user.full_name);
+    }
 
 
-    $("chatVerified").style.display =
-        user.is_verified
-            ? "inline-flex"
-            : "none";
+    if ($("chatStatus")) {
+
+        $("chatStatus").textContent =
+            t("offline");
+
+    }
 
 
-    $("messages").innerHTML = "";
+    if ($("chatAvatar")) {
+
+        $("chatAvatar").textContent =
+            getInitial(
+                user.full_name ||
+                user.username
+            );
 
 
-    document.querySelector(".app")
-        ?.classList.add("chat-open");
+        if (user.avatar_url) {
+
+            $("chatAvatar").style.backgroundImage =
+                `url("${user.avatar_url}")`;
+
+            $("chatAvatar").style.backgroundSize =
+                "cover";
+
+            $("chatAvatar").style.backgroundPosition =
+                "center";
+
+            $("chatAvatar").textContent = "";
+
+        } else {
+
+            $("chatAvatar").style.backgroundImage =
+                "";
+
+        }
+
+    }
+
+
+    if ($("chatVerified")) {
+
+        $("chatVerified").style.display =
+            user.is_verified
+                ? "inline-flex"
+                : "none";
+
+    }
+
+
+    if ($("messages")) {
+        $("messages").innerHTML = "";
+    }
+
+
+    document
+        .querySelector(".app")
+        ?.classList.add(
+            "chat-open"
+        );
 
 
     await updateContactActions();
@@ -701,18 +1035,43 @@ async function openUserChat(user) {
 
 async function getContactRequest() {
 
-    if (!selectedUser) return null;
+    if (
+        !selectedUser ||
+        !currentUser
+    ) {
 
-    const { data } = await supabase
+        return null;
+    }
+
+
+    const {
+        data,
+        error
+    } = await supabase
         .from("contact_requests")
         .select("*")
         .or(
             `and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${currentUser.id})`
         )
-        .order("created_at", {
-            ascending: false
-        })
+        .order(
+            "created_at",
+            {
+                ascending: false
+            }
+        )
         .limit(1);
+
+
+    if (error) {
+
+        console.error(
+            "Contact request error:",
+            error
+        );
+
+        return null;
+    }
+
 
     return data?.[0] || null;
 }
@@ -720,27 +1079,51 @@ async function getContactRequest() {
 
 async function updateContactActions() {
 
-    const addBtn = $("addContactBtn");
-    const acceptBtn = $("acceptContactBtn");
-    const declineBtn = $("declineContactBtn");
+    const addBtn =
+        $("addContactBtn");
 
-    addBtn.style.display = "none";
-    acceptBtn.style.display = "none";
-    declineBtn.style.display = "none";
+    const acceptBtn =
+        $("acceptContactBtn");
+
+    const declineBtn =
+        $("declineContactBtn");
+
+
+    if (addBtn) {
+        addBtn.style.display = "none";
+    }
+
+
+    if (acceptBtn) {
+        acceptBtn.style.display = "none";
+    }
+
+
+    if (declineBtn) {
+        declineBtn.style.display = "none";
+    }
 
 
     if (!selectedUser) return;
 
 
-    const request = await getContactRequest();
+    const request =
+        await getContactRequest();
 
 
     if (!request) {
 
-        addBtn.style.display = "inline-flex";
+        if (addBtn) {
+            addBtn.style.display =
+                "inline-flex";
+        }
 
-        $("chatStatus").textContent =
-            "Not a contact";
+
+        if ($("chatStatus")) {
+            $("chatStatus").textContent =
+                "Not a contact";
+        }
+
 
         return;
     }
@@ -748,8 +1131,11 @@ async function updateContactActions() {
 
     if (request.status === "accepted") {
 
-        $("chatStatus").textContent =
-            t("online");
+        if ($("chatStatus")) {
+            $("chatStatus").textContent =
+                t("online");
+        }
+
 
         return;
     }
@@ -757,19 +1143,37 @@ async function updateContactActions() {
 
     if (request.status === "pending") {
 
-        if (request.receiver_id === currentUser.id) {
+        if (
+            request.receiver_id ===
+            currentUser.id
+        ) {
 
-            acceptBtn.style.display = "inline-flex";
-            declineBtn.style.display = "inline-flex";
+            if (acceptBtn) {
+                acceptBtn.style.display =
+                    "inline-flex";
+            }
 
-            $("chatStatus").textContent =
-                "Incoming contact request";
+
+            if (declineBtn) {
+                declineBtn.style.display =
+                    "inline-flex";
+            }
+
+
+            if ($("chatStatus")) {
+                $("chatStatus").textContent =
+                    "Incoming contact request";
+            }
 
         } else {
 
-            $("chatStatus").textContent =
-                "Contact request pending";
+            if ($("chatStatus")) {
+                $("chatStatus").textContent =
+                    "Contact request pending";
+            }
+
         }
+
 
         return;
     }
@@ -777,24 +1181,36 @@ async function updateContactActions() {
 
     if (request.status === "declined") {
 
-        addBtn.style.display = "inline-flex";
+        if (addBtn) {
+            addBtn.style.display =
+                "inline-flex";
+        }
 
-        return;
     }
 }
 
 
 async function sendContactRequest() {
 
-    if (!selectedUser) return;
+    if (
+        !selectedUser ||
+        !currentUser
+    ) return;
 
 
-    const { error } = await supabase
+    const {
+        error
+    } = await supabase
         .from("contact_requests")
         .insert({
-            sender_id: currentUser.id,
-            receiver_id: selectedUser.id,
-            status: "pending"
+            sender_id:
+                currentUser.id,
+
+            receiver_id:
+                selectedUser.id,
+
+            status:
+                "pending"
         });
 
 
@@ -802,17 +1218,30 @@ async function sendContactRequest() {
 
         console.error(error);
 
+
         if (error.code === "23505") {
-            showToast("Request already exists");
+
+            showToast(
+                "Request already exists"
+            );
+
         } else {
-            showToast(error.message);
+
+            showToast(
+                error.message
+            );
+
         }
+
 
         return;
     }
 
 
-    showToast(t("requestSent"));
+    showToast(
+        t("requestSent")
+    );
+
 
     await updateContactActions();
 }
@@ -823,23 +1252,37 @@ async function updateContactRequest(status) {
     if (!selectedUser) return;
 
 
-    const request = await getContactRequest();
+    const request =
+        await getContactRequest();
+
 
     if (!request) return;
 
 
-    const { error } = await supabase
+    const {
+        error
+    } = await supabase
         .from("contact_requests")
-        .update({ status })
-        .eq("id", request.id)
-        .eq("receiver_id", currentUser.id);
+        .update({
+            status
+        })
+        .eq(
+            "id",
+            request.id
+        )
+        .eq(
+            "receiver_id",
+            currentUser.id
+        );
 
 
     if (error) {
 
         console.error(error);
 
-        showToast(error.message);
+        showToast(
+            error.message
+        );
 
         return;
     }
@@ -868,9 +1311,13 @@ async function isAcceptedContact() {
 
     if (!selectedUser) return false;
 
-    const request = await getContactRequest();
 
-    return request?.status === "accepted";
+    const request =
+        await getContactRequest();
+
+
+    return request?.status ===
+        "accepted";
 }
 
 
@@ -879,37 +1326,76 @@ function updateMessageInputState() {
     const enabled =
         selectedUser &&
         currentProfile &&
-        !isMessagingBlocked(currentProfile);
+        !isMessagingBlocked(
+            currentProfile
+        );
 
 
-    const messageInput = $("messageInput");
-    const sendButton = $("sendButton");
-    const imageBtn = $("imageBtn");
-    const emojiBtn = $("emojiBtn");
-    const stickerBtn = $("stickerBtn");
+    const messageInput =
+        $("messageInput");
+
+    const sendButton =
+        $("sendButton");
+
+    const imageBtn =
+        $("imageBtn");
+
+    const emojiBtn =
+        $("emojiBtn");
+
+    const stickerBtn =
+        $("stickerBtn");
+
+
+    if (
+        !messageInput ||
+        !sendButton ||
+        !imageBtn ||
+        !emojiBtn ||
+        !stickerBtn
+    ) return;
 
 
     if (!enabled) {
 
-        messageInput.disabled = true;
-        sendButton.disabled = true;
-        imageBtn.disabled = true;
-        emojiBtn.disabled = true;
-        stickerBtn.disabled = true;
+        messageInput.disabled =
+            true;
+
+        sendButton.disabled =
+            true;
+
+        imageBtn.disabled =
+            true;
+
+        emojiBtn.disabled =
+            true;
+
+        stickerBtn.disabled =
+            true;
 
         return;
     }
 
 
-    isAcceptedContact().then(accepted => {
+    isAcceptedContact()
+        .then(accepted => {
 
-        messageInput.disabled = !accepted;
-        sendButton.disabled = !accepted;
-        imageBtn.disabled = !accepted;
-        emojiBtn.disabled = !accepted;
-        stickerBtn.disabled = !accepted;
+            messageInput.disabled =
+                !accepted;
 
-    });
+            sendButton.disabled =
+                !accepted;
+
+            imageBtn.disabled =
+                !accepted;
+
+            emojiBtn.disabled =
+                !accepted;
+
+            stickerBtn.disabled =
+                !accepted;
+
+        });
 }
 
 
@@ -921,59 +1407,90 @@ async function loadMessages() {
 
     if (!selectedUser) return;
 
-    const accepted = await isAcceptedContact();
+
+    const accepted =
+        await isAcceptedContact();
+
 
     if (!accepted) {
 
-        $("messages").innerHTML = `
-            <div class="welcome-message">
-                <div class="welcome-icon">
-                    <i class="fa-solid fa-user-lock"></i>
+        if ($("messages")) {
+
+            $("messages").innerHTML = `
+                <div class="welcome-message">
+
+                    <div class="welcome-icon">
+                        <i class="fa-solid fa-user-lock"></i>
+                    </div>
+
+                    <h2>
+                        Contact required
+                    </h2>
+
+                    <p>
+                        Accept the contact request before chatting.
+                    </p>
+
                 </div>
+            `;
 
-                <h2>Contact required</h2>
-
-                <p>
-                    Accept the contact request before chatting.
-                </p>
-            </div>
-        `;
+        }
 
         return;
     }
 
 
-    const { data, error } = await supabase
+    const {
+        data,
+        error
+    } = await supabase
         .from("messages")
         .select("*")
         .or(
             `and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},receiver_id.eq.${currentUser.id})`
         )
-        .order("created_at", {
-            ascending: true
-        });
+        .order(
+            "created_at",
+            {
+                ascending: true
+            }
+        );
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            "Messages error:",
+            error
+        );
 
-        showToast(error.message);
+        showToast(
+            error.message
+        );
 
         return;
     }
 
 
-    renderMessages(data || []);
+    renderMessages(
+        data || []
+    );
+
 
     markMessagesDelivered();
+
     markMessagesSeen();
 }
 
 
 function renderMessages(messages) {
 
-    const container = $("messages");
+    const container =
+        $("messages");
+
+
+    if (!container) return;
+
 
     container.innerHTML = "";
 
@@ -982,13 +1499,22 @@ function renderMessages(messages) {
 
         container.innerHTML = `
             <div class="welcome-message">
+
                 <div class="welcome-icon">
                     <i class="fa-solid fa-comments"></i>
                 </div>
 
-                <h2>${escapeHtml(selectedUser.full_name)}</h2>
+                <h2>
+                    ${escapeHtml(
+                        selectedUser.full_name ||
+                        selectedUser.username
+                    )}
+                </h2>
 
-                <p>Start your conversation.</p>
+                <p>
+                    Start your conversation.
+                </p>
+
             </div>
         `;
 
@@ -998,11 +1524,16 @@ function renderMessages(messages) {
 
     messages.forEach(message => {
 
-        const wrapper = document.createElement("div");
+        const wrapper =
+            document.createElement("div");
+
 
         wrapper.className =
-            message.sender_id === currentUser.id
+            message.sender_id ===
+            currentUser.id
+
                 ? "message sent"
+
                 : "message received";
 
 
@@ -1010,31 +1541,53 @@ function renderMessages(messages) {
 
             wrapper.innerHTML = `
                 <div class="message-bubble deleted">
-                    ${escapeHtml(t("deletedMessage"))}
+                    ${escapeHtml(
+                        t("deletedMessage")
+                    )}
                 </div>
             `;
 
-        } else if (message.message_type === "image") {
+        }
+
+        else if (
+            message.message_type ===
+            "image"
+        ) {
 
             wrapper.innerHTML = `
                 <div class="message-bubble">
+
                     <div class="message-image">
-                        ${escapeHtml(t("image"))}
+
+                        ${escapeHtml(
+                            t("image")
+                        )}
+
                     </div>
-                    ${renderMessageMeta(message)}
+
+                    ${renderMessageMeta(
+                        message
+                    )}
+
                 </div>
             `;
 
-        } else {
+        }
+
+        else {
 
             wrapper.innerHTML = `
                 <div class="message-bubble">
 
                     <div class="message-content">
-                        ${escapeHtml(message.content)}
+                        ${escapeHtml(
+                            message.content
+                        )}
                     </div>
 
-                    ${renderMessageMeta(message)}
+                    ${renderMessageMeta(
+                        message
+                    )}
 
                 </div>
             `;
@@ -1043,7 +1596,8 @@ function renderMessages(messages) {
 
 
         if (
-            message.sender_id === currentUser.id &&
+            message.sender_id ===
+            currentUser.id &&
             !message.deleted_at
         ) {
 
@@ -1053,13 +1607,20 @@ function renderMessages(messages) {
 
                     event.preventDefault();
 
-                    showMessageMenu(message);
+                    showMessageMenu(
+                        message
+                    );
+
                 }
             );
+
         }
 
 
-        container.appendChild(wrapper);
+        container.appendChild(
+            wrapper
+        );
+
     });
 
 
@@ -1070,31 +1631,57 @@ function renderMessages(messages) {
 
 function renderMessageMeta(message) {
 
-    const time = new Date(
-        message.created_at
-    ).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit"
-    });
+    const time =
+        new Date(
+            message.created_at
+        ).toLocaleTimeString(
+            [],
+            {
+                hour: "2-digit",
+                minute: "2-digit"
+            }
+        );
 
 
     let status = "";
 
-    if (message.sender_id === currentUser.id) {
+
+    if (
+        message.sender_id ===
+        currentUser.id
+    ) {
 
         if (message.seen_at) {
-            status = " ✓✓";
-        } else if (message.delivered_at) {
-            status = " ✓";
-        } else {
-            status = " ✓";
+
+            status =
+                " ✓✓";
+
         }
+
+        else if (
+            message.delivered_at
+        ) {
+
+            status =
+                " ✓";
+
+        }
+
+        else {
+
+            status =
+                " ✓";
+
+        }
+
     }
 
 
     const edited =
         message.edited_at
-            ? ` · ${escapeHtml(t("edited"))}`
+            ? ` · ${escapeHtml(
+                t("edited")
+            )}`
             : "";
 
 
@@ -1112,47 +1699,78 @@ function renderMessageMeta(message) {
 
 async function sendMessage(content) {
 
-    if (!selectedUser) return;
+    if (
+        !selectedUser ||
+        !currentUser
+    ) return;
 
-    const accepted = await isAcceptedContact();
+
+    const accepted =
+        await isAcceptedContact();
+
 
     if (!accepted) return;
 
 
-    if (isMessagingBlocked(currentProfile)) {
+    if (
+        isMessagingBlocked(
+            currentProfile
+        )
+    ) {
 
-        showToast("Messaging is blocked");
+        showToast(
+            "Messaging is blocked"
+        );
 
         return;
     }
 
 
-    const text = content.trim();
+    const text =
+        content.trim();
+
 
     if (!text) return;
 
 
-    const { error } = await supabase
+    const {
+        error
+    } = await supabase
         .from("messages")
         .insert({
-            sender_id: currentUser.id,
-            receiver_id: selectedUser.id,
-            content: text,
-            message_type: "text"
+
+            sender_id:
+                currentUser.id,
+
+            receiver_id:
+                selectedUser.id,
+
+            content:
+                text,
+
+            message_type:
+                "text"
+
         });
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            "Send message error:",
+            error
+        );
 
-        showToast(error.message);
+        showToast(
+            error.message
+        );
 
         return;
     }
 
 
     $("messageInput").value = "";
+
 
     await loadMessages();
 }
@@ -1164,57 +1782,88 @@ async function sendMessage(content) {
 
 async function sendImage(file) {
 
-    if (!file || !selectedUser) return;
+    if (
+        !file ||
+        !selectedUser ||
+        !currentUser
+    ) return;
 
-    const accepted = await isAcceptedContact();
+
+    const accepted =
+        await isAcceptedContact();
+
 
     if (!accepted) return;
 
 
     const extension =
-        file.name.split(".").pop() || "jpg";
+        file.name
+            .split(".")
+            .pop() ||
+        "jpg";
 
 
     const path =
         `${currentUser.id}/${crypto.randomUUID()}.${extension}`;
 
 
-    const { error: uploadError } =
-        await supabase.storage
-            .from("chat-media")
-            .upload(path, file);
+    const {
+        error: uploadError
+    } = await supabase.storage
+        .from("chat-media")
+        .upload(
+            path,
+            file
+        );
 
 
     if (uploadError) {
 
-        console.error(uploadError);
+        console.error(
+            uploadError
+        );
 
-        showToast(uploadError.message);
+        showToast(
+            uploadError.message
+        );
 
         return;
     }
 
 
-    const { error } = await supabase
+    const {
+        error
+    } = await supabase
         .from("messages")
         .insert({
 
-            sender_id: currentUser.id,
-            receiver_id: selectedUser.id,
+            sender_id:
+                currentUser.id,
 
-            content: "Image",
+            receiver_id:
+                selectedUser.id,
 
-            message_type: "image",
+            content:
+                "Image",
 
-            image_url: path
+            message_type:
+                "image",
+
+            image_url:
+                path
+
         });
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
-        showToast(error.message);
+        showToast(
+            error.message
+        );
 
         return;
     }
@@ -1230,37 +1879,53 @@ async function sendImage(file) {
 
 async function showMessageMenu(message) {
 
-    const action = prompt(
-        "Type E to edit or D to delete"
-    );
+    const action =
+        prompt(
+            "Type E to edit or D to delete"
+        );
+
 
     if (!action) return;
 
 
-    if (action.toLowerCase() === "e") {
+    if (
+        action.toLowerCase() ===
+        "e"
+    ) {
 
-        const newText = prompt(
-            "New message:",
-            message.content
-        );
+        const newText =
+            prompt(
+                "New message:",
+                message.content
+            );
+
 
         if (!newText?.trim()) return;
 
 
-        const { error } = await supabase.rpc(
+        const {
+            error
+        } = await supabase.rpc(
             "edit_message",
             {
-                p_message_id: message.id,
-                p_new_content: newText.trim()
+                p_message_id:
+                    message.id,
+
+                p_new_content:
+                    newText.trim()
             }
         );
 
 
         if (error) {
 
-            console.error(error);
+            console.error(
+                error
+            );
 
-            showToast(error.message);
+            showToast(
+                error.message
+            );
 
             return;
         }
@@ -1272,27 +1937,40 @@ async function showMessageMenu(message) {
     }
 
 
-    if (action.toLowerCase() === "d") {
+    if (
+        action.toLowerCase() ===
+        "d"
+    ) {
 
         const confirmed =
-            confirm("Delete this message?");
+            confirm(
+                "Delete this message?"
+            );
+
 
         if (!confirmed) return;
 
 
-        const { error } = await supabase.rpc(
+        const {
+            error
+        } = await supabase.rpc(
             "delete_message",
             {
-                p_message_id: message.id
+                p_message_id:
+                    message.id
             }
         );
 
 
         if (error) {
 
-            console.error(error);
+            console.error(
+                error
+            );
 
-            showToast(error.message);
+            showToast(
+                error.message
+            );
 
             return;
         }
@@ -1311,18 +1989,33 @@ async function markMessagesDelivered() {
 
     if (!selectedUser) return;
 
+
     try {
 
-        await supabase.rpc(
+        const {
+            error
+        } = await supabase.rpc(
             "mark_messages_delivered",
             {
-                p_other_user_id: selectedUser.id
+                p_other_user_id:
+                    selectedUser.id
             }
         );
 
+
+        if (error) {
+            console.error(
+                "Delivered error:",
+                error
+            );
+        }
+
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
+
     }
 }
 
@@ -1331,18 +2024,33 @@ async function markMessagesSeen() {
 
     if (!selectedUser) return;
 
+
     try {
 
-        await supabase.rpc(
+        const {
+            error
+        } = await supabase.rpc(
             "mark_chat_seen",
             {
-                p_other_user_id: selectedUser.id
+                p_other_user_id:
+                    selectedUser.id
             }
         );
 
+
+        if (error) {
+            console.error(
+                "Seen error:",
+                error
+            );
+        }
+
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
+
     }
 }
 
@@ -1353,32 +2061,49 @@ async function markMessagesSeen() {
 
 function setupEmoji() {
 
-    $("emojiBtn").addEventListener(
+    const emojiBtn =
+        $("emojiBtn");
+
+    const emojiPanel =
+        $("emojiPanel");
+
+
+    if (!emojiBtn || !emojiPanel) {
+        return;
+    }
+
+
+    emojiBtn.addEventListener(
         "click",
         () => {
 
-            $("emojiPanel").classList.toggle(
+            emojiPanel.classList.toggle(
                 "active"
             );
+
         }
     );
 
 
-    document.querySelectorAll(
-        "#emojiPanel button"
-    ).forEach(button => {
+    document
+        .querySelectorAll(
+            "#emojiPanel button"
+        )
+        .forEach(button => {
 
-        button.addEventListener(
-            "click",
-            () => {
+            button.addEventListener(
+                "click",
+                () => {
 
-                $("messageInput").value +=
-                    button.textContent;
+                    $("messageInput").value +=
+                        button.textContent;
 
-                $("messageInput").focus();
-            }
-        );
-    });
+                    $("messageInput").focus();
+
+                }
+            );
+
+        });
 }
 
 
@@ -1391,63 +2116,120 @@ function openProfileSettings() {
     if (!currentProfile) return;
 
 
-    $("profileFullName").value =
-        currentProfile.full_name || "";
+    if ($("profileFullName")) {
 
-    $("profileUsername").value =
-        currentProfile.username || "";
+        $("profileFullName").value =
+            currentProfile.full_name || "";
 
-    $("profileBio").value =
-        currentProfile.bio || "";
+    }
 
 
-    $("profileEditAvatar").textContent =
-        getInitial(currentProfile.full_name);
+    if ($("profileUsername")) {
+
+        $("profileUsername").value =
+            currentProfile.username || "";
+
+    }
 
 
-    openModal("profileModal");
+    if ($("profileBio")) {
+
+        $("profileBio").value =
+            currentProfile.bio || "";
+
+    }
+
+
+    if ($("profileEditAvatar")) {
+
+        $("profileEditAvatar").textContent =
+            getInitial(
+                currentProfile.full_name
+            );
+
+
+        if (currentProfile.avatar_url) {
+
+            $("profileEditAvatar").style.backgroundImage =
+                `url("${currentProfile.avatar_url}")`;
+
+            $("profileEditAvatar").style.backgroundSize =
+                "cover";
+
+            $("profileEditAvatar").style.backgroundPosition =
+                "center";
+
+            $("profileEditAvatar").textContent = "";
+
+        } else {
+
+            $("profileEditAvatar").style.backgroundImage =
+                "";
+
+        }
+
+    }
+
+
+    openModal(
+        "profileModal"
+    );
 }
 
 
 async function uploadAvatar(file) {
 
-    if (!file || !currentUser) return null;
+    if (
+        !file ||
+        !currentUser
+    ) return null;
 
 
     const extension =
-        file.name.split(".").pop() || "jpg";
+        file.name
+            .split(".")
+            .pop() ||
+        "jpg";
 
 
     const path =
         `${currentUser.id}/avatar.${extension}`;
 
 
-    const { error } =
-        await supabase.storage
-            .from("avatars")
-            .upload(
-                path,
-                file,
-                {
-                    upsert: true
-                }
-            );
+    const {
+        error
+    } = await supabase.storage
+        .from("avatars")
+        .upload(
+            path,
+            file,
+            {
+                upsert: true
+            }
+        );
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
-        showToast(error.message);
+        showToast(
+            error.message
+        );
 
         return null;
     }
 
 
-    const { data } =
-        supabase.storage
-            .from("avatars")
-            .getPublicUrl(path);
+    const {
+        data
+    } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(
+            path
+        );
 
 
     return data.publicUrl;
@@ -1460,26 +2242,42 @@ async function saveProfile(event) {
 
 
     const fullName =
-        $("profileFullName").value.trim();
+        $("profileFullName")
+            .value
+            .trim();
+
 
     const username =
-        $("profileUsername").value
+        $("profileUsername")
+            .value
             .trim()
             .toLowerCase();
 
+
     const bio =
-        $("profileBio").value.trim();
+        $("profileBio")
+            .value
+            .trim();
 
 
-    if (!fullName || !username) {
+    if (
+        !fullName ||
+        !username
+    ) {
 
-        showToast("Name and username are required");
+        showToast(
+            "Name and username are required"
+        );
 
         return;
     }
 
 
-    if (!/^[a-z0-9_]{3,32}$/.test(username)) {
+    if (
+        !/^[a-z0-9_]{3,32}$/.test(
+            username
+        )
+    ) {
 
         showToast(
             "Username must contain only a-z, 0-9 and _"
@@ -1490,58 +2288,101 @@ async function saveProfile(event) {
 
 
     let avatarUrl =
-        currentProfile.avatar_url || null;
+        currentProfile.avatar_url ||
+        null;
 
 
     const file =
-        $("profileAvatarInput").files?.[0];
+        $("profileAvatarInput")
+            .files?.[0];
 
 
     if (file) {
 
         const uploaded =
-            await uploadAvatar(file);
+            await uploadAvatar(
+                file
+            );
+
 
         if (uploaded) {
-            avatarUrl = uploaded;
+
+            avatarUrl =
+                uploaded;
+
         }
+
     }
 
 
-    const { data, error } = await supabase
+    const {
+        data,
+        error
+    } = await supabase
         .from("profiles")
         .update({
 
-            full_name: fullName,
-            username,
-            bio,
-            avatar_url: avatarUrl
+            full_name:
+                fullName,
+
+            username:
+                username,
+
+            bio:
+                bio,
+
+            avatar_url:
+                avatarUrl
 
         })
-        .eq("id", currentUser.id)
+        .eq(
+            "id",
+            currentUser.id
+        )
         .select()
         .single();
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
-        if (error.code === "23505") {
-            showToast("Username already exists");
+
+        if (
+            error.code ===
+            "23505"
+        ) {
+
+            showToast(
+                "Username already exists"
+            );
+
         } else {
-            showToast(error.message);
+
+            showToast(
+                error.message
+            );
+
         }
+
 
         return;
     }
 
 
-    currentProfile = data;
+    currentProfile =
+        data;
+
 
     renderMyProfile();
 
-    closeModal("profileModal");
+
+    closeModal(
+        "profileModal"
+    );
+
 
     showToast(
         currentLanguage === "uz"
@@ -1557,27 +2398,49 @@ async function saveProfile(event) {
    OWNER PANEL
 ========================================================= */
 
-async function searchOwnerUser(inputId, resultId) {
+async function searchOwnerUser(
+    inputId,
+    resultId
+) {
+
+    const input =
+        $(inputId);
+
+
+    if (!input) return null;
+
 
     const username =
-        $(inputId).value.trim().toLowerCase();
+        input.value
+            .trim()
+            .toLowerCase();
 
 
     if (!username) return null;
 
 
-    const { data, error } = await supabase
+    const {
+        data,
+        error
+    } = await supabase
         .from("profiles")
         .select("*")
-        .eq("username", username)
+        .eq(
+            "username",
+            username
+        )
         .maybeSingle();
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
-        showToast(error.message);
+        showToast(
+            error.message
+        );
 
         return null;
     }
@@ -1585,11 +2448,17 @@ async function searchOwnerUser(inputId, resultId) {
 
     if (!data) {
 
-        $(resultId).innerHTML = `
-            <div class="empty-state">
-                ${escapeHtml(t("noUser"))}
-            </div>
-        `;
+        if ($(resultId)) {
+
+            $(resultId).innerHTML = `
+                <div class="empty-state">
+                    ${escapeHtml(
+                        t("noUser")
+                    )}
+                </div>
+            `;
+
+        }
 
         return null;
     }
@@ -1601,13 +2470,17 @@ async function searchOwnerUser(inputId, resultId) {
 
 async function ownerVerifiedSearch() {
 
-    if (currentProfile?.role !== "owner") return;
+    if (
+        currentProfile?.role !==
+        "owner"
+    ) return;
 
 
-    const user = await searchOwnerUser(
-        "ownerVerifiedUsername",
-        "ownerVerifiedResult"
-    );
+    const user =
+        await searchOwnerUser(
+            "ownerVerifiedUsername",
+            "ownerVerifiedResult"
+        );
 
 
     if (!user) return;
@@ -1618,21 +2491,29 @@ async function ownerVerifiedSearch() {
         <div class="owner-user-card">
 
             <div>
+
                 <strong>
-                    ${escapeHtml(user.full_name)}
+                    ${escapeHtml(
+                        user.full_name
+                    )}
                 </strong>
 
                 <span>
-                    @${escapeHtml(user.username)}
+                    @${escapeHtml(
+                        user.username
+                    )}
                 </span>
+
             </div>
 
             <button id="ownerVerifyAction">
+
                 ${
                     user.is_verified
                         ? "Remove"
                         : "Verify"
                 }
+
             </button>
 
         </div>
@@ -1640,9 +2521,12 @@ async function ownerVerifiedSearch() {
 
 
     $("ownerVerifyAction")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => ownerToggleVerified(user)
+            () =>
+                ownerToggleVerified(
+                    user
+                )
         );
 }
 
@@ -1659,30 +2543,46 @@ async function ownerToggleVerified(user) {
     if (!isVerified) {
 
         const selected =
-            $("verifiedDuration").value;
+            $("verifiedDuration")
+                ?.value;
+
 
         duration =
             selected === "permanent"
                 ? null
-                : Number(selected);
+                : Number(
+                    selected
+                );
+
     }
 
 
-    const { error } = await supabase.rpc(
+    const {
+        error
+    } = await supabase.rpc(
         "owner_set_verified",
         {
-            target_user_id: user.id,
-            give_verified: !isVerified,
-            duration_days: duration
+            target_user_id:
+                user.id,
+
+            give_verified:
+                !isVerified,
+
+            duration_days:
+                duration
         }
     );
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
-        showToast(error.message);
+        showToast(
+            error.message
+        );
 
         return;
     }
@@ -1706,15 +2606,18 @@ async function ownerToggleVerified(user) {
 async function ownerModerationSearch() {
 
     if (
-        currentProfile?.role !== "owner" &&
-        currentProfile?.role !== "admin"
+        currentProfile?.role !==
+            "owner" &&
+        currentProfile?.role !==
+            "admin"
     ) return;
 
 
-    const user = await searchOwnerUser(
-        "ownerModerationUsername",
-        "ownerModerationResult"
-    );
+    const user =
+        await searchOwnerUser(
+            "ownerModerationUsername",
+            "ownerModerationResult"
+        );
 
 
     if (!user) return;
@@ -1729,13 +2632,19 @@ async function ownerModerationSearch() {
         <div class="owner-user-card">
 
             <div>
+
                 <strong>
-                    ${escapeHtml(user.full_name)}
+                    ${escapeHtml(
+                        user.full_name
+                    )}
                 </strong>
 
                 <span>
-                    @${escapeHtml(user.username)}
+                    @${escapeHtml(
+                        user.username
+                    )}
                 </span>
+
             </div>
 
             <div class="moderation-actions">
@@ -1768,35 +2677,38 @@ async function ownerModerationSearch() {
 
 
     $("blockAccountBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => moderateUser(
-                user,
-                "account",
-                true
-            )
+            () =>
+                moderateUser(
+                    user,
+                    "account",
+                    true
+                )
         );
 
 
     $("blockMessagingBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => moderateUser(
-                user,
-                "messaging",
-                true
-            )
+            () =>
+                moderateUser(
+                    user,
+                    "messaging",
+                    true
+                )
         );
 
 
     $("unblockUserBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => moderateUser(
-                user,
-                "account",
-                false
-            )
+            () =>
+                moderateUser(
+                    user,
+                    "account",
+                    false
+                )
         );
 }
 
@@ -1813,23 +2725,38 @@ async function moderateUser(
             : null;
 
 
-    const { error } = await supabase.rpc(
+    const {
+        error
+    } = await supabase.rpc(
         "owner_set_user_block",
         {
-            target_user_id: user.id,
-            block_type: blockType,
-            reason_text: reason,
-            duration_days: null,
-            make_active: active
+            target_user_id:
+                user.id,
+
+            block_type:
+                blockType,
+
+            reason_text:
+                reason,
+
+            duration_days:
+                null,
+
+            make_active:
+                active
         }
     );
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
-        showToast(error.message);
+        showToast(
+            error.message
+        );
 
         return;
     }
@@ -1852,13 +2779,17 @@ async function moderateUser(
 
 async function ownerAdminSearch() {
 
-    if (currentProfile?.role !== "owner") return;
+    if (
+        currentProfile?.role !==
+        "owner"
+    ) return;
 
 
-    const user = await searchOwnerUser(
-        "ownerAdminUsername",
-        "ownerAdminResult"
-    );
+    const user =
+        await searchOwnerUser(
+            "ownerAdminUsername",
+            "ownerAdminResult"
+        );
 
 
     if (!user) return;
@@ -1873,21 +2804,29 @@ async function ownerAdminSearch() {
         <div class="owner-user-card">
 
             <div>
+
                 <strong>
-                    ${escapeHtml(user.full_name)}
+                    ${escapeHtml(
+                        user.full_name
+                    )}
                 </strong>
 
                 <span>
-                    @${escapeHtml(user.username)}
+                    @${escapeHtml(
+                        user.username
+                    )}
                 </span>
+
             </div>
 
             <button id="ownerAdminAction">
+
                 ${
                     isAdmin
                         ? "Remove Admin"
                         : "Make Admin"
                 }
+
             </button>
 
         </div>
@@ -1895,12 +2834,13 @@ async function ownerAdminSearch() {
 
 
     $("ownerAdminAction")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => ownerToggleAdmin(
-                user,
-                !isAdmin
-            )
+            () =>
+                ownerToggleAdmin(
+                    user,
+                    !isAdmin
+                )
         );
 }
 
@@ -1910,20 +2850,29 @@ async function ownerToggleAdmin(
     makeAdmin
 ) {
 
-    const { error } = await supabase.rpc(
+    const {
+        error
+    } = await supabase.rpc(
         "owner_set_admin",
         {
-            target_user_id: user.id,
-            make_admin: makeAdmin
+            target_user_id:
+                user.id,
+
+            make_admin:
+                makeAdmin
         }
     );
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
-        showToast(error.message);
+        showToast(
+            error.message
+        );
 
         return;
     }
@@ -1946,29 +2895,43 @@ async function ownerToggleAdmin(
    REPORTS
 ========================================================= */
 
-async function loadReports(targetId) {
+async function loadReports(
+    targetId
+) {
 
     const container =
         $(targetId);
 
+
     if (!container) return;
 
 
-    const { data, error } = await supabase
+    const {
+        data,
+        error
+    } = await supabase
         .from("reports")
         .select("*")
-        .order("created_at", {
-            ascending: false
-        });
+        .order(
+            "created_at",
+            {
+                ascending: false
+            }
+        );
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
+
 
         container.innerHTML = `
             <div class="empty-state">
-                ${escapeHtml(error.message)}
+                ${escapeHtml(
+                    error.message
+                )}
             </div>
         `;
 
@@ -1980,7 +2943,9 @@ async function loadReports(targetId) {
 
         container.innerHTML = `
             <div class="empty-state">
-                ${escapeHtml(t("noReports"))}
+                ${escapeHtml(
+                    t("noReports")
+                )}
             </div>
         `;
 
@@ -1996,29 +2961,39 @@ async function loadReports(targetId) {
         const item =
             document.createElement("div");
 
-        item.className = "report-item";
+
+        item.className =
+            "report-item";
 
 
         item.innerHTML = `
 
             <div>
+
                 <strong>
                     Report #${report.id}
                 </strong>
 
                 <p>
-                    ${escapeHtml(report.reason)}
+                    ${escapeHtml(
+                        report.reason
+                    )}
                 </p>
 
                 <small>
-                    ${escapeHtml(report.description || "")}
+                    ${escapeHtml(
+                        report.description || ""
+                    )}
                 </small>
+
             </div>
 
             <div>
 
                 <span>
-                    ${escapeHtml(report.status)}
+                    ${escapeHtml(
+                        report.status
+                    )}
                 </span>
 
                 <button
@@ -2032,26 +3007,35 @@ async function loadReports(targetId) {
         `;
 
 
-        container.appendChild(item);
+        container.appendChild(
+            item
+        );
     });
 
 
     container
-        .querySelectorAll(".report-review-btn")
+        .querySelectorAll(
+            ".report-review-btn"
+        )
         .forEach(button => {
 
             button.addEventListener(
                 "click",
-                () => updateReport(
-                    Number(button.dataset.id)
-                )
+                () =>
+                    updateReport(
+                        Number(
+                            button.dataset.id
+                        )
+                    )
             );
 
         });
 }
 
 
-async function updateReport(reportId) {
+async function updateReport(
+    reportId
+) {
 
     const status =
         prompt(
@@ -2066,20 +3050,29 @@ async function updateReport(reportId) {
     ) return;
 
 
-    const { error } = await supabase.rpc(
+    const {
+        error
+    } = await supabase.rpc(
         "admin_update_report",
         {
-            report_id: reportId,
-            new_status: status
+            report_id:
+                reportId,
+
+            new_status:
+                status
         }
     );
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
-        showToast(error.message);
+        showToast(
+            error.message
+        );
 
         return;
     }
@@ -2089,7 +3082,10 @@ async function updateReport(reportId) {
         "ownerReportsList"
     );
 
-    showToast("Report updated");
+
+    showToast(
+        "Report updated"
+    );
 }
 
 
@@ -2106,20 +3102,29 @@ async function createGroup(event) {
 
 
     const name =
-        $("groupName").value.trim();
+        $("groupName")
+            .value
+            .trim();
+
 
     const username =
-        $("groupUsername").value
+        $("groupUsername")
+            .value
             .trim()
             .toLowerCase();
 
+
     const bio =
-        $("groupBio").value.trim();
+        $("groupBio")
+            .value
+            .trim();
 
 
     if (!name) {
 
-        showToast("Group name is required");
+        showToast(
+            "Group name is required"
+        );
 
         return;
     }
@@ -2127,21 +3132,33 @@ async function createGroup(event) {
 
     if (
         username &&
-        !/^[a-z0-9_]{3,32}$/.test(username)
+        !/^[a-z0-9_]{3,32}$/.test(
+            username
+        )
     ) {
 
-        showToast("Invalid group username");
+        showToast(
+            "Invalid group username"
+        );
 
         return;
     }
 
 
-    const { data, error } = await supabase
+    const {
+        data,
+        error
+    } = await supabase
         .from("groups")
         .insert({
-            owner_id: currentUser.id,
+            owner_id:
+                currentUser.id,
+
             name,
-            username: username || null,
+
+            username:
+                username || null,
+
             bio
         })
         .select()
@@ -2150,39 +3167,63 @@ async function createGroup(event) {
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
-        showToast(error.message);
+        showToast(
+            error.message
+        );
 
         return;
     }
 
 
-    const { error: memberError } =
-        await supabase
-            .from("group_members")
-            .insert({
-                group_id: data.id,
-                user_id: currentUser.id,
-                role: "owner"
-            });
+    const {
+        error: memberError
+    } = await supabase
+        .from("group_members")
+        .insert({
+
+            group_id:
+                data.id,
+
+            user_id:
+                currentUser.id,
+
+            role:
+                "owner"
+
+        });
 
 
     if (memberError) {
 
-        console.error(memberError);
+        console.error(
+            memberError
+        );
 
-        showToast(memberError.message);
+        showToast(
+            memberError.message
+        );
 
         return;
     }
 
 
-    closeModal("createGroupModal");
+    closeModal(
+        "createGroupModal"
+    );
 
-    $("groupForm").reset();
 
-    showToast("Group created");
+    $("groupForm")
+        .reset();
+
+
+    showToast(
+        "Group created"
+    );
+
 
     await loadGroups();
 }
@@ -2201,20 +3242,29 @@ async function createChannel(event) {
 
 
     const name =
-        $("channelName").value.trim();
+        $("channelName")
+            .value
+            .trim();
+
 
     const username =
-        $("channelUsername").value
+        $("channelUsername")
+            .value
             .trim()
             .toLowerCase();
 
+
     const bio =
-        $("channelBio").value.trim();
+        $("channelBio")
+            .value
+            .trim();
 
 
     if (!name) {
 
-        showToast("Channel name is required");
+        showToast(
+            "Channel name is required"
+        );
 
         return;
     }
@@ -2222,22 +3272,36 @@ async function createChannel(event) {
 
     if (
         username &&
-        !/^[a-z0-9_]{3,32}$/.test(username)
+        !/^[a-z0-9_]{3,32}$/.test(
+            username
+        )
     ) {
 
-        showToast("Invalid channel username");
+        showToast(
+            "Invalid channel username"
+        );
 
         return;
     }
 
 
-    const { data, error } = await supabase
+    const {
+        data,
+        error
+    } = await supabase
         .from("channels")
         .insert({
-            owner_id: currentUser.id,
+
+            owner_id:
+                currentUser.id,
+
             name,
-            username: username || null,
+
+            username:
+                username || null,
+
             bio
+
         })
         .select()
         .single();
@@ -2245,39 +3309,63 @@ async function createChannel(event) {
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
-        showToast(error.message);
+        showToast(
+            error.message
+        );
 
         return;
     }
 
 
-    const { error: memberError } =
-        await supabase
-            .from("channel_members")
-            .insert({
-                channel_id: data.id,
-                user_id: currentUser.id,
-                role: "owner"
-            });
+    const {
+        error: memberError
+    } = await supabase
+        .from("channel_members")
+        .insert({
+
+            channel_id:
+                data.id,
+
+            user_id:
+                currentUser.id,
+
+            role:
+                "owner"
+
+        });
 
 
     if (memberError) {
 
-        console.error(memberError);
+        console.error(
+            memberError
+        );
 
-        showToast(memberError.message);
+        showToast(
+            memberError.message
+        );
 
         return;
     }
 
 
-    closeModal("createChannelModal");
+    closeModal(
+        "createChannelModal"
+    );
 
-    $("channelForm").reset();
 
-    showToast("Channel created");
+    $("channelForm")
+        .reset();
+
+
+    showToast(
+        "Channel created"
+    );
+
 
     await loadChannels();
 }
@@ -2289,23 +3377,36 @@ async function createChannel(event) {
 
 async function loadGroups() {
 
-    const { data, error } = await supabase
+    const {
+        data,
+        error
+    } = await supabase
         .from("groups")
         .select("*")
-        .order("created_at", {
-            ascending: false
-        });
+        .order(
+            "created_at",
+            {
+                ascending: false
+            }
+        );
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
         return;
     }
 
 
-    const list = $("userList");
+    const list =
+        $("userList");
+
+
+    if (!list) return;
+
 
     list.innerHTML = "";
 
@@ -2328,28 +3429,40 @@ async function loadGroups() {
         const item =
             document.createElement("div");
 
-        item.className = "chat-item";
+
+        item.className =
+            "chat-item";
 
 
         item.innerHTML = `
+
             <div class="profile-avatar">
                 ${escapeHtml(
-                    getInitial(group.name)
+                    getInitial(
+                        group.name
+                    )
                 )}
             </div>
 
             <div class="chat-item-info">
 
                 <h3>
-                    ${escapeHtml(group.name)}
+                    ${escapeHtml(
+                        group.name
+                    )}
                 </h3>
 
                 <p>
+
                     ${
                         group.username
-                            ? "@" + escapeHtml(group.username)
+                            ? "@" +
+                              escapeHtml(
+                                  group.username
+                              )
                             : "Group"
                     }
+
                 </p>
 
             </div>
@@ -2368,7 +3481,9 @@ async function loadGroups() {
         );
 
 
-        list.appendChild(item);
+        list.appendChild(
+            item
+        );
     });
 }
 
@@ -2379,23 +3494,36 @@ async function loadGroups() {
 
 async function loadChannels() {
 
-    const { data, error } = await supabase
+    const {
+        data,
+        error
+    } = await supabase
         .from("channels")
         .select("*")
-        .order("created_at", {
-            ascending: false
-        });
+        .order(
+            "created_at",
+            {
+                ascending: false
+            }
+        );
 
 
     if (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
 
         return;
     }
 
 
-    const list = $("userList");
+    const list =
+        $("userList");
+
+
+    if (!list) return;
+
 
     list.innerHTML = "";
 
@@ -2418,28 +3546,40 @@ async function loadChannels() {
         const item =
             document.createElement("div");
 
-        item.className = "chat-item";
+
+        item.className =
+            "chat-item";
 
 
         item.innerHTML = `
+
             <div class="profile-avatar">
                 ${escapeHtml(
-                    getInitial(channel.name)
+                    getInitial(
+                        channel.name
+                    )
                 )}
             </div>
 
             <div class="chat-item-info">
 
                 <h3>
-                    ${escapeHtml(channel.name)}
+                    ${escapeHtml(
+                        channel.name
+                    )}
                 </h3>
 
                 <p>
+
                     ${
                         channel.username
-                            ? "@" + escapeHtml(channel.username)
+                            ? "@" +
+                              escapeHtml(
+                                  channel.username
+                              )
                             : "Channel"
                     }
+
                 </p>
 
             </div>
@@ -2458,7 +3598,9 @@ async function loadChannels() {
         );
 
 
-        list.appendChild(item);
+        list.appendChild(
+            item
+        );
     });
 }
 
@@ -2469,47 +3611,71 @@ async function loadChannels() {
 
 function setupTabs() {
 
-    document.querySelectorAll(
-        ".sidebar-tab"
-    ).forEach(tab => {
+    document
+        .querySelectorAll(
+            ".sidebar-tab"
+        )
+        .forEach(tab => {
 
-        tab.addEventListener(
-            "click",
-            async () => {
+            tab.addEventListener(
+                "click",
+                async () => {
 
-                document.querySelectorAll(
-                    ".sidebar-tab"
-                ).forEach(item => {
+                    document
+                        .querySelectorAll(
+                            ".sidebar-tab"
+                        )
+                        .forEach(item => {
 
-                    item.classList.remove(
+                            item.classList.remove(
+                                "active"
+                            );
+
+                        });
+
+
+                    tab.classList.add(
                         "active"
                     );
 
-                });
+
+                    currentTab =
+                        tab.dataset.tab;
 
 
-                tab.classList.add("active");
+                    if (
+                        currentTab ===
+                        "chats"
+                    ) {
+
+                        await loadDefaultList();
+
+                    }
 
 
-                currentTab =
-                    tab.dataset.tab;
+                    if (
+                        currentTab ===
+                        "groups"
+                    ) {
+
+                        await loadGroups();
+
+                    }
 
 
-                if (currentTab === "chats") {
-                    await loadDefaultList();
+                    if (
+                        currentTab ===
+                        "channels"
+                    ) {
+
+                        await loadChannels();
+
+                    }
+
                 }
+            );
 
-                if (currentTab === "groups") {
-                    await loadGroups();
-                }
-
-                if (currentTab === "channels") {
-                    await loadChannels();
-                }
-
-            }
-        );
-    });
+        });
 }
 
 
@@ -2524,7 +3690,8 @@ function setupMobile() {
             "click",
             () => {
 
-                document.querySelector(".app")
+                document
+                    .querySelector(".app")
                     ?.classList.remove(
                         "chat-open"
                     );
@@ -2540,15 +3707,29 @@ function setupMobile() {
 
 async function logout() {
 
-    await supabase.auth.signOut();
+    try {
+
+        await supabase.auth.signOut();
+
+    } catch (error) {
+
+        console.error(
+            "Logout error:",
+            error
+        );
+
+    }
+
 
     localStorage.removeItem(
         "messageAppLoggedIn"
     );
 
+
     localStorage.removeItem(
         "messageAppUser"
     );
+
 
     window.location.href =
         "index.html";
@@ -2561,80 +3742,129 @@ async function logout() {
 
 function setupRealtime() {
 
-    messageChannel =
-        supabase
-            .channel("msgbox-messages")
-            .on(
-                "postgres_changes",
-                {
-                    event: "*",
-                    schema: "public",
-                    table: "messages"
-                },
-                async payload => {
+    try {
 
-                    const message =
-                        payload.new;
+        messageChannel =
+            supabase
+                .channel(
+                    "msgbox-messages"
+                )
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "*",
+                        schema: "public",
+                        table: "messages"
+                    },
+                    async payload => {
+
+                        const message =
+                            payload.new;
 
 
-                    if (!message) return;
+                        if (!message) return;
 
 
-                    if (
-                        selectedUser &&
-                        (
+                        if (
+                            selectedUser &&
                             (
-                                message.sender_id === currentUser.id &&
-                                message.receiver_id === selectedUser.id
+                                (
+                                    message.sender_id ===
+                                    currentUser.id &&
+
+                                    message.receiver_id ===
+                                    selectedUser.id
+                                )
+                                ||
+                                (
+                                    message.sender_id ===
+                                    selectedUser.id &&
+
+                                    message.receiver_id ===
+                                    currentUser.id
+                                )
                             )
-                            ||
-                            (
-                                message.sender_id === selectedUser.id &&
-                                message.receiver_id === currentUser.id
-                            )
-                        )
-                    ) {
+                        ) {
 
-                        await loadMessages();
-                    }
+                            await loadMessages();
 
-                }
-            )
-            .subscribe();
-
-
-    contactChannel =
-        supabase
-            .channel("msgbox-contact-requests")
-            .on(
-                "postgres_changes",
-                {
-                    event: "*",
-                    schema: "public",
-                    table: "contact_requests"
-                },
-                async payload => {
-
-                    const row =
-                        payload.new;
-
-
-                    if (
-                        row?.receiver_id === currentUser.id ||
-                        row?.sender_id === currentUser.id
-                    ) {
-
-                        await updateContactActions();
-
-                        if (currentTab === "chats") {
-                            await loadDefaultList();
                         }
 
                     }
+                )
+                .subscribe(
+                    status => {
 
-                }
-            )
-            .subscribe();
+                        console.log(
+                            "Message realtime:",
+                            status
+                        );
+
+                    }
+                );
+
+
+        contactChannel =
+            supabase
+                .channel(
+                    "msgbox-contact-requests"
+                )
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "*",
+                        schema: "public",
+                        table: "contact_requests"
+                    },
+                    async payload => {
+
+                        const row =
+                            payload.new;
+
+
+                        if (
+                            row?.receiver_id ===
+                                currentUser.id
+                            ||
+                            row?.sender_id ===
+                                currentUser.id
+                        ) {
+
+                            await updateContactActions();
+
+
+                            if (
+                                currentTab ===
+                                "chats"
+                            ) {
+
+                                await loadDefaultList();
+
+                            }
+
+                        }
+
+                    }
+                )
+                .subscribe(
+                    status => {
+
+                        console.log(
+                            "Contact realtime:",
+                            status
+                        );
+
+                    }
+                );
+
+    } catch (error) {
+
+        console.error(
+            "Realtime setup error:",
+            error
+        );
+
+    }
 }
 
 
@@ -2644,37 +3874,49 @@ function setupRealtime() {
 
 function setupEvents() {
 
-    /* Settings */
+    /* =====================================================
+       SETTINGS
+    ===================================================== */
 
     $("settingsBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => openModal("settingsModal")
+            () =>
+                openModal(
+                    "settingsModal"
+                )
         );
 
 
     $("closeSettingsBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => closeModal("settingsModal")
+            () =>
+                closeModal(
+                    "settingsModal"
+                )
         );
 
 
-    /* Profile */
+    /* =====================================================
+       PROFILE
+    ===================================================== */
 
     $("myProfileBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             openProfileSettings
         );
 
 
     $("profileSettingsBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             () => {
 
-                closeModal("settingsModal");
+                closeModal(
+                    "settingsModal"
+                );
 
                 openProfileSettings();
 
@@ -2683,69 +3925,89 @@ function setupEvents() {
 
 
     $("closeProfileBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => closeModal("profileModal")
+            () =>
+                closeModal(
+                    "profileModal"
+                )
         );
 
 
     $("profileForm")
-        .addEventListener(
+        ?.addEventListener(
             "submit",
             saveProfile
         );
 
 
-    /* Language */
+    /* =====================================================
+       LANGUAGE
+    ===================================================== */
 
     $("languageSettingsBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             () => {
 
-                closeModal("settingsModal");
+                closeModal(
+                    "settingsModal"
+                );
 
-                openModal("languageModal");
+                openModal(
+                    "languageModal"
+                );
 
             }
         );
 
 
     $("closeLanguageBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => closeModal("languageModal")
+            () =>
+                closeModal(
+                    "languageModal"
+                )
         );
 
 
-    document.querySelectorAll(
-        ".language-option"
-    ).forEach(option => {
+    document
+        .querySelectorAll(
+            ".language-option"
+        )
+        .forEach(option => {
 
-        option.addEventListener(
-            "click",
-            () => {
+            option.addEventListener(
+                "click",
+                () => {
 
-                setLanguage(
-                    option.dataset.language
-                );
+                    setLanguage(
+                        option.dataset.language
+                    );
 
-            }
-        );
+                }
+            );
 
-    });
+        });
 
 
-    /* Owner */
+    /* =====================================================
+       OWNER
+    ===================================================== */
 
     $("ownerPanelButton")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             () => {
 
-                closeModal("settingsModal");
+                closeModal(
+                    "settingsModal"
+                );
 
-                openModal("ownerModal");
+                openModal(
+                    "ownerModal"
+                );
 
                 loadReports(
                     "ownerReportsList"
@@ -2756,111 +4018,152 @@ function setupEvents() {
 
 
     $("closeOwnerBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => closeModal("ownerModal")
+            () =>
+                closeModal(
+                    "ownerModal"
+                )
         );
 
 
     $("ownerVerifiedSearchBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             ownerVerifiedSearch
         );
 
 
     $("ownerModerationSearchBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             ownerModerationSearch
         );
 
 
     $("ownerAdminSearchBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             ownerAdminSearch
         );
 
 
-    /* Owner tabs */
+    /* =====================================================
+       OWNER TABS
+    ===================================================== */
 
-    document.querySelectorAll(
-        ".owner-tab"
-    ).forEach(tab => {
+    document
+        .querySelectorAll(
+            ".owner-tab"
+        )
+        .forEach(tab => {
 
-        tab.addEventListener(
-            "click",
-            () => {
+            tab.addEventListener(
+                "click",
+                () => {
 
-                document.querySelectorAll(
-                    ".owner-tab"
-                ).forEach(item =>
-                    item.classList.remove("active")
-                );
-
-
-                document.querySelectorAll(
-                    ".owner-section"
-                ).forEach(section =>
-                    section.classList.remove("active")
-                );
-
-
-                tab.classList.add("active");
+                    document
+                        .querySelectorAll(
+                            ".owner-tab"
+                        )
+                        .forEach(item =>
+                            item.classList.remove(
+                                "active"
+                            )
+                        );
 
 
-                const target =
-                    tab.dataset.ownerTab;
+                    document
+                        .querySelectorAll(
+                            ".owner-section"
+                        )
+                        .forEach(section =>
+                            section.classList.remove(
+                                "active"
+                            )
+                        );
 
 
-                const section =
-                    $(
-                        `owner${target.charAt(0).toUpperCase() + target.slice(1)}Section`
+                    tab.classList.add(
+                        "active"
                     );
 
 
-                section?.classList.add("active");
-
-            }
-        );
-    });
+                    const target =
+                        tab.dataset.ownerTab;
 
 
-    /* Admin */
+                    const section =
+                        $(
+                            `owner${target
+                                .charAt(0)
+                                .toUpperCase()}${target
+                                .slice(1)}Section`
+                        );
+
+
+                    section
+                        ?.classList.add(
+                            "active"
+                        );
+
+                }
+            );
+
+        });
+
+
+    /* =====================================================
+       ADMIN
+    ===================================================== */
 
     $("adminPanelButton")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             () => {
 
-                closeModal("settingsModal");
+                closeModal(
+                    "settingsModal"
+                );
 
-                openModal("adminModal");
+                openModal(
+                    "adminModal"
+                );
 
             }
         );
 
 
     $("closeAdminBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => closeModal("adminModal")
+            () =>
+                closeModal(
+                    "adminModal"
+                )
         );
 
 
     $("openAdminReportsBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             async () => {
 
-                closeModal("adminModal");
+                closeModal(
+                    "adminModal"
+                );
 
-                openModal("ownerModal");
+                openModal(
+                    "ownerModal"
+                );
 
-                document.querySelector(
-                    '[data-owner-tab="reports"]'
-                )?.click();
+
+                document
+                    .querySelector(
+                        '[data-owner-tab="reports"]'
+                    )
+                    ?.click();
+
 
                 await loadReports(
                     "ownerReportsList"
@@ -2871,28 +4174,37 @@ function setupEvents() {
 
 
     $("openAdminUsersBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             () => {
 
-                closeModal("adminModal");
+                closeModal(
+                    "adminModal"
+                );
 
-                openModal("ownerModal");
+                openModal(
+                    "ownerModal"
+                );
 
-                document.querySelector(
-                    '[data-owner-tab="users"]'
-                )?.click();
+
+                document
+                    .querySelector(
+                        '[data-owner-tab="users"]'
+                    )
+                    ?.click();
 
             }
         );
 
 
     $("openAdminGroupsBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             () => {
 
-                closeModal("adminModal");
+                closeModal(
+                    "adminModal"
+                );
 
                 showToast(
                     "Group moderation is coming next"
@@ -2903,11 +4215,13 @@ function setupEvents() {
 
 
     $("openAdminChannelsBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             () => {
 
-                closeModal("adminModal");
+                closeModal(
+                    "adminModal"
+                );
 
                 showToast(
                     "Channel moderation is coming next"
@@ -2917,86 +4231,114 @@ function setupEvents() {
         );
 
 
-    /* Create Group */
+    /* =====================================================
+       CREATE GROUP
+    ===================================================== */
 
     $("createGroupBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => openModal("createGroupModal")
+            () =>
+                openModal(
+                    "createGroupModal"
+                )
         );
 
 
     $("closeGroupBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => closeModal("createGroupModal")
+            () =>
+                closeModal(
+                    "createGroupModal"
+                )
         );
 
 
     $("groupForm")
-        .addEventListener(
+        ?.addEventListener(
             "submit",
             createGroup
         );
 
 
-    /* Create Channel */
+    /* =====================================================
+       CREATE CHANNEL
+    ===================================================== */
 
     $("createChannelBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => openModal("createChannelModal")
+            () =>
+                openModal(
+                    "createChannelModal"
+                )
         );
 
 
     $("closeChannelBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => closeModal("createChannelModal")
+            () =>
+                closeModal(
+                    "createChannelModal"
+                )
         );
 
 
     $("channelForm")
-        .addEventListener(
+        ?.addEventListener(
             "submit",
             createChannel
         );
 
 
-    /* Contact */
+    /* =====================================================
+       CONTACT
+    ===================================================== */
 
     $("addContactBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             sendContactRequest
         );
 
 
     $("acceptContactBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => updateContactRequest("accepted")
+            () =>
+                updateContactRequest(
+                    "accepted"
+                )
         );
 
 
     $("declineContactBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => updateContactRequest("declined")
+            () =>
+                updateContactRequest(
+                    "declined"
+                )
         );
 
 
-    /* Message */
+    /* =====================================================
+       MESSAGE
+    ===================================================== */
 
     $("messageForm")
-        .addEventListener(
+        ?.addEventListener(
             "submit",
             event => {
 
                 event.preventDefault();
 
+
                 sendMessage(
-                    $("messageInput").value
+                    $("messageInput")
+                        .value
                 );
 
             }
@@ -3004,89 +4346,114 @@ function setupEvents() {
 
 
     $("imageBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => $("imageInput").click()
+            () =>
+                $("imageInput")
+                    ?.click()
         );
 
 
     $("imageInput")
-        .addEventListener(
+        ?.addEventListener(
             "change",
             event => {
 
                 const file =
                     event.target.files?.[0];
 
+
                 if (file) {
-                    sendImage(file);
+
+                    sendImage(
+                        file
+                    );
+
                 }
 
-                event.target.value = "";
+
+                event.target.value =
+                    "";
 
             }
         );
 
 
     $("stickerBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
-            () => showToast(
-                "Stickers will be connected next"
-            )
+            () =>
+                showToast(
+                    "Stickers will be connected next"
+                )
         );
 
 
-    /* Emoji */
+    /* =====================================================
+       EMOJI
+    ===================================================== */
 
     setupEmoji();
 
 
-    /* Search */
+    /* =====================================================
+       SEARCH
+    ===================================================== */
 
     setupSearch();
 
 
-    /* Tabs */
+    /* =====================================================
+       TABS
+    ===================================================== */
 
     setupTabs();
 
 
-    /* Mobile */
+    /* =====================================================
+       MOBILE
+    ===================================================== */
 
     setupMobile();
 
 
-    /* Logout */
+    /* =====================================================
+       LOGOUT
+    ===================================================== */
 
     $("logoutBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             logout
         );
 
 
     $("settingsLogoutBtn")
-        .addEventListener(
+        ?.addEventListener(
             "click",
             logout
         );
 
 
-    /* Avatar */
+    /* =====================================================
+       AVATAR
+    ===================================================== */
 
     $("profileAvatarInput")
-        .addEventListener(
+        ?.addEventListener(
             "change",
             event => {
 
                 const file =
                     event.target.files?.[0];
 
+
                 if (!file) return;
+
 
                 const reader =
                     new FileReader();
+
 
                 reader.onload = () => {
 
@@ -3094,47 +4461,61 @@ function setupEvents() {
                         .style.backgroundImage =
                         `url("${reader.result}")`;
 
+
                     $("profileEditAvatar")
                         .style.backgroundSize =
                         "cover";
+
 
                     $("profileEditAvatar")
                         .style.backgroundPosition =
                         "center";
 
+
                     $("profileEditAvatar")
-                        .textContent = "";
+                        .textContent =
+                        "";
 
                 };
 
-                reader.readAsDataURL(file);
+
+                reader.readAsDataURL(
+                    file
+                );
 
             }
         );
 
 
-    /* Close when clicking outside */
+    /* =====================================================
+       CLOSE MODALS
+    ===================================================== */
 
-    document.querySelectorAll(
-        ".modal-overlay"
-    ).forEach(overlay => {
+    document
+        .querySelectorAll(
+            ".modal-overlay"
+        )
+        .forEach(overlay => {
 
-        overlay.addEventListener(
-            "click",
-            event => {
+            overlay.addEventListener(
+                "click",
+                event => {
 
-                if (event.target === overlay) {
+                    if (
+                        event.target ===
+                        overlay
+                    ) {
 
-                    overlay.classList.remove(
-                        "active"
-                    );
+                        overlay.classList.remove(
+                            "active"
+                        );
+
+                    }
 
                 }
+            );
 
-            }
-        );
-
-    });
+        });
 }
 
 
@@ -3144,34 +4525,88 @@ function setupEvents() {
 
 async function init() {
 
-    applyLanguage();
+    try {
+
+        applyLanguage();
 
 
-    const sessionLoaded =
-        await loadSession();
-
-    if (!sessionLoaded) return;
+        const sessionLoaded =
+            await loadSession();
 
 
-    const profileLoaded =
-        await loadMyProfile();
-
-    if (!profileLoaded) return;
-
-
-    setupEvents();
-
-    setupRealtime();
-
-    await loadDefaultList();
+        if (!sessionLoaded) {
+            return;
+        }
 
 
-    $("messageInput").disabled = true;
-    $("sendButton").disabled = true;
-    $("imageBtn").disabled = true;
-    $("emojiBtn").disabled = true;
-    $("stickerBtn").disabled = true;
+        const profileLoaded =
+            await loadMyProfile();
+
+
+        if (!profileLoaded) {
+            return;
+        }
+
+
+        setupEvents();
+
+
+        setupRealtime();
+
+
+        await loadDefaultList();
+
+
+        if ($("messageInput")) {
+            $("messageInput").disabled =
+                true;
+        }
+
+
+        if ($("sendButton")) {
+            $("sendButton").disabled =
+                true;
+        }
+
+
+        if ($("imageBtn")) {
+            $("imageBtn").disabled =
+                true;
+        }
+
+
+        if ($("emojiBtn")) {
+            $("emojiBtn").disabled =
+                true;
+        }
+
+
+        if ($("stickerBtn")) {
+            $("stickerBtn").disabled =
+                true;
+        }
+
+
+        console.log(
+            "MsgBox dashboard initialized successfully."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "MsgBox initialization error:",
+            error
+        );
+
+
+        showToast(
+            "Dashboard initialization failed"
+        );
+
+    }
 }
 
 
 init();
+
+})();
