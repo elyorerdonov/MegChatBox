@@ -16,48 +16,30 @@
 
 <body>
 
-<div class="app">
+<div class="app" id="app">
 
-    <!-- =====================================================
-         SIDEBAR
-    ====================================================== -->
+    <!-- ================= SIDEBAR ================= -->
 
     <aside class="sidebar" id="sidebar">
-
-        <!-- PROFILE HEADER -->
 
         <div class="sidebar-header">
 
             <div class="profile" id="myProfileBtn">
-
-                <div class="profile-avatar" id="myAvatar">
-                    ?
-                </div>
+                <div class="profile-avatar" id="myAvatar">?</div>
 
                 <div class="profile-info">
-
                     <h3>
-
-                        <span id="myName">
-                            Loading...
-                        </span>
+                        <span id="myName">Loading...</span>
 
                         <span
                             id="myVerified"
                             class="verified-badge"
-                            style="display: none;"
-                        >
-                            ✓
-                        </span>
-
+                            style="display:none;"
+                        >✓</span>
                     </h3>
 
-                    <p id="myUsername">
-                        @username
-                    </p>
-
+                    <p id="myUsername">@username</p>
                 </div>
-
             </div>
 
             <button
@@ -70,11 +52,9 @@
 
         </div>
 
-
         <!-- SEARCH -->
 
         <div class="search-box">
-
             <i class="fa-solid fa-magnifying-glass"></i>
 
             <input
@@ -83,11 +63,9 @@
                 placeholder="Search username..."
                 autocomplete="off"
             >
-
         </div>
 
-
-        <!-- MAIN NAVIGATION -->
+        <!-- TABS -->
 
         <div class="sidebar-tabs">
 
@@ -96,7 +74,7 @@
                 data-tab="chats"
             >
                 <i class="fa-solid fa-message"></i>
-                <span>Chats</span>
+                <span data-i18n="chats">Chats</span>
             </button>
 
             <button
@@ -104,7 +82,7 @@
                 data-tab="groups"
             >
                 <i class="fa-solid fa-users"></i>
-                <span>Groups</span>
+                <span data-i18n="groups">Groups</span>
             </button>
 
             <button
@@ -112,34 +90,26 @@
                 data-tab="channels"
             >
                 <i class="fa-solid fa-bullhorn"></i>
-                <span>Channels</span>
+                <span data-i18n="channels">Channels</span>
             </button>
 
         </div>
 
+        <!-- LIST -->
 
-        <!-- SEARCH / CHAT / GROUP / CHANNEL LIST -->
-
-        <div
-            class="chat-list"
-            id="userList"
-        >
+        <div class="chat-list" id="userList">
 
             <div class="empty-state">
-
                 <i class="fa-solid fa-comments"></i>
 
-                <p>
-                    Search for a user
-                    to start chatting
+                <p data-i18n="searchToChat">
+                    Search for a user to start chatting
                 </p>
-
             </div>
 
         </div>
 
-
-        <!-- CREATE BUTTON -->
+        <!-- CREATE -->
 
         <div class="create-section">
 
@@ -148,7 +118,7 @@
                 id="createGroupBtn"
             >
                 <i class="fa-solid fa-users"></i>
-                Create Group
+                <span data-i18n="createGroup">Create Group</span>
             </button>
 
             <button
@@ -156,11 +126,10 @@
                 id="createChannelBtn"
             >
                 <i class="fa-solid fa-bullhorn"></i>
-                Create Channel
+                <span data-i18n="createChannel">Create Channel</span>
             </button>
 
         </div>
-
 
         <!-- LOGOUT -->
 
@@ -171,7 +140,7 @@
                 id="logoutBtn"
             >
                 <i class="fa-solid fa-right-from-bracket"></i>
-                <span>Logout</span>
+                <span data-i18n="logout">Logout</span>
             </button>
 
         </div>
@@ -179,14 +148,9 @@
     </aside>
 
 
-    <!-- =====================================================
-         MAIN CHAT AREA
-    ====================================================== -->
+    <!-- ================= CHAT ================= -->
 
     <main class="chat-area">
-
-
-        <!-- CHAT HEADER -->
 
         <header class="chat-header">
 
@@ -197,16 +161,12 @@
                 <i class="fa-solid fa-arrow-left"></i>
             </button>
 
-
             <div class="chat-user">
 
                 <div
                     class="chat-avatar"
                     id="chatAvatar"
-                >
-                    ?
-                </div>
-
+                >?</div>
 
                 <div class="chat-user-info">
 
@@ -219,10 +179,8 @@
                         <span
                             id="chatVerified"
                             class="verified-badge"
-                            style="display: none;"
-                        >
-                            ✓
-                        </span>
+                            style="display:none;"
+                        >✓</span>
 
                     </h2>
 
@@ -234,9 +192,6 @@
 
             </div>
 
-
-            <!-- CONTACT ACTIONS -->
-
             <div
                 class="contact-actions"
                 id="contactActions"
@@ -247,25 +202,23 @@
                     class="contact-btn"
                 >
                     <i class="fa-solid fa-user-plus"></i>
-                    <span>Add Contact</span>
+                    <span data-i18n="addContact">Add Contact</span>
                 </button>
-
 
                 <button
                     id="acceptContactBtn"
                     class="contact-btn accept-btn"
                 >
                     <i class="fa-solid fa-check"></i>
-                    <span>Accept</span>
+                    <span data-i18n="accept">Accept</span>
                 </button>
-
 
                 <button
                     id="declineContactBtn"
                     class="contact-btn decline-btn"
                 >
                     <i class="fa-solid fa-xmark"></i>
-                    <span>Decline</span>
+                    <span data-i18n="decline">Decline</span>
                 </button>
 
             </div>
@@ -273,9 +226,7 @@
         </header>
 
 
-        <!-- =================================================
-             MESSAGES
-        ================================================== -->
+        <!-- MESSAGES -->
 
         <div
             class="messages"
@@ -288,11 +239,11 @@
                     <i class="fa-solid fa-comments"></i>
                 </div>
 
-                <h2>
+                <h2 data-i18n="welcome">
                     Welcome to MsgBox
                 </h2>
 
-                <p>
+                <p data-i18n="searchToChat">
                     Search for a user to start chatting
                 </p>
 
@@ -301,17 +252,12 @@
         </div>
 
 
-        <!-- =================================================
-             MESSAGE FORM
-        ================================================== -->
+        <!-- MESSAGE FORM -->
 
         <form
             class="message-form"
             id="messageForm"
         >
-
-
-            <!-- ATTACHMENT -->
 
             <button
                 type="button"
@@ -323,18 +269,12 @@
                 <i class="fa-solid fa-image"></i>
             </button>
 
-
-            <!-- HIDDEN IMAGE INPUT -->
-
             <input
                 type="file"
                 id="imageInput"
                 accept="image/*"
                 hidden
             >
-
-
-            <!-- EMOJI -->
 
             <button
                 type="button"
@@ -346,9 +286,6 @@
                 <i class="fa-regular fa-face-smile"></i>
             </button>
 
-
-            <!-- STICKER -->
-
             <button
                 type="button"
                 class="message-tool-btn"
@@ -359,9 +296,6 @@
                 <i class="fa-solid fa-icons"></i>
             </button>
 
-
-            <!-- MESSAGE INPUT -->
-
             <input
                 type="text"
                 id="messageInput"
@@ -369,9 +303,6 @@
                 autocomplete="off"
                 disabled
             >
-
-
-            <!-- SEND -->
 
             <button
                 type="submit"
@@ -384,13 +315,12 @@
         </form>
 
 
-        <!-- EMOJI PANEL -->
+        <!-- EMOJI -->
 
         <div
             class="emoji-panel"
             id="emojiPanel"
         >
-
             <button type="button">😀</button>
             <button type="button">😂</button>
             <button type="button">🤣</button>
@@ -406,10 +336,8 @@
             <button type="button">❤️</button>
             <button type="button">🔥</button>
             <button type="button">💀</button>
-            <button type="button">😂</button>
             <button type="button">🎉</button>
             <button type="button">🚀</button>
-
         </div>
 
     </main>
@@ -417,9 +345,7 @@
 </div>
 
 
-<!-- =========================================================
-     SETTINGS MODAL
-========================================================== -->
+<!-- ================= SETTINGS ================= -->
 
 <div
     class="modal-overlay"
@@ -432,12 +358,12 @@
 
             <h2>
                 <i class="fa-solid fa-gear"></i>
-                Settings
+                <span data-i18n="settings">Settings</span>
             </h2>
 
             <button
                 class="modal-close"
-                data-close="settingsModal"
+                id="closeSettingsBtn"
             >
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -447,136 +373,131 @@
 
         <div class="settings-content">
 
-
-            <!-- PROFILE SETTINGS -->
-
             <button
                 class="settings-item"
                 id="profileSettingsBtn"
             >
-
                 <div class="settings-icon">
                     <i class="fa-solid fa-user"></i>
                 </div>
 
                 <div>
-                    <strong>
-                        Profile
-                    </strong>
-
-                    <span>
+                    <strong data-i18n="profile">Profile</strong>
+                    <span data-i18n="profileDescription">
                         Name, username, bio and avatar
                     </span>
                 </div>
 
                 <i class="fa-solid fa-chevron-right"></i>
-
             </button>
 
-
-            <!-- PRIVACY -->
 
             <button
                 class="settings-item"
                 id="privacySettingsBtn"
             >
-
                 <div class="settings-icon">
                     <i class="fa-solid fa-shield-halved"></i>
                 </div>
 
                 <div>
-                    <strong>
-                        Privacy
-                    </strong>
-
-                    <span>
+                    <strong data-i18n="privacy">Privacy</strong>
+                    <span data-i18n="privacyDescription">
                         Privacy and account settings
                     </span>
                 </div>
 
                 <i class="fa-solid fa-chevron-right"></i>
-
             </button>
 
-
-            <!-- APPEARANCE -->
 
             <button
                 class="settings-item"
                 id="appearanceSettingsBtn"
             >
-
                 <div class="settings-icon">
                     <i class="fa-solid fa-palette"></i>
                 </div>
 
                 <div>
-                    <strong>
-                        Appearance
-                    </strong>
-
-                    <span>
+                    <strong data-i18n="appearance">Appearance</strong>
+                    <span data-i18n="appearanceDescription">
                         Customize MsgBox
                     </span>
                 </div>
 
                 <i class="fa-solid fa-chevron-right"></i>
-
             </button>
 
 
-            <!-- OWNER PANEL -->
+            <!-- LANGUAGE -->
+
+            <button
+                class="settings-item"
+                id="languageSettingsBtn"
+            >
+                <div class="settings-icon">
+                    <i class="fa-solid fa-language"></i>
+                </div>
+
+                <div>
+                    <strong data-i18n="language">Language</strong>
+                    <span id="currentLanguageText">
+                        English
+                    </span>
+                </div>
+
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+
+
+            <!-- OWNER -->
 
             <button
                 class="settings-item owner-setting"
-                id="ownerPanelBtn"
-                style="display: none;"
+                id="ownerPanelButton"
+                style="display:none;"
             >
-
                 <div class="settings-icon owner-icon">
                     <i class="fa-solid fa-crown"></i>
                 </div>
 
                 <div>
-                    <strong>
+                    <strong data-i18n="ownerPanel">
                         Owner Panel
                     </strong>
 
-                    <span>
+                    <span data-i18n="ownerPanelDescription">
                         Manage MsgBox
                     </span>
                 </div>
 
                 <i class="fa-solid fa-chevron-right"></i>
-
             </button>
 
 
-            <!-- ADMIN PANEL -->
+            <!-- ADMIN -->
 
             <button
                 class="settings-item admin-setting"
-                id="adminPanelBtn"
-                style="display: none;"
+                id="adminPanelButton"
+                style="display:none;"
             >
-
                 <div class="settings-icon admin-icon">
                     <i class="fa-solid fa-shield"></i>
                 </div>
 
                 <div>
-                    <strong>
+                    <strong data-i18n="adminPanel">
                         Admin Panel
                     </strong>
 
-                    <span>
+                    <span data-i18n="adminPanelDescription">
                         Moderation tools
                     </span>
                 </div>
 
                 <i class="fa-solid fa-chevron-right"></i>
-
             </button>
 
 
@@ -586,21 +507,17 @@
                 class="settings-item danger-setting"
                 id="settingsLogoutBtn"
             >
-
                 <div class="settings-icon">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </div>
 
                 <div>
-                    <strong>
-                        Logout
-                    </strong>
+                    <strong data-i18n="logout">Logout</strong>
 
-                    <span>
+                    <span data-i18n="logoutDescription">
                         Sign out of MsgBox
                     </span>
                 </div>
-
             </button>
 
         </div>
@@ -610,9 +527,97 @@
 </div>
 
 
-<!-- =========================================================
-     OWNER PANEL
-========================================================== -->
+<!-- ================= LANGUAGE ================= -->
+
+<div
+    class="modal-overlay"
+    id="languageModal"
+>
+
+    <div class="modal">
+
+        <div class="modal-header">
+
+            <h2>
+                <i class="fa-solid fa-language"></i>
+                <span data-i18n="language">Language</span>
+            </h2>
+
+            <button
+                class="modal-close"
+                id="closeLanguageBtn"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
+
+        <div class="settings-content">
+
+            <button
+                class="settings-item language-option"
+                data-language="en"
+            >
+                <div class="settings-icon">🇬🇧</div>
+
+                <div>
+                    <strong>English</strong>
+                    <span>English</span>
+                </div>
+
+                <i
+                    class="fa-solid fa-check language-check"
+                    data-check="en"
+                    style="display:none;"
+                ></i>
+            </button>
+
+
+            <button
+                class="settings-item language-option"
+                data-language="uz"
+            >
+                <div class="settings-icon">🇺🇿</div>
+
+                <div>
+                    <strong>O‘zbek</strong>
+                    <span>O‘zbek tili</span>
+                </div>
+
+                <i
+                    class="fa-solid fa-check language-check"
+                    data-check="uz"
+                    style="display:none;"
+                ></i>
+            </button>
+
+
+            <button
+                class="settings-item language-option"
+                data-language="ru"
+            >
+                <div class="settings-icon">🇷🇺</div>
+
+                <div>
+                    <strong>Русский</strong>
+                    <span>Русский язык</span>
+                </div>
+
+                <i
+                    class="fa-solid fa-check language-check"
+                    data-check="ru"
+                    style="display:none;"
+                ></i>
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= OWNER PANEL ================= -->
 
 <div
     class="modal-overlay"
@@ -625,12 +630,12 @@
 
             <h2>
                 <i class="fa-solid fa-crown"></i>
-                Owner Panel
+                <span data-i18n="ownerPanel">Owner Panel</span>
             </h2>
 
             <button
                 class="modal-close"
-                data-close="ownerModal"
+                id="closeOwnerBtn"
             >
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -645,7 +650,7 @@
                 data-owner-tab="verified"
             >
                 <i class="fa-solid fa-circle-check"></i>
-                Verified
+                <span data-i18n="verified">Verified</span>
             </button>
 
             <button
@@ -653,7 +658,7 @@
                 data-owner-tab="users"
             >
                 <i class="fa-solid fa-user-shield"></i>
-                Users
+                <span data-i18n="users">Users</span>
             </button>
 
             <button
@@ -661,7 +666,7 @@
                 data-owner-tab="admins"
             >
                 <i class="fa-solid fa-user-tie"></i>
-                Admins
+                <span data-i18n="admins">Admins</span>
             </button>
 
             <button
@@ -669,27 +674,24 @@
                 data-owner-tab="reports"
             >
                 <i class="fa-solid fa-flag"></i>
-                Reports
+                <span data-i18n="reports">Reports</span>
             </button>
 
         </div>
 
-
-        <!-- VERIFIED -->
 
         <section
             class="owner-section active"
             id="ownerVerifiedSection"
         >
 
-            <h3>
-                Verified Badge
-            </h3>
+            <h3 data-i18n="verifiedBadge">Verified Badge</h3>
 
             <p class="section-description">
-                Give or remove the verified badge.
+                <span data-i18n="verifiedDescription">
+                    Give or remove the verified badge.
+                </span>
             </p>
-
 
             <div class="owner-search">
 
@@ -697,46 +699,32 @@
 
                 <input
                     type="text"
-                    id="verifiedUserSearch"
+                    id="ownerVerifiedUsername"
                     placeholder="Search username..."
                 >
 
+                <button id="ownerVerifiedSearchBtn">
+                    <i class="fa-solid fa-search"></i>
+                </button>
+
             </div>
 
-
             <div
-                id="verifiedUserResult"
+                id="ownerVerifiedResult"
                 class="owner-result"
             ></div>
 
-
             <div class="verified-duration">
 
-                <label>
-                    Duration
-                </label>
+                <label data-i18n="duration">Duration</label>
 
                 <select id="verifiedDuration">
 
-                    <option value="permanent">
-                        Permanent
-                    </option>
-
-                    <option value="1">
-                        1 day
-                    </option>
-
-                    <option value="7">
-                        7 days
-                    </option>
-
-                    <option value="30">
-                        30 days
-                    </option>
-
-                    <option value="90">
-                        90 days
-                    </option>
+                    <option value="permanent">Permanent</option>
+                    <option value="1">1 day</option>
+                    <option value="7">7 days</option>
+                    <option value="30">30 days</option>
+                    <option value="90">90 days</option>
 
                 </select>
 
@@ -745,21 +733,16 @@
         </section>
 
 
-        <!-- USERS -->
-
         <section
             class="owner-section"
             id="ownerUsersSection"
         >
 
-            <h3>
-                User Control
-            </h3>
+            <h3 data-i18n="userControl">User Control</h3>
 
             <p class="section-description">
                 Manage account and messaging restrictions.
             </p>
-
 
             <div class="owner-search">
 
@@ -767,36 +750,34 @@
 
                 <input
                     type="text"
-                    id="moderationUserSearch"
+                    id="ownerModerationUsername"
                     placeholder="Search username..."
                 >
 
+                <button id="ownerModerationSearchBtn">
+                    <i class="fa-solid fa-search"></i>
+                </button>
+
             </div>
 
-
             <div
-                id="moderationUserResult"
+                id="ownerModerationResult"
                 class="owner-result"
             ></div>
 
         </section>
 
-
-        <!-- ADMINS -->
 
         <section
             class="owner-section"
             id="ownerAdminsSection"
         >
 
-            <h3>
-                Administrators
-            </h3>
+            <h3 data-i18n="administrators">Administrators</h3>
 
             <p class="section-description">
                 Owner-only administrator management.
             </p>
-
 
             <div class="owner-search">
 
@@ -804,52 +785,47 @@
 
                 <input
                     type="text"
-                    id="adminUserSearch"
+                    id="ownerAdminUsername"
                     placeholder="Search username..."
                 >
 
+                <button id="ownerAdminSearchBtn">
+                    <i class="fa-solid fa-search"></i>
+                </button>
+
             </div>
 
-
             <div
-                id="adminUserResult"
+                id="ownerAdminResult"
                 class="owner-result"
             ></div>
 
-
             <div
-                id="adminList"
+                id="ownerAdminList"
                 class="admin-list"
             ></div>
 
         </section>
 
 
-        <!-- REPORTS -->
-
         <section
             class="owner-section"
             id="ownerReportsSection"
         >
 
-            <h3>
-                Reports
-            </h3>
+            <h3 data-i18n="reports">Reports</h3>
 
             <p class="section-description">
                 Review user reports.
             </p>
 
-
             <div
-                id="reportsList"
+                id="ownerReportsList"
                 class="reports-list"
             >
-
                 <div class="empty-state">
                     No reports yet.
                 </div>
-
             </div>
 
         </section>
@@ -859,9 +835,7 @@
 </div>
 
 
-<!-- =========================================================
-     ADMIN PANEL
-========================================================== -->
+<!-- ================= ADMIN PANEL ================= -->
 
 <div
     class="modal-overlay"
@@ -874,12 +848,12 @@
 
             <h2>
                 <i class="fa-solid fa-shield"></i>
-                Admin Panel
+                <span data-i18n="adminPanel">Admin Panel</span>
             </h2>
 
             <button
                 class="modal-close"
-                data-close="adminModal"
+                id="closeAdminBtn"
             >
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -894,15 +868,8 @@
                 <i class="fa-solid fa-flag"></i>
 
                 <div>
-
-                    <h3>
-                        Reports
-                    </h3>
-
-                    <p>
-                        Review reports from users.
-                    </p>
-
+                    <h3 data-i18n="reports">Reports</h3>
+                    <p>Review reports from users.</p>
                 </div>
 
                 <button id="openAdminReportsBtn">
@@ -917,15 +884,8 @@
                 <i class="fa-solid fa-user-lock"></i>
 
                 <div>
-
-                    <h3>
-                        User Moderation
-                    </h3>
-
-                    <p>
-                        Manage messaging restrictions.
-                    </p>
-
+                    <h3>User Moderation</h3>
+                    <p>Manage messaging restrictions.</p>
                 </div>
 
                 <button id="openAdminUsersBtn">
@@ -940,15 +900,8 @@
                 <i class="fa-solid fa-users"></i>
 
                 <div>
-
-                    <h3>
-                        Groups
-                    </h3>
-
-                    <p>
-                        Moderate groups.
-                    </p>
-
+                    <h3>Groups</h3>
+                    <p>Moderate groups.</p>
                 </div>
 
                 <button id="openAdminGroupsBtn">
@@ -963,15 +916,8 @@
                 <i class="fa-solid fa-bullhorn"></i>
 
                 <div>
-
-                    <h3>
-                        Channels
-                    </h3>
-
-                    <p>
-                        Moderate channels.
-                    </p>
-
+                    <h3>Channels</h3>
+                    <p>Moderate channels.</p>
                 </div>
 
                 <button id="openAdminChannelsBtn">
@@ -987,9 +933,7 @@
 </div>
 
 
-<!-- =========================================================
-     CREATE GROUP
-========================================================== -->
+<!-- ================= CREATE GROUP ================= -->
 
 <div
     class="modal-overlay"
@@ -1002,12 +946,12 @@
 
             <h2>
                 <i class="fa-solid fa-users"></i>
-                Create Group
+                <span data-i18n="createGroup">Create Group</span>
             </h2>
 
             <button
                 class="modal-close"
-                data-close="createGroupModal"
+                id="closeGroupBtn"
             >
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -1015,37 +959,31 @@
         </div>
 
 
-        <form id="createGroupForm">
+        <form id="groupForm">
 
-            <label>
-                Group name
-            </label>
+            <label>Group name</label>
 
             <input
                 type="text"
-                id="groupNameInput"
+                id="groupName"
                 placeholder="My Group"
                 required
             >
 
 
-            <label>
-                Username
-            </label>
+            <label>Username</label>
 
             <input
                 type="text"
-                id="groupUsernameInput"
+                id="groupUsername"
                 placeholder="mygroup"
             >
 
 
-            <label>
-                Bio
-            </label>
+            <label>Bio</label>
 
             <textarea
-                id="groupBioInput"
+                id="groupBio"
                 placeholder="Tell people about your group..."
             ></textarea>
 
@@ -1064,9 +1002,7 @@
 </div>
 
 
-<!-- =========================================================
-     CREATE CHANNEL
-========================================================== -->
+<!-- ================= CREATE CHANNEL ================= -->
 
 <div
     class="modal-overlay"
@@ -1079,12 +1015,12 @@
 
             <h2>
                 <i class="fa-solid fa-bullhorn"></i>
-                Create Channel
+                <span data-i18n="createChannel">Create Channel</span>
             </h2>
 
             <button
                 class="modal-close"
-                data-close="createChannelModal"
+                id="closeChannelBtn"
             >
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -1092,37 +1028,31 @@
         </div>
 
 
-        <form id="createChannelForm">
+        <form id="channelForm">
 
-            <label>
-                Channel name
-            </label>
+            <label>Channel name</label>
 
             <input
                 type="text"
-                id="channelNameInput"
+                id="channelName"
                 placeholder="My Channel"
                 required
             >
 
 
-            <label>
-                Username
-            </label>
+            <label>Username</label>
 
             <input
                 type="text"
-                id="channelUsernameInput"
+                id="channelUsername"
                 placeholder="mychannel"
             >
 
 
-            <label>
-                Bio
-            </label>
+            <label>Bio</label>
 
             <textarea
-                id="channelBioInput"
+                id="channelBio"
                 placeholder="Tell people about your channel..."
             ></textarea>
 
@@ -1141,9 +1071,7 @@
 </div>
 
 
-<!-- =========================================================
-     PROFILE SETTINGS
-========================================================== -->
+<!-- ================= PROFILE ================= -->
 
 <div
     class="modal-overlay"
@@ -1156,12 +1084,12 @@
 
             <h2>
                 <i class="fa-solid fa-user"></i>
-                Profile
+                <span data-i18n="profile">Profile</span>
             </h2>
 
             <button
                 class="modal-close"
-                data-close="profileModal"
+                id="closeProfileBtn"
             >
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -1176,12 +1104,10 @@
                 <div
                     class="large-avatar"
                     id="profileEditAvatar"
-                >
-                    ?
-                </div>
+                >?</div>
 
                 <label
-                    for="avatarInput"
+                    for="profileAvatarInput"
                     class="avatar-upload-btn"
                 >
                     <i class="fa-solid fa-camera"></i>
@@ -1190,7 +1116,7 @@
 
                 <input
                     type="file"
-                    id="avatarInput"
+                    id="profileAvatarInput"
                     accept="image/*"
                     hidden
                 >
@@ -1198,34 +1124,28 @@
             </div>
 
 
-            <label>
-                Full name
-            </label>
+            <label>Full name</label>
 
             <input
                 type="text"
-                id="profileNameInput"
+                id="profileFullName"
                 required
             >
 
 
-            <label>
-                Username
-            </label>
+            <label>Username</label>
 
             <input
                 type="text"
-                id="profileUsernameInput"
+                id="profileUsername"
                 required
             >
 
 
-            <label>
-                Bio
-            </label>
+            <label>Bio</label>
 
             <textarea
-                id="profileBioInput"
+                id="profileBio"
                 maxlength="160"
                 placeholder="Tell people about yourself..."
             ></textarea>
@@ -1245,9 +1165,7 @@
 </div>
 
 
-<!-- =========================================================
-     HIDDEN FILE / OTHER ELEMENTS
-========================================================== -->
+<!-- ================= TOAST ================= -->
 
 <div
     id="toast"
@@ -1255,12 +1173,10 @@
 ></div>
 
 
-<!-- SUPABASE -->
+<!-- ================= SUPABASE ================= -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script src="supabase.js"></script>
-
 <script src="dashboard.js"></script>
 
 </body>
