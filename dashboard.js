@@ -1,46 +1,71 @@
+/* =========================================================
+   MEGCHATBOX - DASHBOARD MASTER JS
+   Full client logic
+   ========================================================= */
+
 (() => {
     "use strict";
 
     /* =========================================================
-       MEGCHATBOX - DASHBOARD MASTER JS
+       SUPABASE
        ========================================================= */
 
-    const db = window.supabaseClient;
+    const db =
+        typeof supabaseClient !== "undefined"
+            ? supabaseClient
+            : window.supabaseClient;
 
     if (!db) {
-        console.error("Supabase client topilmadi.");
+        console.error("Supabase client not found.");
         return;
     }
 
     /* =========================================================
-       STATE
+       GLOBAL STATE
        ========================================================= */
 
     let currentUser = null;
     let myProfile = null;
 
-    let currentChatUser = null;
-    let currentChatType = null; // direct | group | channel
-    let currentChatId = null;
+    let activeChatUser = null;
+    let activeGroup = null;
+    let activeChannel = null;
+
+    let activeChatType = null; // direct | group | channel
+
+    let allUsers = [];
+    let allGroups = [];
+    let allChannels = [];
+
+    let myGroups = [];
+    let myChannels = [];
 
     let currentMessages = [];
-    let currentGroup = null;
-    let currentChannel = null;
-
-    let currentProfileUser = null;
-    let editingMessageId = null;
 
     let realtimeChannels = [];
 
-    const $ = (selector) => document.querySelector(selector);
-    const $$ = (selector) => [...document.querySelectorAll(selector)];
+    let editingMessage = null;
+    let activeProfileUser = null;
+
+    let currentTheme = localStorage.getItem("megchat_theme") || "dark";
+    let currentDensity =
+        localStorage.getItem("megchat_density") || "comfortable";
+
+    let currentLanguage =
+        localStorage.getItem("megchat_language") || "en";
+
+    let holdTimer = null;
+    let swipeState = null;
 
     /* =========================================================
        HELPERS
        ========================================================= */
 
-    function escapeHTML(value = "") {
-        return String(value)
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => [...document.querySelectorAll(selector)];
+
+    function escapeHTML(value) {
+        return String(value ?? "")
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
@@ -48,101 +73,182 @@
             .replace(/'/g, "&#039;");
     }
 
-    function escapeAttribute(value = "") {
+    function escapeAttr(value) {
         return escapeHTML(value);
-    }
-
-    function getInitial(name = "U") {
-        return String(name).trim().charAt(0).toUpperCase() || "U";
-    }
-
-    function formatTime(date) {
-        if (!date) return "";
-
-        return new Date(date).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit"
-        });
     }
 
     function formatDate(date) {
         if (!date) return "";
 
-        return new Date(date).toLocaleDateString([], {
-            day: "2-digit",
-            month: "short",
-            year: "numeric"
+        const d = new Date(date);
+
+        if (Number.isNaN(d.getTime())) return "";
+
+        return d.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit"
         });
     }
 
-    function toast(message, type = "normal") {
-        const el = $("#toast");
-        const text = $("#toastMessage");
+    function formatLastSeen(date) {
+        if (!date) return "Offline";
 
-        if (!el || !text) {
-            console.log(message);
-            return;
+        const d = new Date(date);
+
+        if (Number.isNaN(d.getTime())) return "Offline";
+
+        return `last seen ${d.toLocaleString([], {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+        })}`;
+    }
+
+    function normalizeUsername(value) {
+        return String(value || "")
+            .trim()
+            .replace(/^@/, "")
+            .toLowerCase();
+    }
+
+    function validUsername(value) {
+        return /^[a-z0-9_]{3,32}$/.test(normalizeUsername(value));
+    }
+
+    function isOwn(id) {
+        return !!currentUser && id === currentUser.id;
+    }
+
+    function showToast(message) {
+        const toast = $("#toast");
+        const toastMessage = $("#toastMessage");
+
+        if (!toast) return;
+
+        if (toastMessage) {
+            toastMessage.textContent = message;
         }
 
-        text.textContent = message;
+        toast.classList.add("show");
 
-        el.classList.remove("show", "success", "error");
+        clearTimeout(showToast.timer);
 
-        if (type === "success") el.classList.add("success");
-        if (type === "error") el.classList.add("error");
-
-        requestAnimationFrame(() => {
-            el.classList.add("show");
-        });
-
-        clearTimeout(window.__toastTimer);
-
-        window.__toastTimer = setTimeout(() => {
-            el.classList.remove("show");
+        showToast.timer = setTimeout(() => {
+            toast.classList.remove("show");
         }, 3000);
     }
 
-    function showElement(el) {
-        if (el) el.style.display = "";
-    }
+    function closeModal(id) {
+        const el = typeof id === "string" ? document.getElementById(id) : id;
 
-    function hideElement(el) {
-        if (el) el.style.display = "none";
-    }
+        if (!el) return;
 
-    function setText(selector, value) {
-        const el = $(selector);
-        if (el) el.textContent = value ?? "";
-    }
+        el.classList.remove("show");
+        el.classList.remove("active");
 
-    function openModal(modal) {
-        if (!modal) return;
-
-        modal.classList.add("show");
-        modal.style.display = "flex";
-    }
-
-    function closeModal(modal) {
-        if (!modal) return;
-
-        modal.classList.remove("show");
-        modal.style.display = "none";
-    }
-
-    function closeAllMenus() {
-        const profileMenu = $("#userProfileMenu");
-        if (profileMenu) {
-            profileMenu.classList.remove("show");
-            profileMenu.style.display = "none";
+        if ("hidden" in el) {
+            el.hidden = true;
         }
     }
 
-    function isOwner() {
-        return myProfile?.role === "owner";
+    function openModal(id) {
+        const el = typeof id === "string" ? document.getElementById(id) : id;
+
+        if (!el) return;
+
+        if ("hidden" in el) {
+            el.hidden = false;
+        }
+
+        el.classList.add("show");
+        el.classList.add("active");
     }
 
-    function isAdmin() {
-        return myProfile?.role === "admin" || isOwner();
+    function setText(id, value) {
+        const el = document.getElementById(id);
+
+        if (el) {
+            el.textContent = value ?? "";
+        }
+    }
+
+    function setValue(id, value) {
+        const el = document.getElementById(id);
+
+        if (el) {
+            el.value = value ?? "";
+        }
+    }
+
+    function getValue(id) {
+        return document.getElementById(id)?.value?.trim() || "";
+    }
+
+    function isVerified(profile) {
+        if (!profile?.is_verified) {
+            return false;
+        }
+
+        if (!profile.verified_until) {
+            return true;
+        }
+
+        return new Date(profile.verified_until).getTime() > Date.now();
+    }
+
+    function verifiedHTML(profile) {
+        return isVerified(profile)
+            ? `<span class="verified-badge" title="Verified">✓</span>`
+            : "";
+    }
+
+    function avatarHTML(profile, extraClass = "") {
+        if (!profile) {
+            return `<div class="avatar ${extraClass}">?</div>`;
+        }
+
+        const name =
+            profile.full_name ||
+            profile.username ||
+            "User";
+
+        if (profile.avatar_url) {
+            return `
+                <div class="avatar ${extraClass}">
+                    <img
+                        src="${escapeAttr(profile.avatar_url)}"
+                        alt=""
+                    >
+                </div>
+            `;
+        }
+
+        return `
+            <div class="avatar ${extraClass}">
+                ${escapeHTML(name.charAt(0).toUpperCase())}
+            </div>
+        `;
+    }
+
+    function scrollMessages() {
+        const box = $("#messages");
+
+        if (!box) return;
+
+        requestAnimationFrame(() => {
+            box.scrollTop = box.scrollHeight;
+        });
+    }
+
+    function safeError(error, fallback = "Something went wrong.") {
+        console.error(error);
+
+        if (error?.message) {
+            console.error(error.message);
+        }
+
+        showToast(fallback);
     }
 
     /* =========================================================
@@ -157,12 +263,12 @@
 
         if (error || !data?.user) {
             window.location.href = "index.html";
-            return null;
+            return false;
         }
 
         currentUser = data.user;
 
-        return currentUser;
+        return true;
     }
 
     async function loadMyProfile() {
@@ -178,210 +284,369 @@
             .maybeSingle();
 
         if (error) {
-            console.error("Profile:", error);
-            toast("Profilni yuklashda xatolik", "error");
+            safeError(error, "Profile could not be loaded.");
             return null;
         }
 
         myProfile = data;
 
-        renderMyProfile();
-
         return data;
     }
+
+    /* =========================================================
+       USERNAME UNIQUENESS
+       ========================================================= */
+
+    async function isUsernameAvailable(username, userId = null) {
+        const value = normalizeUsername(username);
+
+        if (!validUsername(value)) {
+            return false;
+        }
+
+        const {
+            data,
+            error
+        } = await db
+            .from("profiles")
+            .select("id,username")
+            .eq("username", value)
+            .maybeSingle();
+
+        if (error) {
+            console.error("Username check:", error);
+            return false;
+        }
+
+        if (!data) {
+            return true;
+        }
+
+        if (userId && data.id === userId) {
+            return true;
+        }
+
+        return false;
+    }
+
+    async function updateUsername(userId, username) {
+        const value = normalizeUsername(username);
+
+        if (!validUsername(value)) {
+            showToast(
+                "Username: 3-32 ta belgi, faqat a-z, 0-9 va _."
+            );
+            return false;
+        }
+
+        const available = await isUsernameAvailable(
+            value,
+            userId
+        );
+
+        if (!available) {
+            showToast("Bu username allaqachon ishlatilgan.");
+            return false;
+        }
+
+        const {
+            error
+        } = await db
+            .from("profiles")
+            .update({
+                username: value
+            })
+            .eq("id", userId);
+
+        if (error) {
+            console.error(error);
+
+            if (
+                error.code === "23505" ||
+                String(error.message || "")
+                    .toLowerCase()
+                    .includes("duplicate")
+            ) {
+                showToast("Bu username allaqachon ishlatilgan.");
+            } else {
+                showToast("Username o‘zgartirilmadi.");
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /* =========================================================
+       PROFILE UI
+       ========================================================= */
 
     function renderMyProfile() {
         if (!myProfile) return;
 
-        const name =
-            myProfile.full_name ||
+        const name = myProfile.full_name ||
             myProfile.username ||
             "User";
 
-        const username = myProfile.username
-            ? "@" + myProfile.username
-            : "";
+        setText("myName", name);
+        setText(
+            "myUsername",
+            myProfile.username
+                ? `@${myProfile.username}`
+                : ""
+        );
 
-        setText("#myName", name);
-        setText("#myUsername", username);
+        const myVerified = $("#myVerified");
 
-        const avatar = $("#myAvatar");
+        if (myVerified) {
+            myVerified.style.display =
+                isVerified(myProfile)
+                    ? "inline-flex"
+                    : "none";
+        }
 
-        if (avatar) {
+        const myAvatar = $("#myAvatar");
+
+        if (myAvatar) {
             if (myProfile.avatar_url) {
-                avatar.innerHTML = `
+                myAvatar.innerHTML = `
                     <img
-                        src="${escapeAttribute(myProfile.avatar_url)}"
-                        alt="${escapeAttribute(name)}"
+                        src="${escapeAttr(myProfile.avatar_url)}"
+                        alt=""
                     >
                 `;
             } else {
-                avatar.textContent = getInitial(name);
+                myAvatar.textContent =
+                    name.charAt(0).toUpperCase();
             }
         }
 
-        const verified = $("#myVerified");
+        setText(
+            "profileNamePreview",
+            name
+        );
+    }
 
-        if (verified) {
-            verified.style.display =
-                myProfile.is_verified === true
-                    ? "inline-flex"
-                    : "none";
-        }
-
-        const ownerBadge = $("#myOwnerBadge");
-
-        if (ownerBadge) {
-            ownerBadge.style.display =
-                myProfile.role === "owner"
-                    ? "inline-flex"
-                    : "none";
-        }
+    async function refreshMyProfile() {
+        await loadMyProfile();
+        renderMyProfile();
     }
 
     /* =========================================================
-       PROFILE BADGE
+       SEARCH USERS
        ========================================================= */
 
-    function verifiedHTML(verified) {
-        return verified
-            ? `<span class="verified-badge" title="Verified">✓</span>`
-            : "";
-    }
+    async function searchUsers(query = "") {
+        query = normalizeUsername(query);
 
-    /* =========================================================
-       CONTACTS
-       ========================================================= */
-
-    async function loadContacts() {
-        if (!currentUser) return;
-
-        const list = $("#userList");
-        if (!list) return;
-
-        const {
-            data: sent,
-            error: sentError
-        } = await db
-            .from("contact_requests")
-            .select("receiver_id,status")
-            .eq("sender_id", currentUser.id);
-
-        const {
-            data: received,
-            error: receivedError
-        } = await db
-            .from("contact_requests")
-            .select("sender_id,status")
-            .eq("receiver_id", currentUser.id);
-
-        if (sentError || receivedError) {
-            console.error(sentError || receivedError);
-            return;
-        }
-
-        const acceptedIds = new Set();
-
-        (sent || []).forEach(item => {
-            if (item.status === "accepted") {
-                acceptedIds.add(item.receiver_id);
-            }
-        });
-
-        (received || []).forEach(item => {
-            if (item.status === "accepted") {
-                acceptedIds.add(item.sender_id);
-            }
-        });
-
-        if (!acceptedIds.size) {
-            list.innerHTML = `
-                <div class="empty-list">
-                    No contacts yet
-                </div>
-            `;
-
-            setText("#contactCount", "0");
-            return;
-        }
-
-        const {
-            data: profiles,
-            error
-        } = await db
+        let request = db
             .from("profiles")
             .select("*")
-            .in("id", [...acceptedIds])
-            .order("full_name");
+            .neq("id", currentUser.id)
+            .limit(50);
+
+        if (query) {
+            request = request.ilike(
+                "username",
+                `%${query}%`
+            );
+        }
+
+        const {
+            data,
+            error
+        } = await request;
+
+        if (error) {
+            safeError(error, "Users could not be loaded.");
+            return [];
+        }
+
+        allUsers = data || [];
+
+        return allUsers;
+    }
+
+    /* =========================================================
+       CONTACT REQUESTS
+       ========================================================= */
+
+    async function getContactStatus(userId) {
+        if (!currentUser || !userId) return null;
+
+        const {
+            data: sent
+        } = await db
+            .from("contact_requests")
+            .select("*")
+            .eq("sender_id", currentUser.id)
+            .eq("receiver_id", userId)
+            .maybeSingle();
+
+        if (sent) {
+            return {
+                ...sent,
+                direction: "sent"
+            };
+        }
+
+        const {
+            data: received
+        } = await db
+            .from("contact_requests")
+            .select("*")
+            .eq("sender_id", userId)
+            .eq("receiver_id", currentUser.id)
+            .maybeSingle();
+
+        if (received) {
+            return {
+                ...received,
+                direction: "received"
+            };
+        }
+
+        return null;
+    }
+
+    async function areContacts(userId) {
+        if (!currentUser || !userId) return false;
+
+        const {
+            data
+        } = await db
+            .from("contact_requests")
+            .select("id,status")
+            .eq("status", "accepted")
+            .or(
+                `and(sender_id.eq.${currentUser.id},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${currentUser.id})`
+            )
+            .maybeSingle();
+
+        return !!data;
+    }
+
+    async function sendContactRequest(userId) {
+        if (!currentUser || !userId) return;
+
+        if (userId === currentUser.id) {
+            showToast("O‘zingizni contact qila olmaysiz.");
+            return;
+        }
+
+        const already = await getContactStatus(userId);
+
+        if (already?.status === "accepted") {
+            showToast("Bu user allaqachon contact.");
+            return;
+        }
+
+        if (
+            already?.status === "pending" &&
+            already.direction === "sent"
+        ) {
+            showToast("Request allaqachon yuborilgan.");
+            return;
+        }
+
+        if (
+            already?.status === "pending" &&
+            already.direction === "received"
+        ) {
+            showToast("Sizga request yuborgan.");
+            return;
+        }
+
+        const {
+            error
+        } = await db
+            .from("contact_requests")
+            .insert({
+                sender_id: currentUser.id,
+                receiver_id: userId,
+                status: "pending"
+            });
 
         if (error) {
             console.error(error);
+
+            if (error.code === "23505") {
+                showToast("Contact request allaqachon mavjud.");
+            } else {
+                showToast("Request yuborilmadi.");
+            }
+
             return;
         }
 
-        setText("#contactCount", String(profiles?.length || 0));
+        showToast("Contact request yuborildi.");
 
-        renderContactList(profiles || []);
+        await updateProfilePopupActions();
     }
 
-    function renderContactList(profiles) {
-        const list = $("#userList");
-        if (!list) return;
+    async function acceptContactRequest(requestId) {
+        const {
+            error
+        } = await db
+            .from("contact_requests")
+            .update({
+                status: "accepted"
+            })
+            .eq("id", requestId)
+            .eq("receiver_id", currentUser.id);
 
-        if (!profiles.length) {
-            list.innerHTML = `
-                <div class="empty-list">
-                    No contacts yet
-                </div>
-            `;
+        if (error) {
+            safeError(error, "Request qabul qilinmadi.");
             return;
         }
 
-        list.innerHTML = profiles.map(user => `
-            <div
-                class="user-item"
-                data-user-id="${escapeAttribute(user.id)}"
-                data-name="${escapeAttribute(user.full_name || user.username)}"
-            >
-                <div class="user-avatar">
-                    ${
-                        user.avatar_url
-                            ? `<img src="${escapeAttribute(user.avatar_url)}">`
-                            : escapeHTML(getInitial(user.full_name || user.username))
-                    }
-                </div>
+        showToast("Contact qabul qilindi.");
 
-                <div class="user-info">
-                    <div class="user-name-row">
-                        <span class="user-name">
-                            ${escapeHTML(user.full_name || user.username)}
-                        </span>
-                        ${verifiedHTML(user.is_verified)}
-                    </div>
-
-                    <span class="user-username">
-                        @${escapeHTML(user.username || "")}
-                    </span>
-                </div>
-            </div>
-        `).join("");
-
-        list.querySelectorAll(".user-item").forEach(item => {
-            item.addEventListener("click", () => {
-                openDirectChat(item.dataset.userId);
-            });
-        });
+        await loadUsers();
+        await loadIncomingRequests();
     }
 
-    async function loadContactRequests() {
-        if (!currentUser) return;
+    async function declineContactRequest(requestId) {
+        const {
+            error
+        } = await db
+            .from("contact_requests")
+            .update({
+                status: "declined"
+            })
+            .eq("id", requestId)
+            .eq("receiver_id", currentUser.id);
+
+        if (error) {
+            safeError(error, "Request rad etilmadi.");
+            return;
+        }
+
+        showToast("Request rad etildi.");
+
+        await loadIncomingRequests();
+    }
+
+    async function loadIncomingRequests() {
+        if (!currentUser) return [];
 
         const {
             data,
             error
         } = await db
             .from("contact_requests")
-            .select("*")
+            .select(`
+                *,
+                sender:profiles!contact_requests_sender_id_fkey(
+                    id,
+                    username,
+                    full_name,
+                    avatar_url,
+                    is_verified,
+                    verified_until
+                )
+            `)
             .eq("receiver_id", currentUser.id)
             .eq("status", "pending")
             .order("created_at", {
@@ -389,372 +654,129 @@
             });
 
         if (error) {
-            console.error(error);
-            return;
+            console.error("Requests:", error);
+            return [];
         }
 
-        const requests = data || [];
+        renderIncomingRequests(data || []);
 
-        if (!requests.length) return;
-
-        const senderIds = requests.map(item => item.sender_id);
-
-        const {
-            data: profiles
-        } = await db
-            .from("profiles")
-            .select("*")
-            .in("id", senderIds);
-
-        requests.forEach(request => {
-            const sender = profiles?.find(
-                profile => profile.id === request.sender_id
-            );
-
-            if (sender) {
-                showContactRequest(request, sender);
-            }
-        });
+        return data || [];
     }
 
-    function showContactRequest(request, sender) {
-        const container = $("#contactRequests");
-
-        if (!container) {
-            toast(
-                `${sender.full_name || sender.username} sizga contact request yubordi`
-            );
-            return;
-        }
-
-        const existing = container.querySelector(
-            `[data-request-id="${request.id}"]`
-        );
-
-        if (existing) return;
-
-        const item = document.createElement("div");
-
-        item.className = "contact-request";
-        item.dataset.requestId = request.id;
-
-        item.innerHTML = `
-            <div class="request-avatar">
-                ${
-                    sender.avatar_url
-                        ? `<img src="${escapeAttribute(sender.avatar_url)}">`
-                        : escapeHTML(getInitial(sender.full_name || sender.username))
-                }
-            </div>
-
-            <div class="request-content">
-                <strong>
-                    ${escapeHTML(sender.full_name || sender.username)}
-                    ${verifiedHTML(sender.is_verified)}
-                </strong>
-
-                <span>
-                    @${escapeHTML(sender.username || "")}
-                </span>
-
-                <div class="request-actions">
-                    <button data-request-action="accept">
-                        Accept
-                    </button>
-
-                    <button data-request-action="decline">
-                        Decline
-                    </button>
-                </div>
-            </div>
-        `;
-
-        container.appendChild(item);
-
-        item.querySelector('[data-request-action="accept"]')
-            ?.addEventListener("click", () => {
-                updateContactRequest(request.id, "accepted");
-            });
-
-        item.querySelector('[data-request-action="decline"]')
-            ?.addEventListener("click", () => {
-                updateContactRequest(request.id, "declined");
-            });
-    }
-
-    async function updateContactRequest(requestId, status) {
-        const {
-            error
-        } = await db
-            .from("contact_requests")
-            .update({
-                status
-            })
-            .eq("id", requestId)
-            .eq("receiver_id", currentUser.id);
-
-        if (error) {
-            console.error(error);
-            toast("Requestni yangilab bo‘lmadi", "error");
-            return;
-        }
-
-        toast(
-            status === "accepted"
-                ? "Contact qabul qilindi ✓"
-                : "Contact rad etildi"
-        );
-
-        document
-            .querySelector(`[data-request-id="${requestId}"]`)
-            ?.remove();
-
-        await loadContacts();
-
-        if (
-            currentChatUser &&
-            currentChatUser.id
-        ) {
-            await updateContactButtons(currentChatUser.id);
-        }
-    }
-
-    async function searchUsers(username) {
-        username = username.trim().replace(/^@/, "").toLowerCase();
-
-        if (!username) return;
-
-        const {
-            data,
-            error
-        } = await db
-            .from("profiles")
-            .select("*")
-            .ilike("username", `%${username}%`)
-            .limit(20);
-
-        if (error) {
-            console.error(error);
-            toast("Search xatosi", "error");
-            return;
-        }
-
-        renderSearchResults(data || []);
-    }
-
-    function renderSearchResults(users) {
-        const list = $("#searchResults");
+    function renderIncomingRequests(requests) {
+        const list = $("#contactRequestsList");
 
         if (!list) return;
 
-        if (!users.length) {
+        if (!requests.length) {
             list.innerHTML = `
-                <div class="empty-list">
-                    User topilmadi
+                <div class="empty-state">
+                    No contact requests
                 </div>
             `;
             return;
         }
 
-        list.innerHTML = users.map(user => `
-            <div
-                class="search-result"
-                data-search-user-id="${escapeAttribute(user.id)}"
-            >
-                <div class="user-avatar">
-                    ${
-                        user.avatar_url
-                            ? `<img src="${escapeAttribute(user.avatar_url)}">`
-                            : escapeHTML(getInitial(user.full_name || user.username))
-                    }
-                </div>
+        list.innerHTML = requests
+            .map(req => {
+                const sender = req.sender || {};
 
-                <div class="user-info">
-                    <div>
-                        ${escapeHTML(user.full_name || user.username)}
-                        ${verifiedHTML(user.is_verified)}
+                return `
+                    <div class="contact-request" data-id="${req.id}">
+                        ${avatarHTML(sender)}
+
+                        <div class="contact-request-info">
+                            <strong>
+                                ${escapeHTML(
+                                    sender.full_name ||
+                                    sender.username ||
+                                    "User"
+                                )}
+                                ${verifiedHTML(sender)}
+                            </strong>
+
+                            <span>
+                                @${escapeHTML(sender.username || "")}
+                            </span>
+                        </div>
+
+                        <div class="contact-request-actions">
+                            <button
+                                class="accept-request"
+                                data-id="${req.id}"
+                            >
+                                Accept
+                            </button>
+
+                            <button
+                                class="decline-request"
+                                data-id="${req.id}"
+                            >
+                                Decline
+                            </button>
+                        </div>
                     </div>
+                `;
+            })
+            .join("");
+    }
 
-                    <span>
-                        @${escapeHTML(user.username || "")}
-                    </span>
+    /* =========================================================
+       USERS SIDEBAR
+       ========================================================= */
+
+    async function loadUsers(query = "") {
+        const users = await searchUsers(query);
+
+        renderUsers(users);
+
+        return users;
+    }
+
+    function renderUsers(users) {
+        const list = $("#userList");
+
+        if (!list) return;
+
+        if (!users.length) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    No users found
                 </div>
-
-                <button class="search-user-add">
-                    Add
-                </button>
-            </div>
-        `).join("");
-
-        list.querySelectorAll(".search-result")
-            .forEach(item => {
-                item.addEventListener("click", async e => {
-                    if (
-                        e.target.closest(".search-user-add")
-                    ) {
-                        await sendContactRequest(
-                            item.dataset.searchUserId
-                        );
-                        return;
-                    }
-
-                    await openDirectChat(
-                        item.dataset.searchUserId
-                    );
-                });
-            });
-    }
-
-    async function sendContactRequest(receiverId) {
-        if (!currentUser) return;
-
-        if (receiverId === currentUser.id) {
-            toast("O‘zingizni contactga qo‘sha olmaysiz", "error");
+            `;
             return;
         }
 
-        const {
-            data: existing
-        } = await db
-            .from("contact_requests")
-            .select("*")
-            .or(
-                `and(sender_id.eq.${currentUser.id},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${currentUser.id})`
-            )
-            .maybeSingle();
+        list.innerHTML = users
+            .map(user => {
+                const name =
+                    user.full_name ||
+                    user.username ||
+                    "User";
 
-        if (existing) {
-            if (existing.status === "accepted") {
-                toast("Bu user allaqachon contactda");
-                return;
-            }
+                return `
+                    <div
+                        class="user-item"
+                        data-user-id="${user.id}"
+                    >
+                        ${avatarHTML(user)}
 
-            if (
-                existing.sender_id === currentUser.id &&
-                existing.status === "pending"
-            ) {
-                toast("Request allaqachon yuborilgan");
-                return;
-            }
+                        <div class="user-item-info">
+                            <div class="user-item-name">
+                                ${escapeHTML(name)}
+                                ${verifiedHTML(user)}
+                            </div>
 
-            if (
-                existing.receiver_id === currentUser.id &&
-                existing.status === "pending"
-            ) {
-                toast("Bu user sizga request yuborgan");
-                return;
-            }
-
-            if (existing.status === "declined") {
-                await db
-                    .from("contact_requests")
-                    .delete()
-                    .eq("id", existing.id);
-            }
-        }
-
-        const {
-            error
-        } = await db
-            .from("contact_requests")
-            .insert({
-                sender_id: currentUser.id,
-                receiver_id: receiverId,
-                status: "pending"
-            });
-
-        if (error) {
-            console.error(error);
-            toast("Request yuborilmadi", "error");
-            return;
-        }
-
-        toast("Contact request yuborildi ✓", "success");
-    }
-
-    async function getContactStatus(otherUserId) {
-        if (!currentUser || !otherUserId) {
-            return null;
-        }
-
-        const {
-            data,
-            error
-        } = await db
-            .from("contact_requests")
-            .select("*")
-            .or(
-                `and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUser.id})`
-            )
-            .maybeSingle();
-
-        if (error) {
-            console.error(error);
-            return null;
-        }
-
-        return data;
-    }
-
-    async function updateContactButtons(otherUserId) {
-        const container = $("#contactActions");
-        const addBtn = $("#addContactBtn");
-        const acceptBtn = $("#acceptContactBtn");
-        const declineBtn = $("#declineContactBtn");
-
-        if (!container) return;
-
-        hideElement(addBtn);
-        hideElement(acceptBtn);
-        hideElement(declineBtn);
-
-        const request = await getContactStatus(otherUserId);
-
-        if (!request) {
-            showElement(container);
-            showElement(addBtn);
-            return;
-        }
-
-        if (request.status === "accepted") {
-            hideElement(container);
-            return;
-        }
-
-        showElement(container);
-
-        if (
-            request.sender_id === currentUser.id &&
-            request.status === "pending"
-        ) {
-            if (addBtn) {
-                addBtn.textContent = "Request sent";
-                addBtn.disabled = true;
-                showElement(addBtn);
-            }
-
-            return;
-        }
-
-        if (
-            request.receiver_id === currentUser.id &&
-            request.status === "pending"
-        ) {
-            showElement(acceptBtn);
-            showElement(declineBtn);
-
-            acceptBtn.onclick = () =>
-                updateContactRequest(
-                    request.id,
-                    "accepted"
-                );
-
-            declineBtn.onclick = () =>
-                updateContactRequest(
-                    request.id,
-                    "declined"
-                );
-        }
+                            <div class="user-item-username">
+                                @${escapeHTML(
+                                    user.username || ""
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            })
+            .join("");
     }
 
     /* =========================================================
@@ -762,10 +784,10 @@
        ========================================================= */
 
     async function openDirectChat(userId) {
-        if (!userId || userId === currentUser?.id) return;
+        if (!userId) return;
 
         const {
-            data: user,
+            data,
             error
         } = await db
             .from("profiles")
@@ -773,123 +795,93 @@
             .eq("id", userId)
             .maybeSingle();
 
-        if (error || !user) {
-            toast("User topilmadi", "error");
+        if (error || !data) {
+            showToast("User topilmadi.");
             return;
         }
 
-        currentChatType = "direct";
-        currentChatId = userId;
-        currentChatUser = user;
-        currentGroup = null;
-        currentChannel = null;
+        activeChatType = "direct";
+        activeChatUser = data;
+        activeGroup = null;
+        activeChannel = null;
 
-        showDirectHeader(user);
+        setText(
+            "chatName",
+            data.full_name ||
+            data.username ||
+            "User"
+        );
 
-        await updateContactButtons(user.id);
+        const chatVerified = $("#chatVerified");
 
-        const request = await getContactStatus(user.id);
-
-        if (request?.status === "accepted") {
-            await loadDirectMessages(user.id);
-        } else {
-            renderNoContactChat();
+        if (chatVerified) {
+            chatVerified.style.display =
+                isVerified(data)
+                    ? "inline-flex"
+                    : "none";
         }
 
-        setupMessageRealtime();
-    }
-
-    function showDirectHeader(user) {
-        hideElement($("#chatEmpty"));
-        showElement($("#activeChat"));
-
         const avatar = $("#chatAvatar");
-        const name = $("#chatName");
-        const verified = $("#chatVerified");
-        const status = $("#chatStatus");
 
         if (avatar) {
-            if (user.avatar_url) {
+            if (data.avatar_url) {
                 avatar.innerHTML = `
                     <img
-                        src="${escapeAttribute(user.avatar_url)}"
+                        src="${escapeAttr(data.avatar_url)}"
                         alt=""
                     >
                 `;
             } else {
                 avatar.textContent =
-                    getInitial(user.full_name || user.username);
+                    (
+                        data.full_name ||
+                        data.username ||
+                        "U"
+                    )
+                        .charAt(0)
+                        .toUpperCase();
             }
         }
 
-        if (name) {
-            name.textContent =
-                user.full_name || user.username || "User";
+        setText(
+            "chatStatus",
+            data.show_online === false
+                ? ""
+                : data.last_seen
+                    ? formatLastSeen(data.last_seen)
+                    : "Offline"
+        );
+
+        const active = $("#activeChat");
+        const empty = $("#chatEmpty");
+
+        if (active) active.style.display = "flex";
+        if (empty) empty.style.display = "none";
+
+        await updateProfilePopupActions();
+        await updateContactButtons();
+
+        const contacts = await areContacts(userId);
+
+        const messageForm = $("#messageForm");
+
+        if (messageForm) {
+            messageForm.style.display =
+                contacts ? "flex" : "none";
         }
 
-        if (verified) {
-            verified.style.display =
-                user.is_verified === true
-                    ? "inline-flex"
-                    : "none";
-        }
-
-        if (status) {
-            if (user.show_online === false) {
-                status.textContent = "";
-            } else {
-                status.textContent = "online";
-            }
-        }
-
-        const input = $("#messageInput");
-
-        if (input) {
-            input.disabled = false;
-            input.placeholder = "Write a message...";
-        }
-
-        const send = $("#sendButton");
-
-        if (send) {
-            send.disabled = false;
-        }
-    }
-
-    function renderNoContactChat() {
-        const messages = $("#messages");
-        if (!messages) return;
-
-        messages.innerHTML = `
-            <div class="no-contact-chat">
-                <div class="no-contact-icon">🔒</div>
-                <h3>Contact request required</h3>
-                <p>
-                    You can chat only after this user accepts
-                    your contact request.
-                </p>
-            </div>
-        `;
-
-        const input = $("#messageInput");
-        const send = $("#sendButton");
-
-        if (input) {
-            input.disabled = true;
-        }
-
-        if (send) {
-            send.disabled = true;
-        }
-    }
-
-    async function loadDirectMessages(otherUserId) {
-        const request = await getContactStatus(otherUserId);
-
-        if (request?.status !== "accepted") {
-            renderNoContactChat();
+        if (!contacts) {
+            renderMessages([]);
             return;
         }
+
+        await loadDirectMessages();
+
+        closeMobileSidebar();
+    }
+
+    async function loadDirectMessages() {
+        if (!currentUser || !activeChatUser) return;
 
         const {
             data,
@@ -898,252 +890,214 @@
             .from("messages")
             .select("*")
             .or(
-                `and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUser.id})`
+                `and(sender_id.eq.${currentUser.id},receiver_id.eq.${activeChatUser.id}),and(sender_id.eq.${activeChatUser.id},receiver_id.eq.${currentUser.id})`
             )
-            .is("deleted_at", null)
             .order("created_at", {
                 ascending: true
             });
 
         if (error) {
-            console.error(error);
-            toast("Messages yuklanmadi", "error");
+            safeError(error, "Messages could not be loaded.");
             return;
         }
 
         currentMessages = data || [];
 
-        renderDirectMessages(currentMessages);
+        renderMessages(currentMessages);
 
-        await markMessagesSeen(otherUserId);
+        await markDirectMessagesSeen();
     }
 
-    function renderDirectMessages(messages) {
-        const container = $("#messages");
-        if (!container) return;
-
-        if (!messages.length) {
-            container.innerHTML = `
-                <div class="empty-chat">
-                    <p>No messages yet</p>
-                </div>
-            `;
-            return;
-        }
-
-        container.innerHTML = messages
-            .map(message => renderMessage(message))
-            .join("");
-
-        bindMessageActions();
-        initializeMessageSwipes();
-
-        scrollMessagesToBottom();
-    }
-
-    /* =========================================================
-       MESSAGE RENDERER
-       ========================================================= */
-
-    function renderMessage(message, context = "direct") {
-        const mine =
-            message.sender_id === currentUser.id;
-
-        const type =
-            message.message_type || "text";
-
-        let content = "";
-
+    function messageTextHTML(message) {
         if (message.deleted_at) {
-            content = `
+            return `
                 <span class="deleted-message">
                     Message deleted
                 </span>
             `;
-        } else if (
-            type === "image" &&
-            message.image_url
-        ) {
-            content = `
+        }
+
+        if (message.message_type === "image" && message.image_url) {
+            return `
                 <img
                     class="message-image"
-                    src="${escapeAttribute(message.image_url)}"
+                    src="${escapeAttr(message.image_url)}"
                     alt="image"
+                    loading="lazy"
                 >
-            `;
-        } else if (
-            type === "sticker" &&
-            message.sticker_url
-        ) {
-            content = `
-                <img
-                    class="message-sticker"
-                    src="${escapeAttribute(message.sticker_url)}"
-                    alt="sticker"
-                >
-            `;
-        } else {
-            content = `
-                <span class="message-text">
-                    ${escapeHTML(message.content || "")}
-                </span>
+                ${
+                    message.content
+                        ? `<div>${escapeHTML(message.content)}</div>`
+                        : ""
+                }
             `;
         }
 
-        const edited =
-            message.edited_at
-                ? `<span class="message-edited">edited</span>`
-                : "";
+        if (
+            message.message_type === "sticker" &&
+            message.sticker_url
+        ) {
+            return `
+                <img
+                    class="message-sticker"
+                    src="${escapeAttr(message.sticker_url)}"
+                    alt="sticker"
+                >
+            `;
+        }
 
-        const saved =
-            message.__saved
-                ? `<span class="message-saved">★</span>`
-                : "";
+        return escapeHTML(message.content || "")
+            .replace(/\n/g, "<br>");
+    }
 
-        const actions = `
+    function messageActionHTML(message, type = "direct") {
+        const mine = isOwn(message.sender_id);
+
+        return `
             <div class="message-actions">
-
                 <button
                     type="button"
                     class="message-action"
                     data-action="save"
-                    data-message-id="${message.id}"
+                    title="Save"
                 >
                     <i class="fa-regular fa-bookmark"></i>
-                    <span>Save</span>
                 </button>
 
                 ${
-                    mine && type === "text"
+                    mine
                         ? `
-                        <button
-                            type="button"
-                            class="message-action"
-                            data-action="edit"
-                            data-message-id="${message.id}"
-                        >
-                            <i class="fa-solid fa-pen"></i>
-                            <span>Edit</span>
-                        </button>
+                            <button
+                                type="button"
+                                class="message-action"
+                                data-action="edit"
+                                title="Edit"
+                            >
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
 
-                        <button
-                            type="button"
-                            class="message-action"
-                            data-action="delete"
-                            data-message-id="${message.id}"
-                        >
-                            <i class="fa-solid fa-trash"></i>
-                            <span>Delete</span>
-                        </button>
+                            <button
+                                type="button"
+                                class="message-action"
+                                data-action="delete"
+                                title="Delete"
+                            >
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
                         `
                         : ""
                 }
-
             </div>
         `;
+    }
 
-        return `
-            <div
-                class="message-wrapper ${mine ? "mine" : "theirs"}"
-                data-message-id="${message.id}"
-                data-context="${context}"
-            >
+    function renderMessages(messages) {
+        const box = $("#messages");
 
-                ${actions}
+        if (!box) return;
 
-                <div class="message-bubble">
-
-                    ${content}
-
-                    <div class="message-meta">
-                        <span>
-                            ${formatTime(message.created_at)}
-                        </span>
-
-                        ${edited}
-                        ${saved}
-
-                        ${
-                            mine
-                                ? `
-                                <span class="message-status">
-                                    ${
-                                        message.seen_at
-                                            ? "✓✓"
-                                            : message.delivered_at
-                                                ? "✓"
-                                                : ""
-                                    }
-                                </span>
-                                `
-                                : ""
-                        }
-                    </div>
-
+        if (!messages.length) {
+            box.innerHTML = `
+                <div class="empty-state messages-empty">
+                    No messages yet
                 </div>
-
-            </div>
-        `;
-    }
-
-    function bindMessageActions() {
-        $$(".message-action").forEach(button => {
-            button.onclick = async e => {
-                e.stopPropagation();
-
-                const action =
-                    button.dataset.action;
-
-                const messageId =
-                    button.dataset.messageId;
-
-                if (action === "save") {
-                    await saveMessage(messageId);
-                }
-
-                if (action === "edit") {
-                    await editMessage(messageId);
-                }
-
-                if (action === "delete") {
-                    await deleteMessage(messageId);
-                }
-
-                const wrapper =
-                    button.closest(".message-wrapper");
-
-                if (wrapper) {
-                    wrapper.classList.remove("swiped");
-
-                    const bubble =
-                        wrapper.querySelector(".message-bubble");
-
-                    if (bubble) {
-                        bubble.style.transform = "";
-                    }
-                }
-            };
-        });
-    }
-
-    /* =========================================================
-       MESSAGE SEND
-       ========================================================= */
-
-    async function sendDirectMessage(text) {
-        if (!currentUser || !currentChatUser) return;
-
-        const request =
-            await getContactStatus(currentChatUser.id);
-
-        if (request?.status !== "accepted") {
-            toast("Avval contact request qabul qilinishi kerak");
+            `;
             return;
         }
 
-        text = text.trim();
+        box.innerHTML = messages
+            .map(message => {
+                const mine = isOwn(message.sender_id);
 
-        if (!text) return;
+                return `
+                    <div
+                        class="message-row ${mine ? "mine" : "theirs"}"
+                        data-message-id="${message.id}"
+                    >
+                        <div
+                            class="message-wrapper"
+                            data-message-id="${message.id}"
+                            data-message-type="direct"
+                        >
+                            ${messageActionHTML(message)}
+
+                            <div class="message-bubble">
+                                <div class="message-content">
+                                    ${messageTextHTML(message)}
+                                </div>
+
+                                <div class="message-meta">
+                                    <span>
+                                        ${formatDate(
+                                            message.created_at
+                                        )}
+                                    </span>
+
+                                    ${
+                                        message.edited_at &&
+                                        !message.deleted_at
+                                            ? `
+                                                <span>
+                                                    edited
+                                                </span>
+                                            `
+                                            : ""
+                                    }
+
+                                    ${
+                                        mine
+                                            ? message.seen_at
+                                                ? `<span>✓✓</span>`
+                                                : message.delivered_at
+                                                    ? `<span>✓</span>`
+                                                    : `<span>•</span>`
+                                            : ""
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            })
+            .join("");
+
+        initializeMessageSwipes();
+
+        scrollMessages();
+    }
+
+    /* =========================================================
+       DIRECT SEND
+       ========================================================= */
+
+    async function sendDirectMessage(event) {
+        event?.preventDefault();
+
+        if (
+            !currentUser ||
+            !activeChatUser ||
+            activeChatType !== "direct"
+        ) {
+            return;
+        }
+
+        const content = getValue("messageInput");
+
+        if (!content) return;
+
+        const contacts =
+            await areContacts(activeChatUser.id);
+
+        if (!contacts) {
+            showToast(
+                "Avval contact request qabul qilinishi kerak."
+            );
+            return;
+        }
+
+        if (await isMessagingBlocked()) {
+            return;
+        }
 
         const {
             error
@@ -1151,240 +1105,49 @@
             .from("messages")
             .insert({
                 sender_id: currentUser.id,
-                receiver_id: currentChatUser.id,
-                content: text,
+                receiver_id: activeChatUser.id,
+                content,
                 message_type: "text"
             });
 
         if (error) {
-            console.error(error);
-            toast("Message yuborilmadi", "error");
+            safeError(error, "Message yuborilmadi.");
             return;
         }
 
-        const input = $("#messageInput");
+        setValue("messageInput", "");
 
-        if (input) {
-            input.value = "";
-        }
-
-        await loadDirectMessages(
-            currentChatUser.id
-        );
+        await loadDirectMessages();
     }
 
-    /* =========================================================
-       EDIT MESSAGE
-       ========================================================= */
+    async function isMessagingBlocked() {
+        if (!myProfile) return false;
 
-    async function editMessage(messageId) {
-        const message =
-            currentMessages.find(
-                item => String(item.id) === String(messageId)
+        if (myProfile.messaging_blocked !== true) {
+            return false;
+        }
+
+        if (!myProfile.messaging_blocked_until) {
+            showToast("Messaging bloklangan.");
+            return true;
+        }
+
+        const until =
+            new Date(
+                myProfile.messaging_blocked_until
+            ).getTime();
+
+        if (until > Date.now()) {
+            showToast(
+                `Messaging bloklangan: ${new Date(
+                    until
+                ).toLocaleString()}`
             );
 
-        if (!message) return;
-
-        if (message.sender_id !== currentUser.id) {
-            toast("Faqat o‘zingiz yuborgan message'ni edit qila olasiz");
-            return;
+            return true;
         }
 
-        const newText =
-            window.prompt(
-                "Edit message:",
-                message.content || ""
-            );
-
-        if (newText === null) return;
-
-        const text = newText.trim();
-
-        if (!text) {
-            toast("Message bo‘sh bo‘lishi mumkin emas", "error");
-            return;
-        }
-
-        const {
-            error
-        } = await db
-            .from("messages")
-            .update({
-                content: text,
-                edited_at: new Date().toISOString()
-            })
-            .eq("id", messageId)
-            .eq("sender_id", currentUser.id);
-
-        if (error) {
-            console.error(error);
-            toast("Message edit qilinmadi", "error");
-            return;
-        }
-
-        toast("Message o‘zgartirildi ✓", "success");
-
-        if (currentChatType === "direct") {
-            await loadDirectMessages(
-                currentChatUser.id
-            );
-        } else if (currentChatType === "group") {
-            await loadGroupMessages(
-                currentGroup.id
-            );
-        }
-    }
-
-    /* =========================================================
-       DELETE MESSAGE
-       ========================================================= */
-
-    async function deleteMessage(messageId) {
-        const message =
-            currentMessages.find(
-                item => String(item.id) === String(messageId)
-            );
-
-        if (!message) return;
-
-        if (message.sender_id !== currentUser.id) {
-            toast("Faqat o‘zingizning message'ingizni o‘chira olasiz");
-            return;
-        }
-
-        const confirmed =
-            window.confirm("Message'ni o‘chirasizmi?");
-
-        if (!confirmed) return;
-
-        const {
-            error
-        } = await db
-            .from("messages")
-            .update({
-                deleted_at: new Date().toISOString()
-            })
-            .eq("id", messageId)
-            .eq("sender_id", currentUser.id);
-
-        if (error) {
-            console.error(error);
-            toast("Message o‘chirilmadi", "error");
-            return;
-        }
-
-        toast("Message o‘chirildi ✓");
-
-        if (currentChatType === "direct") {
-            await loadDirectMessages(
-                currentChatUser.id
-            );
-        }
-    }
-
-    /* =========================================================
-       SAVE MESSAGE
-       ========================================================= */
-
-    async function saveMessage(messageId) {
-        if (!currentUser) return;
-
-        const message =
-            currentMessages.find(
-                item => String(item.id) === String(messageId)
-            );
-
-        if (!message) return;
-
-        const {
-            error
-        } = await db
-            .from("saved_messages")
-            .insert({
-                user_id: currentUser.id,
-                message_id: messageId
-            });
-
-        if (error) {
-            if (
-                String(error.message || "")
-                    .toLowerCase()
-                    .includes("duplicate")
-            ) {
-                toast("Message allaqachon saqlangan");
-            } else {
-                console.error(error);
-                toast("Message saqlanmadi", "error");
-            }
-
-            return;
-        }
-
-        message.__saved = true;
-
-        toast("Message saqlandi ★", "success");
-    }
-
-    async function loadSavedMessages() {
-        if (!currentUser) return;
-
-        const {
-            data,
-            error
-        } = await db
-            .from("saved_messages")
-            .select("*")
-            .eq("user_id", currentUser.id)
-            .order("created_at", {
-                ascending: false
-            });
-
-        if (error) {
-            console.error(error);
-            return;
-        }
-
-        const list = $("#savedMessagesList");
-
-        if (!list) return;
-
-        if (!data?.length) {
-            list.innerHTML = `
-                <div class="empty-list">
-                    No saved messages
-                </div>
-            `;
-            return;
-        }
-
-        list.innerHTML = data.map(item => `
-            <div class="saved-message-item">
-                <span>
-                    ${escapeHTML(
-                        item.content ||
-                        item.message_text ||
-                        "Saved message"
-                    )}
-                </span>
-            </div>
-        `).join("");
-    }
-
-    /* =========================================================
-       MESSAGE STATUS
-       ========================================================= */
-
-    async function markMessagesSeen(otherUserId) {
-        if (!currentUser || !otherUserId) return;
-
-        await db
-            .from("messages")
-            .update({
-                seen_at: new Date().toISOString()
-            })
-            .eq("sender_id", otherUserId)
-            .eq("receiver_id", currentUser.id)
-            .is("seen_at", null);
+        return false;
     }
 
     /* =========================================================
@@ -1394,215 +1157,679 @@
     async function uploadChatImage(file) {
         if (!file || !currentUser) return;
 
-        if (!currentChatUser) {
-            toast("Avval chatni tanlang");
+        if (
+            !activeChatUser &&
+            !activeGroup &&
+            !activeChannel
+        ) {
             return;
         }
 
-        const request =
-            await getContactStatus(currentChatUser.id);
-
-        if (request?.status !== "accepted") {
-            toast("Avval contact qabul qilinishi kerak");
-            return;
-        }
-
-        const extension =
-            file.name.split(".").pop() || "jpg";
+        const ext =
+            file.name.split(".").pop()?.toLowerCase() ||
+            "jpg";
 
         const path =
-            `${currentUser.id}/${Date.now()}.${extension}`;
+            `${currentUser.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
 
         const {
             error: uploadError
         } = await db.storage
             .from("chat-media")
-            .upload(path, file);
+            .upload(path, file, {
+                upsert: false,
+                contentType: file.type
+            });
 
         if (uploadError) {
-            console.error(uploadError);
-            toast("Rasm yuklanmadi", "error");
+            safeError(
+                uploadError,
+                "Image upload failed."
+            );
             return;
         }
 
         const {
-            data: signed,
-            error: signedError
-        } = await db.storage
+            data
+        } = db.storage
             .from("chat-media")
-            .createSignedUrl(path, 60 * 60 * 24 * 7);
+            .getPublicUrl(path);
 
-        if (signedError || !signed?.signedUrl) {
-            toast("Rasm URL olinmadi", "error");
+        const url = data?.publicUrl;
+
+        if (!url) {
+            showToast("Image URL topilmadi.");
             return;
         }
+
+        if (activeChatType === "direct") {
+            const {
+                error
+            } = await db
+                .from("messages")
+                .insert({
+                    sender_id: currentUser.id,
+                    receiver_id: activeChatUser.id,
+                    content: "",
+                    message_type: "image",
+                    image_url: url
+                });
+
+            if (error) {
+                safeError(error, "Image yuborilmadi.");
+                return;
+            }
+
+            await loadDirectMessages();
+        }
+
+        if (activeChatType === "group") {
+            await sendGroupMessage("", "image", url);
+        }
+
+        if (activeChatType === "channel") {
+            await sendChannelMessage("", "image", url);
+        }
+    }
+
+    /* =========================================================
+       MESSAGE EDIT
+       ========================================================= */
+
+    async function editMessage(messageId) {
+        const message =
+            currentMessages.find(
+                m => String(m.id) === String(messageId)
+            );
+
+        if (!message) return;
+
+        if (!isOwn(message.sender_id)) {
+            showToast("Faqat o‘z messagingizni edit qila olasiz.");
+            return;
+        }
+
+        if (message.deleted_at) {
+            return;
+        }
+
+        const oldText = message.content || "";
+
+        const newText = prompt(
+            "Edit message:",
+            oldText
+        );
+
+        if (newText === null) return;
+
+        const content = newText.trim();
+
+        if (!content) {
+            showToast("Message bo‘sh bo‘lishi mumkin emas.");
+            return;
+        }
+
+        if (activeChatType === "direct") {
+            const {
+                error
+            } = await db
+                .from("messages")
+                .update({
+                    content,
+                    edited_at: new Date().toISOString()
+                })
+                .eq("id", messageId)
+                .eq("sender_id", currentUser.id);
+
+            if (error) {
+                safeError(error, "Message edit qilinmadi.");
+                return;
+            }
+
+            await loadDirectMessages();
+        }
+
+        closeAllSwipedMessages();
+    }
+
+    /* =========================================================
+       MESSAGE DELETE
+       ========================================================= */
+
+    async function deleteMessage(messageId) {
+        const message =
+            currentMessages.find(
+                m => String(m.id) === String(messageId)
+            );
+
+        if (!message) return;
+
+        if (!isOwn(message.sender_id)) {
+            showToast("Faqat o‘z messagingizni o‘chira olasiz.");
+            return;
+        }
+
+        const ok = confirm(
+            "Bu message o‘chirilsinmi?"
+        );
+
+        if (!ok) return;
+
+        if (activeChatType === "direct") {
+            const {
+                error
+            } = await db
+                .from("messages")
+                .update({
+                    deleted_at: new Date().toISOString(),
+                    content: ""
+                })
+                .eq("id", messageId)
+                .eq("sender_id", currentUser.id);
+
+            if (error) {
+                safeError(error, "Message o‘chirilmadi.");
+                return;
+            }
+
+            await loadDirectMessages();
+        }
+
+        closeAllSwipedMessages();
+    }
+
+    /* =========================================================
+       SAVE MESSAGE
+       ========================================================= */
+
+    async function saveMessage(message, sourceType = "direct") {
+        if (!currentUser || !message) return;
 
         const {
             error
         } = await db
-            .from("messages")
+            .from("saved_messages")
             .insert({
-                sender_id: currentUser.id,
-                receiver_id: currentChatUser.id,
-                content: "",
-                message_type: "image",
-                image_url: signed.signedUrl
+                user_id: currentUser.id,
+                message_id: message.id,
+                message_type: sourceType,
+                content: message.content || "",
+                saved_at: new Date().toISOString()
+            });
+
+        if (error) {
+            if (error.code === "23505") {
+                showToast("Message allaqachon saved.");
+            } else {
+                console.error(error);
+                showToast("Message saqlanmadi.");
+            }
+
+            return;
+        }
+
+        showToast("Message saved.");
+        closeAllSwipedMessages();
+    }
+
+    async function loadSavedMessages() {
+        const list = $("#savedMessagesList");
+
+        if (!list || !currentUser) return;
+
+        const {
+            data,
+            error
+        } = await db
+            .from("saved_messages")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .order("saved_at", {
+                ascending: false
             });
 
         if (error) {
             console.error(error);
-            toast("Rasm message yuborilmadi", "error");
             return;
         }
 
-        await loadDirectMessages(
-            currentChatUser.id
+        if (!data?.length) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    No saved messages
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML = data
+            .map(item => `
+                <div class="saved-message-item">
+                    <div class="saved-message-content">
+                        ${escapeHTML(item.content || "")}
+                    </div>
+
+                    <small>
+                        ${formatDate(item.saved_at)}
+                    </small>
+                </div>
+            `)
+            .join("");
+    }
+
+    /* =========================================================
+       SWIPE / HOLD MESSAGE ACTIONS
+       ========================================================= */
+
+    function closeAllSwipedMessages(except = null) {
+        $$(".message-wrapper.swiped").forEach(wrapper => {
+            if (wrapper !== except) {
+                wrapper.classList.remove("swiped");
+            }
+        });
+    }
+
+    function initializeMessageSwipes() {
+        $$(".message-wrapper").forEach(
+            setupMessageSwipe
         );
+    }
+
+    function setupMessageSwipe(wrapper) {
+        if (wrapper.dataset.swipeReady === "true") {
+            return;
+        }
+
+        wrapper.dataset.swipeReady = "true";
+
+        let startX = 0;
+        let startY = 0;
+        let holding = false;
+        let moved = false;
+
+        const start = event => {
+            if (
+                event.target.closest(
+                    ".message-action"
+                )
+            ) {
+                return;
+            }
+
+            const point =
+                event.touches?.[0] ||
+                event;
+
+            startX = point.clientX;
+            startY = point.clientY;
+            moved = false;
+            holding = false;
+
+            clearTimeout(holdTimer);
+
+            holdTimer = setTimeout(() => {
+                holding = true;
+            }, 450);
+        };
+
+        const move = event => {
+            if (!holding) return;
+
+            const point =
+                event.touches?.[0] ||
+                event;
+
+            const deltaX =
+                point.clientX - startX;
+
+            const deltaY =
+                point.clientY - startY;
+
+            if (Math.abs(deltaY) > Math.abs(deltaX)) {
+                return;
+            }
+
+            if (deltaX >= 0) {
+                return;
+            }
+
+            moved = true;
+
+            const distance =
+                Math.min(
+                    100,
+                    Math.max(0, Math.abs(deltaX))
+                );
+
+            wrapper.style.transform =
+                `translateX(-${distance}px)`;
+        };
+
+        const end = event => {
+            clearTimeout(holdTimer);
+
+            if (!holding || !moved) {
+                wrapper.style.transform = "";
+                return;
+            }
+
+            const point =
+                event.changedTouches?.[0] ||
+                event;
+
+            const deltaX =
+                point.clientX - startX;
+
+            wrapper.style.transform = "";
+
+            if (deltaX <= -60) {
+                closeAllSwipedMessages(wrapper);
+                wrapper.classList.add("swiped");
+            }
+        };
+
+        wrapper.addEventListener(
+            "touchstart",
+            start,
+            { passive: true }
+        );
+
+        wrapper.addEventListener(
+            "touchmove",
+            move,
+            { passive: true }
+        );
+
+        wrapper.addEventListener(
+            "touchend",
+            end
+        );
+
+        wrapper.addEventListener(
+            "pointerdown",
+            start
+        );
+
+        wrapper.addEventListener(
+            "pointermove",
+            move
+        );
+
+        wrapper.addEventListener(
+            "pointerup",
+            end
+        );
+
+        wrapper.addEventListener(
+            "pointercancel",
+            () => {
+                clearTimeout(holdTimer);
+                wrapper.style.transform = "";
+            }
+        );
+    }
+
+    /* =========================================================
+       MESSAGE ACTION EVENTS
+       ========================================================= */
+
+    async function handleMessageAction(event) {
+        const button =
+            event.target.closest(
+                ".message-action"
+            );
+
+        if (!button) return;
+
+        const wrapper =
+            button.closest(".message-wrapper");
+
+        if (!wrapper) return;
+
+        const id =
+            wrapper.dataset.messageId;
+
+        const action =
+            button.dataset.action;
+
+        const message =
+            currentMessages.find(
+                m => String(m.id) === String(id)
+            );
+
+        if (!message) return;
+
+        if (action === "save") {
+            await saveMessage(
+                message,
+                wrapper.dataset.messageType || "direct"
+            );
+        }
+
+        if (action === "edit") {
+            await editMessage(id);
+        }
+
+        if (action === "delete") {
+            await deleteMessage(id);
+        }
     }
 
     /* =========================================================
        GROUPS
        ========================================================= */
 
-    async function loadGroups() {
-        if (!currentUser) return;
+    async function loadGroups(query = "") {
+        let request = db
+            .from("groups")
+            .select("*")
+            .order("created_at", {
+                ascending: false
+            })
+            .limit(100);
+
+        if (query) {
+            request = request.or(
+                `name.ilike.%${query}%,username.ilike.%${query}%`
+            );
+        }
 
         const {
-            data: memberships,
+            data,
+            error
+        } = await request;
+
+        if (error) {
+            console.error("Groups:", error);
+            return [];
+        }
+
+        allGroups = data || [];
+
+        renderGroups(allGroups);
+
+        await loadMyGroups();
+
+        return allGroups;
+    }
+
+    async function loadMyGroups() {
+        if (!currentUser) return [];
+
+        const {
+            data,
             error
         } = await db
             .from("group_members")
-            .select("group_id")
+            .select(`
+                group_id,
+                role,
+                groups(*)
+            `)
             .eq("user_id", currentUser.id);
 
         if (error) {
-            console.error(error);
-            return;
+            console.error("My groups:", error);
+            return [];
         }
 
-        const ids =
-            (memberships || []).map(
-                item => item.group_id
-            );
+        myGroups = (data || [])
+            .map(row => ({
+                ...(row.groups || {}),
+                member_role: row.role
+            }))
+            .filter(Boolean);
 
-        if (!ids.length) {
-            renderGroups([]);
-            return;
-        }
+        renderGroups(allGroups);
 
-        const {
-            data: groups,
-            error: groupError
-        } = await db
-            .from("groups")
-            .select("*")
-            .in("id", ids)
-            .order("created_at", {
-                ascending: false
-            });
+        return myGroups;
+    }
 
-        if (groupError) {
-            console.error(groupError);
-            return;
-        }
-
-        renderGroups(groups || []);
+    function isGroupMember(groupId) {
+        return myGroups.some(
+            group =>
+                String(group.id) ===
+                String(groupId)
+        );
     }
 
     function renderGroups(groups) {
         const list = $("#groupsList");
-        if (!list) return;
 
-        setText("#groupCount", String(groups.length));
+        if (!list) return;
 
         if (!groups.length) {
             list.innerHTML = `
-                <div class="empty-list">
-                    No groups yet
+                <div class="empty-state">
+                    No groups found
                 </div>
             `;
             return;
         }
 
-        list.innerHTML = groups.map(group => `
-            <div
-                class="group-item"
-                data-group-id="${group.id}"
-            >
-                <div class="group-avatar">
-                    ${
-                        group.avatar_url
-                            ? `<img src="${escapeAttribute(group.avatar_url)}">`
-                            : escapeHTML(getInitial(group.name))
-                    }
-                </div>
+        list.innerHTML = groups
+            .map(group => {
+                const joined =
+                    isGroupMember(group.id);
 
-                <div class="group-info">
-                    <strong>${escapeHTML(group.name)}</strong>
-                    <span>@${escapeHTML(group.username || "")}</span>
-                </div>
-            </div>
-        `).join("");
+                return `
+                    <div
+                        class="group-item"
+                        data-group-id="${group.id}"
+                    >
+                        ${
+                            group.avatar_url
+                                ? `
+                                    <img
+                                        class="avatar"
+                                        src="${escapeAttr(group.avatar_url)}"
+                                        alt=""
+                                    >
+                                `
+                                : `
+                                    <div class="avatar">
+                                        ${escapeHTML(
+                                            (
+                                                group.name ||
+                                                "G"
+                                            )
+                                                .charAt(0)
+                                                .toUpperCase()
+                                        )}
+                                    </div>
+                                `
+                        }
 
-        list.querySelectorAll(".group-item")
-            .forEach(item => {
-                item.addEventListener("click", () => {
-                    openGroup(item.dataset.groupId);
-                });
-            });
+                        <div class="group-item-info">
+                            <strong>
+                                ${escapeHTML(group.name || "")}
+                            </strong>
+
+                            <span>
+                                @${escapeHTML(
+                                    group.username || ""
+                                )}
+                            </span>
+                        </div>
+
+                        <button
+                            class="group-open-btn"
+                            data-group-id="${group.id}"
+                        >
+                            ${joined ? "Open" : "Join"}
+                        </button>
+                    </div>
+                `;
+            })
+            .join("");
     }
 
     async function createGroup(event) {
         event?.preventDefault();
 
-        const name =
-            $("#groupName")?.value.trim();
-
+        const name = getValue("groupName");
         const username =
-            $("#groupUsername")?.value.trim();
+            normalizeUsername(
+                getValue("groupUsername")
+            );
 
-        const bio =
-            $("#groupBio")?.value.trim() || "";
+        const bio = getValue("groupBio");
 
-        if (!name || !username) {
-            toast("Group name va username kerak", "error");
+        if (!name) {
+            showToast("Group name kerak.");
+            return;
+        }
+
+        if (!validUsername(username)) {
+            showToast(
+                "Group username noto‘g‘ri."
+            );
             return;
         }
 
         const {
             data,
             error
-        } = await db.rpc("create_group", {
-            p_name: name,
-            p_username: username.toLowerCase(),
-            p_bio: bio
-        });
+        } = await db.rpc(
+            "create_group",
+            {
+                p_name: name,
+                p_username: username,
+                p_bio: bio
+            }
+        );
 
         if (error) {
             console.error(error);
-            toast(
-                error.message || "Group yaratilmadi",
-                "error"
-            );
+
+            if (error.code === "23505") {
+                showToast(
+                    "Bu group username allaqachon ishlatilgan."
+                );
+            } else {
+                showToast(
+                    error.message ||
+                    "Group yaratilmadi."
+                );
+            }
+
             return;
         }
 
-        toast("Group yaratildi ✓", "success");
+        showToast("Group yaratildi.");
 
-        closeModal($("#createGroupModal"));
+        closeModal("createGroupModal");
 
-        $("#groupForm")?.reset();
+        setValue("groupName", "");
+        setValue("groupUsername", "");
+        setValue("groupBio", "");
 
         await loadGroups();
-
-        if (data) {
-            await openGroup(data);
-        }
     }
 
     async function openGroup(groupId) {
         const {
-            data: group,
+            data,
             error
         } = await db
             .from("groups")
@@ -1610,108 +1837,142 @@
             .eq("id", groupId)
             .maybeSingle();
 
-        if (error || !group) {
-            toast("Group topilmadi", "error");
+        if (error || !data) {
+            showToast("Group topilmadi.");
             return;
         }
 
-        const {
-            data: membership
-        } = await db
-            .from("group_members")
-            .select("*")
-            .eq("group_id", groupId)
-            .eq("user_id", currentUser.id)
-            .maybeSingle();
-
-        currentChatType = "group";
-        currentChatId = groupId;
-        currentGroup = group;
-        currentChannel = null;
-        currentChatUser = null;
-
-        showElement($("#activeChat"));
-        hideElement($("#chatEmpty"));
-
-        renderGroupHeader(group);
-
-        if (!membership) {
-            renderJoinGroupState(group);
-            return;
-        }
-
-        await loadGroupMessages(groupId);
-    }
-
-    function renderGroupHeader(group) {
-        const avatar = $("#chatAvatar");
-        const name = $("#chatName");
-        const verified = $("#chatVerified");
-        const status = $("#chatStatus");
-
-        if (avatar) {
-            avatar.innerHTML = group.avatar_url
-                ? `<img src="${escapeAttribute(group.avatar_url)}">`
-                : escapeHTML(getInitial(group.name));
-        }
+        activeChatType = "group";
+        activeGroup = data;
+        activeChatUser = null;
+        activeChannel = null;
 
         setText(
-            "#chatName",
-            group.name || "Group"
+            "chatName",
+            data.name || "Group"
         );
 
-        hideElement(verified);
+        setText(
+            "chatStatus",
+            data.is_public
+                ? "Public group"
+                : "Private group"
+        );
 
-        if (status) {
-            status.textContent =
-                group.is_public
-                    ? "Public group"
-                    : "Private group";
+        setText(
+            "chatVerified",
+            ""
+        );
+
+        const joined =
+            isGroupMember(groupId);
+
+        if (!joined) {
+            renderJoinRequired(
+                "group",
+                data
+            );
+            return;
         }
+
+        showChatComposer(true);
+
+        await loadGroupMessages(groupId);
+
+        closeMobileSidebar();
     }
 
-    function renderJoinGroupState(group) {
-        const messages = $("#messages");
-        if (!messages) return;
+    function renderJoinRequired(type, entity) {
+        const box = $("#messages");
 
-        messages.innerHTML = `
-            <div class="join-chat-state">
-                <div class="join-icon">👥</div>
+        if (!box) return;
 
-                <h3>${escapeHTML(group.name)}</h3>
+        const title =
+            type === "group"
+                ? "Group"
+                : "Channel";
 
-                <p>
-                    ${group.is_public
-                        ? "Join this group to start chatting."
-                        : "This group is private. Use an invite code to join."
-                    }
-                </p>
+        box.innerHTML = `
+            <div class="join-required">
+                <div class="join-required-title">
+                    ${escapeHTML(
+                        entity.name || title
+                    )}
+                </div>
+
+                <div class="join-required-text">
+                    You need to join this ${title.toLowerCase()}
+                    before messaging.
+                </div>
 
                 <button
                     type="button"
-                    id="dynamicJoinGroupBtn"
+                    id="joinCurrentEntityBtn"
                 >
                     Join
                 </button>
             </div>
         `;
 
-        $("#dynamicJoinGroupBtn")
-            ?.addEventListener("click", () => {
-                if (group.is_public) {
-                    toast(
-                        "Public join RPC mavjud emas. Invite code orqali qo‘shiling."
-                    );
-                } else {
-                    openModal($("#joinGroupModal"));
-                }
-            });
+        const btn =
+            $("#joinCurrentEntityBtn");
 
-        const input = $("#messageInput");
-        const send = $("#sendButton");
+        if (btn) {
+            btn.addEventListener(
+                "click",
+                () => {
+                    if (type === "group") {
+                        openModal("joinGroupModal");
+                    } else {
+                        openModal("joinChannelModal");
+                    }
+                },
+                { once: true }
+            );
+        }
 
-        if (input) input.disabled = true;
-        if (send) send.disabled = true;
+        showChatComposer(false);
+    }
+
+    async function joinGroup(event) {
+        event?.preventDefault();
+
+        const code =
+            getValue("groupInviteInput");
+
+        if (!code) {
+            showToast("Invite code kiriting.");
+            return;
+        }
+
+        const {
+            error
+        } = await db.rpc(
+            "join_group_by_invite",
+            {
+                p_invite_code: code
+            }
+        );
+
+        if (error) {
+            safeError(
+                error,
+                "Groupga qo‘shilib bo‘lmadi."
+            );
+            return;
+        }
+
+        showToast("Groupga qo‘shildingiz.");
+
+        closeModal("joinGroupModal");
+
+        setValue("groupInviteInput", "");
+
+        await loadGroups();
+
+        if (activeGroup) {
+            await openGroup(activeGroup.id);
+        }
     }
 
     async function loadGroupMessages(groupId) {
@@ -1722,106 +1983,531 @@
             .from("group_messages")
             .select("*")
             .eq("group_id", groupId)
-            .is("deleted_at", null)
             .order("created_at", {
                 ascending: true
             });
 
         if (error) {
-            console.error(error);
-            toast("Group messages yuklanmadi", "error");
+            safeError(
+                error,
+                "Group messages yuklanmadi."
+            );
             return;
         }
 
         currentMessages = data || [];
 
         renderGroupMessages(currentMessages);
-
-        const input = $("#messageInput");
-        const send = $("#sendButton");
-
-        if (input) input.disabled = false;
-        if (send) send.disabled = false;
     }
 
     function renderGroupMessages(messages) {
-        const container = $("#messages");
-        if (!container) return;
+        const box = $("#messages");
+
+        if (!box) return;
 
         if (!messages.length) {
-            container.innerHTML = `
-                <div class="empty-chat">
-                    <p>No group messages yet</p>
+            box.innerHTML = `
+                <div class="empty-state">
+                    No messages yet
                 </div>
             `;
             return;
         }
 
-        container.innerHTML = messages
-            .map(message => renderMessage(message, "group"))
+        box.innerHTML = messages
+            .map(message => {
+                const mine =
+                    isOwn(message.sender_id);
+
+                return `
+                    <div
+                        class="message-row ${mine ? "mine" : "theirs"}"
+                        data-message-id="${message.id}"
+                    >
+                        <div
+                            class="message-wrapper"
+                            data-message-id="${message.id}"
+                            data-message-type="group"
+                        >
+                            ${messageActionHTML(message, "group")}
+
+                            <div class="message-bubble">
+                                <div class="message-content">
+                                    ${messageTextHTML(message)}
+                                </div>
+
+                                <div class="message-meta">
+                                    ${formatDate(
+                                        message.created_at
+                                    )}
+
+                                    ${
+                                        message.edited_at
+                                            ? " · edited"
+                                            : ""
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            })
             .join("");
 
-        bindMessageActions();
         initializeMessageSwipes();
 
-        scrollMessagesToBottom();
+        scrollMessages();
     }
 
-    async function sendGroupMessage(text) {
-        if (!currentGroup) return;
+    async function sendGroupMessage(
+        content = null,
+        type = "text",
+        imageUrl = null
+    ) {
+        if (!activeGroup) return;
 
-        const {
-            data: member
-        } = await db
-            .from("group_members")
-            .select("role")
-            .eq("group_id", currentGroup.id)
-            .eq("user_id", currentUser.id)
-            .maybeSingle();
-
-        if (!member) {
-            toast("Avval groupga join qiling");
+        if (!isGroupMember(activeGroup.id)) {
+            showToast(
+                "Avval groupga qo‘shiling."
+            );
             return;
         }
 
-        text = text.trim();
+        if (content === null) {
+            content =
+                getValue("messageInput");
+        }
 
-        if (!text) return;
+        if (
+            type === "text" &&
+            !String(content || "").trim()
+        ) {
+            return;
+        }
 
         const {
             error
         } = await db
             .from("group_messages")
             .insert({
-                group_id: currentGroup.id,
+                group_id: activeGroup.id,
                 sender_id: currentUser.id,
-                content: text,
-                message_type: "text"
+                content: content || "",
+                message_type: type,
+                image_url: imageUrl
             });
 
         if (error) {
-            console.error(error);
-            toast("Group message yuborilmadi", "error");
+            safeError(
+                error,
+                "Group message yuborilmadi."
+            );
             return;
         }
 
-        $("#messageInput").value = "";
+        setValue("messageInput", "");
 
         await loadGroupMessages(
-            currentGroup.id
+            activeGroup.id
         );
     }
 
     /* =========================================================
-       JOIN GROUP
+       GROUP INFO
        ========================================================= */
 
-    async function joinGroup() {
-        const code =
-            $("#groupInviteInput")?.value.trim();
+    async function openGroupInfo(group = activeGroup) {
+        if (!group) return;
 
-        if (!code) {
-            toast("Invite code kiriting", "error");
+        setText(
+            "groupInfoName",
+            group.name || ""
+        );
+
+        setText(
+            "groupInfoUsername",
+            group.username
+                ? `@${group.username}`
+                : ""
+        );
+
+        setText(
+            "groupInfoBio",
+            group.bio || ""
+        );
+
+        const inviteBtn =
+            $("#groupInviteBtn");
+
+        if (inviteBtn) {
+            inviteBtn.onclick =
+                () => createGroupInvite(
+                    group.id
+                );
+        }
+
+        const membersBtn =
+            $("#groupMembersBtn");
+
+        if (membersBtn) {
+            membersBtn.onclick =
+                () => loadGroupMembers(
+                    group.id
+                );
+        }
+
+        const leaveBtn =
+            $("#leaveGroupBtn");
+
+        if (leaveBtn) {
+            leaveBtn.onclick =
+                () => leaveGroup(
+                    group.id
+                );
+        }
+
+        openModal("groupInfoModal");
+    }
+
+    async function createGroupInvite(groupId) {
+        const code =
+            `${Math.random()
+                .toString(36)
+                .slice(2, 10)}${Date.now()
+                .toString(36)
+                .slice(-5)}`;
+
+        const {
+            error
+        } = await db
+            .from("group_invites")
+            .insert({
+                group_id: groupId,
+                invite_code: code,
+                created_by: currentUser.id
+            });
+
+        if (error) {
+            safeError(
+                error,
+                "Invite yaratilmadi."
+            );
+            return;
+        }
+
+        await copyText(code);
+
+        showToast(
+            `Invite code: ${code}`
+        );
+    }
+
+    async function loadGroupMembers(groupId) {
+        const {
+            data,
+            error
+        } = await db
+            .from("group_members")
+            .select(`
+                *,
+                profile:profiles(
+                    id,
+                    username,
+                    full_name,
+                    avatar_url,
+                    is_verified,
+                    verified_until
+                )
+            `)
+            .eq("group_id", groupId);
+
+        if (error) {
+            safeError(
+                error,
+                "Members yuklanmadi."
+            );
+            return;
+        }
+
+        setText(
+            "membersTitle",
+            "Group members"
+        );
+
+        const list =
+            $("#membersList");
+
+        if (!list) return;
+
+        list.innerHTML =
+            (data || [])
+                .map(member => {
+                    const profile =
+                        member.profile || {};
+
+                    return `
+                        <div class="member-item">
+                            ${avatarHTML(profile)}
+
+                            <div>
+                                <strong>
+                                    ${escapeHTML(
+                                        profile.full_name ||
+                                        profile.username ||
+                                        "User"
+                                    )}
+                                    ${verifiedHTML(profile)}
+                                </strong>
+
+                                <small>
+                                    @${escapeHTML(
+                                        profile.username || ""
+                                    )}
+                                    ·
+                                    ${escapeHTML(
+                                        member.role || "member"
+                                    )}
+                                </small>
+                            </div>
+                        </div>
+                    `;
+                })
+                .join("");
+
+        openModal("membersModal");
+    }
+
+    async function leaveGroup(groupId) {
+        const ok =
+            confirm(
+                "Groupdan chiqilsinmi?"
+            );
+
+        if (!ok) return;
+
+        const {
+            error
+        } = await db
+            .from("group_members")
+            .delete()
+            .eq("group_id", groupId)
+            .eq("user_id", currentUser.id);
+
+        if (error) {
+            safeError(
+                error,
+                "Groupdan chiqib bo‘lmadi."
+            );
+            return;
+        }
+
+        showToast("Groupdan chiqdingiz.");
+
+        activeGroup = null;
+        activeChatType = null;
+
+        await loadGroups();
+
+        showEmptyChat();
+    }
+
+    /* =========================================================
+       CHANNELS
+       ========================================================= */
+
+    async function loadChannels(query = "") {
+        let request = db
+            .from("channels")
+            .select("*")
+            .order("created_at", {
+                ascending: false
+            })
+            .limit(100);
+
+        if (query) {
+            request = request.or(
+                `name.ilike.%${query}%,username.ilike.%${query}%`
+            );
+        }
+
+        const {
+            data,
+            error
+        } = await request;
+
+        if (error) {
+            console.error("Channels:", error);
+            return [];
+        }
+
+        allChannels = data || [];
+
+        await loadMyChannels();
+
+        renderChannels(allChannels);
+
+        return allChannels;
+    }
+
+    async function loadMyChannels() {
+        const {
+            data,
+            error
+        } = await db
+            .from("channel_members")
+            .select(`
+                channel_id,
+                role,
+                channels(*)
+            `)
+            .eq("user_id", currentUser.id);
+
+        if (error) {
+            console.error(error);
+            return [];
+        }
+
+        myChannels =
+            (data || [])
+                .map(row => ({
+                    ...(row.channels || {}),
+                    member_role: row.role
+                }))
+                .filter(Boolean);
+
+        return myChannels;
+    }
+
+    function isChannelMember(channelId) {
+        return myChannels.some(
+            channel =>
+                String(channel.id) ===
+                String(channelId)
+        );
+    }
+
+    function isChannelWriter(channelId) {
+        const channel =
+            myChannels.find(
+                c =>
+                    String(c.id) ===
+                    String(channelId)
+            );
+
+        if (!channel) return false;
+
+        return [
+            "owner",
+            "admin",
+            "moderator",
+            "writer"
+        ].includes(
+            String(channel.member_role)
+        );
+    }
+
+    function renderChannels(channels) {
+        const list =
+            $("#channelsList");
+
+        if (!list) return;
+
+        if (!channels.length) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    No channels found
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML =
+            channels
+                .map(channel => {
+                    const joined =
+                        isChannelMember(
+                            channel.id
+                        );
+
+                    return `
+                        <div
+                            class="channel-item"
+                            data-channel-id="${channel.id}"
+                        >
+                            ${
+                                channel.avatar_url
+                                    ? `
+                                        <img
+                                            class="avatar"
+                                            src="${escapeAttr(
+                                                channel.avatar_url
+                                            )}"
+                                            alt=""
+                                        >
+                                    `
+                                    : `
+                                        <div class="avatar">
+                                            ${escapeHTML(
+                                                (
+                                                    channel.name ||
+                                                    "C"
+                                                )
+                                                    .charAt(0)
+                                                    .toUpperCase()
+                                            )}
+                                        </div>
+                                    `
+                            }
+
+                            <div class="channel-item-info">
+                                <strong>
+                                    ${escapeHTML(
+                                        channel.name || ""
+                                    )}
+                                </strong>
+
+                                <span>
+                                    @${escapeHTML(
+                                        channel.username || ""
+                                    )}
+                                </span>
+                            </div>
+
+                            <button
+                                class="channel-open-btn"
+                                data-channel-id="${channel.id}"
+                            >
+                                ${joined ? "Open" : "Join"}
+                            </button>
+                        </div>
+                    `;
+                })
+                .join("");
+    }
+
+    async function createChannel(event) {
+        event?.preventDefault();
+
+        const name =
+            getValue("channelName");
+
+        const username =
+            normalizeUsername(
+                getValue("channelUsername")
+            );
+
+        const bio =
+            getValue("channelBio");
+
+        if (!name) {
+            showToast("Channel name kerak.");
+            return;
+        }
+
+        if (!validUsername(username)) {
+            showToast(
+                "Channel username noto‘g‘ri."
+            );
             return;
         }
 
@@ -1829,187 +2515,47 @@
             data,
             error
         } = await db.rpc(
-            "join_group_by_invite",
+            "create_channel",
             {
-                p_invite_code: code
+                p_name: name,
+                p_username: username,
+                p_bio: bio
             }
         );
 
         if (error) {
             console.error(error);
-            toast(
-                error.message || "Groupga qo‘shilmadi",
-                "error"
-            );
+
+            if (error.code === "23505") {
+                showToast(
+                    "Bu channel username allaqachon ishlatilgan."
+                );
+            } else {
+                showToast(
+                    error.message ||
+                    "Channel yaratilmadi."
+                );
+            }
+
             return;
         }
 
-        toast("Groupga qo‘shildingiz ✓", "success");
+        showToast("Channel yaratildi.");
 
-        closeModal($("#joinGroupModal"));
-
-        if ($("#groupInviteInput")) {
-            $("#groupInviteInput").value = "";
-        }
-
-        await loadGroups();
-
-        if (data) {
-            await openGroup(data);
-        }
-    }
-
-    /* =========================================================
-       CHANNELS
-       ========================================================= */
-
-    async function loadChannels() {
-        if (!currentUser) return;
-
-        const {
-            data: memberships,
-            error
-        } = await db
-            .from("channel_members")
-            .select("channel_id")
-            .eq("user_id", currentUser.id);
-
-        if (error) {
-            console.error(error);
-            return;
-        }
-
-        const ids =
-            (memberships || []).map(
-                item => item.channel_id
-            );
-
-        if (!ids.length) {
-            renderChannels([]);
-            return;
-        }
-
-        const {
-            data: channels,
-            error: channelError
-        } = await db
-            .from("channels")
-            .select("*")
-            .in("id", ids)
-            .order("created_at", {
-                ascending: false
-            });
-
-        if (channelError) {
-            console.error(channelError);
-            return;
-        }
-
-        renderChannels(channels || []);
-    }
-
-    function renderChannels(channels) {
-        const list = $("#channelsList");
-        if (!list) return;
-
-        setText(
-            "#channelCount",
-            String(channels.length)
+        closeModal(
+            "createChannelModal"
         );
 
-        if (!channels.length) {
-            list.innerHTML = `
-                <div class="empty-list">
-                    No channels yet
-                </div>
-            `;
-            return;
-        }
-
-        list.innerHTML = channels.map(channel => `
-            <div
-                class="channel-item"
-                data-channel-id="${channel.id}"
-            >
-                <div class="channel-avatar">
-                    ${
-                        channel.avatar_url
-                            ? `<img src="${escapeAttribute(channel.avatar_url)}">`
-                            : escapeHTML(getInitial(channel.name))
-                    }
-                </div>
-
-                <div class="channel-info">
-                    <strong>${escapeHTML(channel.name)}</strong>
-                    <span>@${escapeHTML(channel.username || "")}</span>
-                </div>
-            </div>
-        `).join("");
-
-        list.querySelectorAll(".channel-item")
-            .forEach(item => {
-                item.addEventListener("click", () => {
-                    openChannel(
-                        item.dataset.channelId
-                    );
-                });
-            });
-    }
-
-    async function createChannel(event) {
-        event?.preventDefault();
-
-        const name =
-            $("#channelName")?.value.trim();
-
-        const username =
-            $("#channelUsername")?.value.trim();
-
-        const bio =
-            $("#channelBio")?.value.trim() || "";
-
-        if (!name || !username) {
-            toast(
-                "Channel name va username kerak",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            data,
-            error
-        } = await db.rpc("create_channel", {
-            p_name: name,
-            p_username: username.toLowerCase(),
-            p_bio: bio
-        });
-
-        if (error) {
-            console.error(error);
-            toast(
-                error.message || "Channel yaratilmadi",
-                "error"
-            );
-            return;
-        }
-
-        toast("Channel yaratildi ✓", "success");
-
-        closeModal($("#createChannelModal"));
-
-        $("#channelForm")?.reset();
+        setValue("channelName", "");
+        setValue("channelUsername", "");
+        setValue("channelBio", "");
 
         await loadChannels();
-
-        if (data) {
-            await openChannel(data);
-        }
     }
 
     async function openChannel(channelId) {
         const {
-            data: channel,
+            data,
             error
         } = await db
             .from("channels")
@@ -2017,111 +2563,100 @@
             .eq("id", channelId)
             .maybeSingle();
 
-        if (error || !channel) {
-            toast("Channel topilmadi", "error");
+        if (error || !data) {
+            showToast("Channel topilmadi.");
+            return;
+        }
+
+        activeChatType = "channel";
+        activeChannel = data;
+        activeGroup = null;
+        activeChatUser = null;
+
+        setText(
+            "chatName",
+            data.name || "Channel"
+        );
+
+        setText(
+            "chatStatus",
+            data.is_public
+                ? "Public channel"
+                : "Private channel"
+        );
+
+        const joined =
+            isChannelMember(channelId);
+
+        if (!joined) {
+            renderJoinRequired(
+                "channel",
+                data
+            );
+            return;
+        }
+
+        const writer =
+            isChannelWriter(channelId);
+
+        showChatComposer(writer);
+
+        await loadChannelMessages(
+            channelId
+        );
+
+        closeMobileSidebar();
+    }
+
+    async function joinChannel(event) {
+        event?.preventDefault();
+
+        const code =
+            getValue("channelInviteInput");
+
+        if (!code) {
+            showToast(
+                "Invite code kiriting."
+            );
             return;
         }
 
         const {
-            data: membership
-        } = await db
-            .from("channel_members")
-            .select("*")
-            .eq("channel_id", channelId)
-            .eq("user_id", currentUser.id)
-            .maybeSingle();
+            error
+        } = await db.rpc(
+            "join_channel_by_invite",
+            {
+                p_invite_code: code
+            }
+        );
 
-        currentChatType = "channel";
-        currentChatId = channelId;
-        currentChannel = channel;
-        currentGroup = null;
-        currentChatUser = null;
-
-        showElement($("#activeChat"));
-        hideElement($("#chatEmpty"));
-
-        renderChannelHeader(channel);
-
-        if (!membership) {
-            renderJoinChannelState(channel);
+        if (error) {
+            safeError(
+                error,
+                "Channelga qo‘shilib bo‘lmadi."
+            );
             return;
         }
 
-        await loadChannelMessages(channelId);
-    }
-
-    function renderChannelHeader(channel) {
-        const avatar = $("#chatAvatar");
-
-        if (avatar) {
-            avatar.innerHTML = channel.avatar_url
-                ? `<img src="${escapeAttribute(channel.avatar_url)}">`
-                : escapeHTML(getInitial(channel.name));
-        }
-
-        setText(
-            "#chatName",
-            channel.name || "Channel"
+        showToast(
+            "Channelga qo‘shildingiz."
         );
 
-        hideElement($("#chatVerified"));
-
-        setText(
-            "#chatStatus",
-            channel.is_public
-                ? "Public channel"
-                : "Private channel"
+        closeModal(
+            "joinChannelModal"
         );
-    }
 
-    function renderJoinChannelState(channel) {
-        const messages = $("#messages");
-        if (!messages) return;
+        setValue(
+            "channelInviteInput",
+            ""
+        );
 
-        messages.innerHTML = `
-            <div class="join-chat-state">
+        await loadChannels();
 
-                <div class="join-icon">📢</div>
-
-                <h3>${escapeHTML(channel.name)}</h3>
-
-                <p>
-                    ${
-                        channel.is_public
-                            ? "Join this channel to view and interact."
-                            : "This channel is private."
-                    }
-                </p>
-
-                <button
-                    type="button"
-                    id="dynamicJoinChannelBtn"
-                >
-                    Join
-                </button>
-
-            </div>
-        `;
-
-        $("#dynamicJoinChannelBtn")
-            ?.addEventListener("click", () => {
-                if (channel.is_public) {
-                    toast(
-                        "Public join RPC mavjud emas. Invite code orqali qo‘shiling."
-                    );
-                } else {
-                    openModal(
-                        $("#joinChannelModal")
-                    );
-                }
-            });
-
-        if ($("#messageInput")) {
-            $("#messageInput").disabled = true;
-        }
-
-        if ($("#sendButton")) {
-            $("#sendButton").disabled = true;
+        if (activeChannel) {
+            await openChannel(
+                activeChannel.id
+            );
         }
     }
 
@@ -2133,538 +2668,408 @@
             .from("channel_messages")
             .select("*")
             .eq("channel_id", channelId)
-            .is("deleted_at", null)
             .order("created_at", {
                 ascending: true
             });
 
         if (error) {
-            console.error(error);
-            toast(
-                "Channel messages yuklanmadi",
-                "error"
+            safeError(
+                error,
+                "Channel messages yuklanmadi."
             );
             return;
         }
 
         currentMessages = data || [];
 
-        renderChannelMessages(currentMessages);
+        renderChannelMessages(
+            currentMessages
+        );
     }
 
     function renderChannelMessages(messages) {
-        const container = $("#messages");
-        if (!container) return;
+        const box = $("#messages");
+
+        if (!box) return;
 
         if (!messages.length) {
-            container.innerHTML = `
-                <div class="empty-chat">
-                    <p>No channel messages yet</p>
+            box.innerHTML = `
+                <div class="empty-state">
+                    No messages yet
                 </div>
             `;
             return;
         }
 
-        container.innerHTML = messages
-            .map(message =>
-                renderMessage(
-                    message,
-                    "channel"
-                )
-            )
-            .join("");
+        box.innerHTML =
+            messages
+                .map(message => {
+                    const mine =
+                        isOwn(message.sender_id);
 
-        bindMessageActions();
+                    return `
+                        <div
+                            class="message-row ${mine ? "mine" : "theirs"}"
+                            data-message-id="${message.id}"
+                        >
+                            <div
+                                class="message-wrapper"
+                                data-message-id="${message.id}"
+                                data-message-type="channel"
+                            >
+                                ${messageActionHTML(
+                                    message,
+                                    "channel"
+                                )}
+
+                                <div class="message-bubble">
+                                    <div class="message-content">
+                                        ${messageTextHTML(
+                                            message
+                                        )}
+                                    </div>
+
+                                    <div class="message-meta">
+                                        ${formatDate(
+                                            message.created_at
+                                        )}
+
+                                        ${
+                                            message.edited_at
+                                                ? " · edited"
+                                                : ""
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                })
+                .join("");
+
         initializeMessageSwipes();
 
-        scrollMessagesToBottom();
+        scrollMessages();
     }
 
-    async function sendChannelMessage(text) {
-        if (!currentChannel) return;
+    async function sendChannelMessage(
+        content = null,
+        type = "text",
+        imageUrl = null
+    ) {
+        if (!activeChannel) return;
 
-        const allowed =
-            await isChannelWriter(
-                currentChannel.id
-            );
-
-        if (!allowed) {
-            toast(
-                "Siz bu channelga message yubora olmaysiz"
+        if (
+            !isChannelWriter(
+                activeChannel.id
+            )
+        ) {
+            showToast(
+                "Siz channelga message yubora olmaysiz."
             );
             return;
         }
 
-        text = text.trim();
+        if (content === null) {
+            content =
+                getValue("messageInput");
+        }
 
-        if (!text) return;
+        if (
+            type === "text" &&
+            !String(content || "").trim()
+        ) {
+            return;
+        }
 
         const {
             error
         } = await db
             .from("channel_messages")
             .insert({
-                channel_id: currentChannel.id,
+                channel_id: activeChannel.id,
                 sender_id: currentUser.id,
-                content: text,
-                message_type: "text"
+                content: content || "",
+                message_type: type,
+                image_url: imageUrl
             });
 
         if (error) {
-            console.error(error);
-            toast(
-                "Channel message yuborilmadi",
-                "error"
+            safeError(
+                error,
+                "Channel message yuborilmadi."
             );
             return;
         }
 
-        $("#messageInput").value = "";
+        setValue("messageInput", "");
 
         await loadChannelMessages(
-            currentChannel.id
+            activeChannel.id
         );
     }
 
-    async function isChannelWriter(channelId) {
-        const {
-            data
-        } = await db
-            .from("channel_members")
-            .select("role")
-            .eq("channel_id", channelId)
-            .eq("user_id", currentUser.id)
-            .maybeSingle();
-
-        if (!data) return false;
-
-        return [
-            "owner",
-            "admin",
-            "moderator",
-            "writer"
-        ].includes(data.role);
-    }
-
-    async function joinChannel() {
-        const code =
-            $("#channelInviteInput")
-                ?.value.trim();
-
-        if (!code) {
-            toast("Invite code kiriting", "error");
-            return;
-        }
-
-        const {
-            data,
-            error
-        } = await db.rpc(
-            "join_channel_by_invite",
-            {
-                p_invite_code: code
-            }
-        );
-
-        if (error) {
-            console.error(error);
-            toast(
-                error.message || "Channelga qo‘shilmadi",
-                "error"
-            );
-            return;
-        }
-
-        toast(
-            "Channelga qo‘shildingiz ✓",
-            "success"
-        );
-
-        closeModal(
-            $("#joinChannelModal")
-        );
-
-        if ($("#channelInviteInput")) {
-            $("#channelInviteInput").value = "";
-        }
-
-        await loadChannels();
-
-        if (data) {
-            await openChannel(data);
-        }
-    }
-
-    /* =========================================================
-       GROUP / CHANNEL INFO
-       ========================================================= */
-
-    async function openGroupInfo(group = currentGroup) {
-        if (!group) return;
-
-        setText(
-            "#groupInfoName",
-            group.name
-        );
-
-        setText(
-            "#groupInfoUsername",
-            group.username
-                ? "@" + group.username
-                : ""
-        );
-
-        setText(
-            "#groupInfoBio",
-            group.bio || ""
-        );
-
-        openModal(
-            $("#groupInfoModal")
-        );
-    }
-
-    async function openChannelInfo(channel = currentChannel) {
+    async function openChannelInfo(channel = activeChannel) {
         if (!channel) return;
 
         setText(
-            "#channelInfoName",
-            channel.name
+            "channelInfoName",
+            channel.name || ""
         );
 
         setText(
-            "#channelInfoUsername",
+            "channelInfoUsername",
             channel.username
-                ? "@" + channel.username
+                ? `@${channel.username}`
                 : ""
         );
 
         setText(
-            "#channelInfoBio",
+            "channelInfoBio",
             channel.bio || ""
         );
 
-        openModal(
-            $("#channelInfoModal")
-        );
-    }
+        const inviteBtn =
+            $("#channelInviteBtn");
 
-    async function createGroupInvite() {
-        if (!currentGroup) return;
-
-        const {
-            data,
-            error
-        } = await db
-            .from("group_invites")
-            .insert({
-                group_id: currentGroup.id,
-                created_by: currentUser.id
-            })
-            .select("*")
-            .single();
-
-        if (error) {
-            console.error(error);
-            toast(
-                "Invite yaratilmadi",
-                "error"
-            );
-            return;
+        if (inviteBtn) {
+            inviteBtn.onclick =
+                () =>
+                    createChannelInvite(
+                        channel.id
+                    );
         }
 
-        const code =
-            data.invite_code ||
-            data.code;
+        const membersBtn =
+            $("#channelMembersBtn");
 
-        copyText(code);
+        if (membersBtn) {
+            membersBtn.onclick =
+                () =>
+                    loadChannelMembers(
+                        channel.id
+                    );
+        }
 
-        toast(
-            `Invite code: ${code}`,
-            "success"
+        const leaveBtn =
+            $("#leaveChannelBtn");
+
+        if (leaveBtn) {
+            leaveBtn.onclick =
+                () =>
+                    leaveChannel(
+                        channel.id
+                    );
+        }
+
+        openModal(
+            "channelInfoModal"
         );
     }
 
-    async function createChannelInvite() {
-        if (!currentChannel) return;
+    async function createChannelInvite(channelId) {
+        const code =
+            `${Math.random()
+                .toString(36)
+                .slice(2, 10)}${Date.now()
+                .toString(36)
+                .slice(-5)}`;
 
         const {
-            data,
             error
         } = await db
             .from("channel_invites")
             .insert({
-                channel_id: currentChannel.id,
+                channel_id: channelId,
+                invite_code: code,
                 created_by: currentUser.id
-            })
-            .select("*")
-            .single();
+            });
 
         if (error) {
-            console.error(error);
-            toast(
-                "Invite yaratilmadi",
-                "error"
+            safeError(
+                error,
+                "Invite yaratilmadi."
             );
             return;
         }
 
-        const code =
-            data.invite_code ||
-            data.code;
+        await copyText(code);
 
-        copyText(code);
-
-        toast(
-            `Invite code: ${code}`,
-            "success"
+        showToast(
+            `Invite code: ${code}`
         );
     }
 
-    async function copyText(value) {
-        if (!value) return;
-
-        try {
-            await navigator.clipboard.writeText(
-                String(value)
-            );
-
-            toast("Copied ✓", "success");
-        } catch {
-            window.prompt(
-                "Copy this text:",
-                String(value)
-            );
-        }
-    }
-
-    /* =========================================================
-       MEMBERS
-       ========================================================= */
-
-    async function showGroupMembers() {
-        if (!currentGroup) return;
-
+    async function loadChannelMembers(channelId) {
         const {
-            data: members,
-            error
-        } = await db
-            .from("group_members")
-            .select("user_id,role")
-            .eq("group_id", currentGroup.id);
-
-        if (error) {
-            console.error(error);
-            toast(
-                "Members yuklanmadi",
-                "error"
-            );
-            return;
-        }
-
-        await renderMembers(
-            members || [],
-            "Group members"
-        );
-    }
-
-    async function showChannelMembers() {
-        if (!currentChannel) return;
-
-        const {
-            data: members,
+            data,
             error
         } = await db
             .from("channel_members")
-            .select("user_id,role")
-            .eq("channel_id", currentChannel.id);
+            .select(`
+                *,
+                profile:profiles(
+                    id,
+                    username,
+                    full_name,
+                    avatar_url,
+                    is_verified,
+                    verified_until
+                )
+            `)
+            .eq("channel_id", channelId);
 
         if (error) {
-            console.error(error);
-            toast(
-                "Members yuklanmadi",
-                "error"
+            safeError(
+                error,
+                "Members yuklanmadi."
             );
             return;
         }
 
-        await renderMembers(
-            members || [],
+        setText(
+            "membersTitle",
             "Channel members"
         );
-    }
 
-    async function renderMembers(members, title) {
-        const ids =
-            members.map(item => item.user_id);
-
-        const list = $("#membersList");
+        const list =
+            $("#membersList");
 
         if (!list) return;
 
-        setText(
-            "#membersTitle",
-            title
-        );
-
-        if (!ids.length) {
-            list.innerHTML = `
-                <div class="empty-list">
-                    No members
-                </div>
-            `;
-
-            openModal(
-                $("#membersModal")
-            );
-
-            return;
-        }
-
-        const {
-            data: profiles
-        } = await db
-            .from("profiles")
-            .select("*")
-            .in("id", ids);
-
         list.innerHTML =
-            members.map(member => {
-                const user =
-                    profiles?.find(
-                        p => p.id === member.user_id
-                    );
+            (data || [])
+                .map(member => {
+                    const profile =
+                        member.profile || {};
 
-                if (!user) return "";
+                    return `
+                        <div class="member-item">
+                            ${avatarHTML(profile)}
 
-                return `
-                    <div class="member-item">
+                            <div>
+                                <strong>
+                                    ${escapeHTML(
+                                        profile.full_name ||
+                                        profile.username ||
+                                        "User"
+                                    )}
+                                    ${verifiedHTML(profile)}
+                                </strong>
 
-                        <div class="user-avatar">
-                            ${
-                                user.avatar_url
-                                    ? `<img src="${escapeAttribute(user.avatar_url)}">`
-                                    : escapeHTML(
-                                        getInitial(
-                                            user.full_name ||
-                                            user.username
-                                        )
-                                    )
-                            }
+                                <small>
+                                    @${escapeHTML(
+                                        profile.username || ""
+                                    )}
+                                    ·
+                                    ${escapeHTML(
+                                        member.role || "member"
+                                    )}
+                                </small>
+                            </div>
                         </div>
+                    `;
+                })
+                .join("");
 
-                        <div class="user-info">
-
-                            <strong>
-                                ${escapeHTML(
-                                    user.full_name ||
-                                    user.username
-                                )}
-
-                                ${verifiedHTML(
-                                    user.is_verified
-                                )}
-                            </strong>
-
-                            <span>
-                                @${escapeHTML(
-                                    user.username || ""
-                                )}
-                            </span>
-
-                        </div>
-
-                        <small>
-                            ${escapeHTML(member.role || "member")}
-                        </small>
-
-                    </div>
-                `;
-            }).join("");
-
-        openModal(
-            $("#membersModal")
-        );
+        openModal("membersModal");
     }
 
-    async function leaveGroup() {
-        if (!currentGroup) return;
-
-        if (
-            !window.confirm(
-                "Groupdan chiqmoqchimisiz?"
-            )
-        ) return;
-
-        const {
-            error
-        } = await db
-            .from("group_members")
-            .delete()
-            .eq("group_id", currentGroup.id)
-            .eq("user_id", currentUser.id);
-
-        if (error) {
-            console.error(error);
-            toast(
-                "Groupdan chiqib bo‘lmadi",
-                "error"
+    async function leaveChannel(channelId) {
+        const ok =
+            confirm(
+                "Channeldan chiqilsinmi?"
             );
-            return;
-        }
 
-        toast("Groupdan chiqdingiz");
-
-        closeModal(
-            $("#groupInfoModal")
-        );
-
-        currentGroup = null;
-        currentChatType = null;
-
-        resetChat();
-
-        await loadGroups();
-    }
-
-    async function leaveChannel() {
-        if (!currentChannel) return;
-
-        if (
-            !window.confirm(
-                "Channeldan chiqmoqchimisiz?"
-            )
-        ) return;
+        if (!ok) return;
 
         const {
             error
         } = await db
             .from("channel_members")
             .delete()
-            .eq("channel_id", currentChannel.id)
-            .eq("user_id", currentUser.id);
+            .eq(
+                "channel_id",
+                channelId
+            )
+            .eq(
+                "user_id",
+                currentUser.id
+            );
 
         if (error) {
-            console.error(error);
-            toast(
-                "Channeldan chiqib bo‘lmadi",
-                "error"
+            safeError(
+                error,
+                "Channeldan chiqib bo‘lmadi."
             );
             return;
         }
 
-        toast("Channeldan chiqdingiz");
-
-        closeModal(
-            $("#channelInfoModal")
+        showToast(
+            "Channeldan chiqdingiz."
         );
 
-        currentChannel = null;
-        currentChatType = null;
-
-        resetChat();
+        activeChannel = null;
+        activeChatType = null;
 
         await loadChannels();
+
+        showEmptyChat();
+    }
+
+    /* =========================================================
+       GROUP / CHANNEL MESSAGE FORM ROUTER
+       ========================================================= */
+
+    async function sendCurrentMessage(event) {
+        event?.preventDefault();
+
+        if (activeChatType === "direct") {
+            await sendDirectMessage(event);
+            return;
+        }
+
+        if (activeChatType === "group") {
+            await sendGroupMessage();
+            return;
+        }
+
+        if (activeChatType === "channel") {
+            await sendChannelMessage();
+            return;
+        }
+    }
+
+    function showChatComposer(show) {
+        const form = $("#messageForm");
+
+        if (form) {
+            form.style.display =
+                show ? "flex" : "none";
+        }
+    }
+
+    function showEmptyChat() {
+        activeChatType = null;
+        activeChatUser = null;
+        activeGroup = null;
+        activeChannel = null;
+
+        const active =
+            $("#activeChat");
+
+        const empty =
+            $("#chatEmpty");
+
+        if (active) {
+            active.style.display = "none";
+        }
+
+        if (empty) {
+            empty.style.display = "flex";
+        }
+
+        showChatComposer(false);
     }
 
     /* =========================================================
@@ -2675,7 +3080,7 @@
         if (!userId) return;
 
         const {
-            data: user,
+            data,
             error
         } = await db
             .from("profiles")
@@ -2683,91 +3088,125 @@
             .eq("id", userId)
             .maybeSingle();
 
-        if (error || !user) {
-            toast(
-                "Profile topilmadi",
-                "error"
-            );
+        if (error || !data) {
+            showToast("Profile topilmadi.");
             return;
         }
 
-        currentProfileUser = user;
+        activeProfileUser = data;
 
-        const name =
-            user.full_name ||
-            user.username ||
-            "User";
+        renderUserProfile(data);
 
+        await updateProfilePopupActions();
+
+        openModal(
+            "userProfileModal"
+        );
+    }
+
+    function renderUserProfile(profile) {
         setText(
-            "#userProfileName",
-            name
+            "userProfileName",
+            profile.full_name ||
+            profile.username ||
+            "User"
         );
 
         setText(
-            "#userProfileUsername",
-            user.username
-                ? "@" + user.username
+            "userProfileUsername",
+            profile.username
+                ? `@${profile.username}`
                 : ""
         );
 
         setText(
-            "#userProfileBio",
-            user.bio || ""
+            "userProfileBio",
+            profile.bio || ""
         );
+
+        const avatar =
+            $("#userProfileAvatar");
+
+        if (avatar) {
+            if (profile.avatar_url) {
+                avatar.innerHTML = `
+                    <img
+                        src="${escapeAttr(
+                            profile.avatar_url
+                        )}"
+                        alt=""
+                    >
+                `;
+            } else {
+                avatar.textContent =
+                    (
+                        profile.full_name ||
+                        profile.username ||
+                        "U"
+                    )
+                        .charAt(0)
+                        .toUpperCase();
+            }
+        }
 
         const verified =
             $("#userProfileVerified");
 
         if (verified) {
             verified.style.display =
-                user.is_verified === true
+                isVerified(profile)
                     ? "inline-flex"
                     : "none";
         }
-
-        const avatar =
-            $("#userProfileAvatar");
-
-        if (avatar) {
-            if (user.avatar_url) {
-                avatar.innerHTML = `
-                    <img
-                        src="${escapeAttribute(user.avatar_url)}"
-                        alt=""
-                    >
-                `;
-            } else {
-                avatar.textContent =
-                    getInitial(name);
-            }
-
-            avatar.style.width = "110px";
-            avatar.style.height = "110px";
-            avatar.style.aspectRatio = "1 / 1";
-        }
-
-        closeAllMenus();
-
-        openModal(
-            $("#userProfileModal")
-        );
     }
 
-    function toggleUserProfileMenu() {
-        const menu =
-            $("#userProfileMenu");
+    async function updateProfilePopupActions() {
+        if (!activeProfileUser) return;
 
-        if (!menu) return;
+        const status =
+            await getContactStatus(
+                activeProfileUser.id
+            );
 
-        const visible =
-            menu.classList.contains("show");
+        const add =
+            $("#addContactBtn");
 
-        if (visible) {
-            menu.classList.remove("show");
-            menu.style.display = "none";
-        } else {
-            menu.classList.add("show");
-            menu.style.display = "block";
+        const accept =
+            $("#acceptContactBtn");
+
+        const decline =
+            $("#declineContactBtn");
+
+        if (add) add.style.display = "none";
+        if (accept) accept.style.display = "none";
+        if (decline) decline.style.display = "none";
+
+        if (!status) {
+            if (add) {
+                add.style.display =
+                    "inline-flex";
+            }
+
+            return;
+        }
+
+        if (
+            status.status === "pending" &&
+            status.direction === "received"
+        ) {
+            if (accept) {
+                accept.style.display =
+                    "inline-flex";
+                accept.dataset.requestId =
+                    status.id;
+            }
+
+            if (decline) {
+                decline.style.display =
+                    "inline-flex";
+                decline.dataset.requestId =
+                    status.id;
+            }
         }
     }
 
@@ -2776,12 +3215,12 @@
        ========================================================= */
 
     async function saveNickname() {
-        if (!currentProfileUser) return;
+        if (!activeProfileUser) return;
 
         const nickname =
-            window.prompt(
+            prompt(
                 "Nickname:",
-                ""
+                activeProfileUser.nickname || ""
             );
 
         if (nickname === null) return;
@@ -2790,9 +3229,8 @@
             nickname.trim();
 
         if (!value) {
-            toast(
-                "Nickname bo‘sh bo‘lishi mumkin emas",
-                "error"
+            showToast(
+                "Nickname bo‘sh bo‘lishi mumkin emas."
             );
             return;
         }
@@ -2802,110 +3240,154 @@
         } = await db
             .from("contact_nicknames")
             .upsert({
-                user_id: currentUser.id,
-                contact_id: currentProfileUser.id,
+                owner_id: currentUser.id,
+                contact_id:
+                    activeProfileUser.id,
                 nickname: value
-            }, {
-                onConflict:
-                    "user_id,contact_id"
             });
 
         if (error) {
-            console.error(error);
-            toast(
-                "Nickname saqlanmadi",
-                "error"
+            safeError(
+                error,
+                "Nickname saqlanmadi."
             );
             return;
         }
 
-        toast(
-            "Nickname saqlandi ✓",
-            "success"
+        showToast(
+            "Nickname saqlandi."
         );
-
-        closeAllMenus();
     }
 
     async function removeNickname() {
-        if (!currentProfileUser) return;
+        if (!activeProfileUser) return;
 
         const {
             error
         } = await db
             .from("contact_nicknames")
             .delete()
-            .eq("user_id", currentUser.id)
-            .eq("contact_id", currentProfileUser.id);
+            .eq(
+                "owner_id",
+                currentUser.id
+            )
+            .eq(
+                "contact_id",
+                activeProfileUser.id
+            );
 
         if (error) {
-            console.error(error);
-            toast(
-                "Nickname o‘chirilmadi",
-                "error"
+            safeError(
+                error,
+                "Nickname o‘chirilmadi."
             );
             return;
         }
 
-        toast(
-            "Nickname o‘chirildi ✓",
-            "success"
+        showToast(
+            "Nickname o‘chirildi."
         );
-
-        closeAllMenus();
     }
 
     /* =========================================================
        BLOCK
        ========================================================= */
 
-    async function blockUser() {
-        if (!currentProfileUser) return;
+    async function isBlocked(userId) {
+        const {
+            data
+        } = await db
+            .from("user_blocks")
+            .select("id")
+            .eq("blocker_id", currentUser.id)
+            .eq("blocked_id", userId)
+            .maybeSingle();
 
-        if (
-            !window.confirm(
-                "Bu userni block qilmoqchimisiz?"
-            )
-        ) return;
+        return !!data;
+    }
+
+    async function blockUser(userId) {
+        if (!userId) return;
+
+        const blocked =
+            await isBlocked(userId);
+
+        if (blocked) {
+            await unblockUser(userId);
+            return;
+        }
 
         const {
             error
         } = await db
             .from("user_blocks")
-            .upsert({
+            .insert({
                 blocker_id: currentUser.id,
-                blocked_id: currentProfileUser.id
-            }, {
-                onConflict:
-                    "blocker_id,blocked_id"
+                blocked_id: userId
             });
 
         if (error) {
-            console.error(error);
-            toast(
-                "User block qilinmadi",
-                "error"
+            safeError(
+                error,
+                "User block qilinmadi."
             );
             return;
         }
 
-        toast(
-            "User block qilindi",
-            "success"
+        showToast(
+            "User blocked."
         );
 
-        closeAllMenus();
+        await updateBlockButton();
+    }
 
-        closeModal(
-            $("#userProfileModal")
-        );
+    async function unblockUser(userId) {
+        const {
+            error
+        } = await db
+            .from("user_blocks")
+            .delete()
+            .eq(
+                "blocker_id",
+                currentUser.id
+            )
+            .eq(
+                "blocked_id",
+                userId
+            );
 
-        if (
-            currentChatUser?.id ===
-            currentProfileUser.id
-        ) {
-            resetChat();
+        if (error) {
+            safeError(
+                error,
+                "User unblock qilinmadi."
+            );
+            return;
         }
+
+        showToast(
+            "User unblocked."
+        );
+
+        await updateBlockButton();
+    }
+
+    async function updateBlockButton() {
+        const btn =
+            $("#blockUserBtn");
+
+        if (!btn || !activeProfileUser) {
+            return;
+        }
+
+        const blocked =
+            await isBlocked(
+                activeProfileUser.id
+            );
+
+        btn.textContent =
+            blocked
+                ? "Unblock"
+                : "Block";
     }
 
     /* =========================================================
@@ -2913,23 +3395,14 @@
        ========================================================= */
 
     async function reportUser() {
-        if (!currentProfileUser) return;
+        if (!activeProfileUser) return;
 
         const reason =
-            window.prompt(
+            prompt(
                 "Report reason:"
             );
 
-        if (reason === null) return;
-
-        const value =
-            reason.trim();
-
-        if (!value) {
-            toast(
-                "Reason kiriting",
-                "error"
-            );
+        if (!reason?.trim()) {
             return;
         }
 
@@ -2938,28 +3411,26 @@
         } = await db
             .from("reports")
             .insert({
-                reporter_id: currentUser.id,
+                reporter_id:
+                    currentUser.id,
                 reported_user_id:
-                    currentProfileUser.id,
-                reason: value,
+                    activeProfileUser.id,
+                reason:
+                    reason.trim(),
                 status: "pending"
             });
 
         if (error) {
-            console.error(error);
-            toast(
-                "Report yuborilmadi",
-                "error"
+            safeError(
+                error,
+                "Report yuborilmadi."
             );
             return;
         }
 
-        toast(
-            "Report yuborildi ✓",
-            "success"
+        showToast(
+            "Report yuborildi."
         );
-
-        closeAllMenus();
     }
 
     /* =========================================================
@@ -2969,25 +3440,49 @@
     async function saveProfile(event) {
         event?.preventDefault();
 
+        if (!currentUser) return;
+
         const fullName =
-            $("#profileFullName")
-                ?.value.trim();
+            getValue("profileFullName");
 
         const username =
-            $("#profileUsername")
-                ?.value.trim()
-                .toLowerCase();
+            normalizeUsername(
+                getValue("profileUsername")
+            );
 
         const bio =
-            $("#profileBio")
-                ?.value.trim() || "";
+            getValue("profileBio");
 
-        if (!fullName || !username) {
-            toast(
-                "Name va username kerak",
-                "error"
+        if (!fullName) {
+            showToast(
+                "Full name kerak."
             );
             return;
+        }
+
+        if (!validUsername(username)) {
+            showToast(
+                "Username noto‘g‘ri."
+            );
+            return;
+        }
+
+        const usernameChanged =
+            myProfile?.username !== username;
+
+        if (usernameChanged) {
+            const available =
+                await isUsernameAvailable(
+                    username,
+                    currentUser.id
+                );
+
+            if (!available) {
+                showToast(
+                    "Bu username allaqachon ishlatilgan."
+                );
+                return;
+            }
         }
 
         const {
@@ -2999,61 +3494,53 @@
                 username,
                 bio
             })
-            .eq("id", currentUser.id);
+            .eq(
+                "id",
+                currentUser.id
+            );
 
         if (error) {
             console.error(error);
-            toast(
-                error.message ||
-                "Profile saqlanmadi",
-                "error"
-            );
+
+            if (error.code === "23505") {
+                showToast(
+                    "Bu username allaqachon ishlatilgan."
+                );
+            } else {
+                showToast(
+                    "Profile saqlanmadi."
+                );
+            }
+
             return;
         }
 
-        await loadMyProfile();
+        await refreshMyProfile();
 
         closeModal(
-            $("#profileModal")
+            "profileModal"
         );
 
-        toast(
-            "Profile saqlandi ✓",
-            "success"
+        showToast(
+            "Profile saqlandi."
         );
-    }
-
-    async function loadProfileForm() {
-        if (!myProfile) return;
-
-        if ($("#profileFullName")) {
-            $("#profileFullName").value =
-                myProfile.full_name || "";
-        }
-
-        if ($("#profileUsername")) {
-            $("#profileUsername").value =
-                myProfile.username || "";
-        }
-
-        if ($("#profileBio")) {
-            $("#profileBio").value =
-                myProfile.bio || "";
-        }
     }
 
     /* =========================================================
        AVATAR
        ========================================================= */
 
-    async function uploadProfileAvatar(file) {
+    async function uploadAvatar(file) {
         if (!file || !currentUser) return;
 
-        const extension =
-            file.name.split(".").pop() || "jpg";
+        const ext =
+            file.name
+                .split(".")
+                .pop()
+                ?.toLowerCase() || "jpg";
 
         const path =
-            `${currentUser.id}/avatar-${Date.now()}.${extension}`;
+            `${currentUser.id}/avatar-${Date.now()}.${ext}`;
 
         const {
             error: uploadError
@@ -3063,15 +3550,15 @@
                 path,
                 file,
                 {
-                    upsert: true
+                    upsert: true,
+                    contentType: file.type
                 }
             );
 
         if (uploadError) {
-            console.error(uploadError);
-            toast(
-                "Avatar yuklanmadi",
-                "error"
+            safeError(
+                uploadError,
+                "Avatar upload failed."
             );
             return;
         }
@@ -3082,13 +3569,12 @@
             .from("avatars")
             .getPublicUrl(path);
 
-        const url =
+        const avatarUrl =
             data?.publicUrl;
 
-        if (!url) {
-            toast(
-                "Avatar URL olinmadi",
-                "error"
+        if (!avatarUrl) {
+            showToast(
+                "Avatar URL topilmadi."
             );
             return;
         }
@@ -3098,24 +3584,25 @@
         } = await db
             .from("profiles")
             .update({
-                avatar_url: url
+                avatar_url: avatarUrl
             })
-            .eq("id", currentUser.id);
+            .eq(
+                "id",
+                currentUser.id
+            );
 
         if (error) {
-            console.error(error);
-            toast(
-                "Avatar saqlanmadi",
-                "error"
+            safeError(
+                error,
+                "Avatar saqlanmadi."
             );
             return;
         }
 
-        await loadMyProfile();
+        await refreshMyProfile();
 
-        toast(
-            "Avatar o‘zgartirildi ✓",
-            "success"
+        showToast(
+            "Avatar yangilandi."
         );
     }
 
@@ -3145,12 +3632,12 @@
 
     async function savePrivacySettings() {
         const showOnline =
-            $("#showOnlineToggle")
-                ?.checked ?? true;
+            $("#showOnlineToggle")?.checked ??
+            true;
 
         const showLastSeen =
-            $("#showLastSeenToggle")
-                ?.checked ?? true;
+            $("#showLastSeenToggle")?.checked ??
+            true;
 
         const {
             error
@@ -3160,26 +3647,23 @@
                 show_online: showOnline,
                 show_last_seen: showLastSeen
             })
-            .eq("id", currentUser.id);
+            .eq(
+                "id",
+                currentUser.id
+            );
 
         if (error) {
-            console.error(error);
-            toast(
-                "Privacy sozlamalari saqlanmadi",
-                "error"
+            safeError(
+                error,
+                "Privacy saqlanmadi."
             );
             return;
         }
 
-        myProfile.show_online =
-            showOnline;
+        await refreshMyProfile();
 
-        myProfile.show_last_seen =
-            showLastSeen;
-
-        toast(
-            "Privacy settings saqlandi ✓",
-            "success"
+        showToast(
+            "Privacy settings saqlandi."
         );
     }
 
@@ -3187,402 +3671,630 @@
        APPEARANCE
        ========================================================= */
 
-    function setupAppearance() {
-        $$(".appearance-option")
-            .forEach(option => {
-                option.addEventListener(
-                    "click",
-                    () => {
-                        const theme =
-                            option.dataset.theme;
+    function applyAppearance() {
+        document.documentElement.dataset.theme =
+            currentTheme;
 
-                        const density =
-                            option.dataset.density;
+        document.documentElement.dataset.density =
+            currentDensity;
 
-                        if (theme) {
-                            document.body.dataset.theme =
-                                theme;
+        $$(".appearance-option").forEach(
+            option => {
+                const theme =
+                    option.dataset.theme;
 
-                            localStorage.setItem(
-                                "megchat_theme",
-                                theme
-                            );
-                        }
+                const density =
+                    option.dataset.density;
 
-                        if (density) {
-                            document.body.dataset.density =
-                                density;
-
-                            localStorage.setItem(
-                                "megchat_density",
-                                density
-                            );
-                        }
-
-                        $$(".appearance-option")
-                            .forEach(item =>
-                                item.classList.remove(
-                                    "active"
-                                )
-                            );
-
-                        option.classList.add(
-                            "active"
-                        );
-                    }
+                option.classList.toggle(
+                    "active",
+                    (
+                        theme &&
+                        theme === currentTheme
+                    ) ||
+                    (
+                        density &&
+                        density === currentDensity
+                    )
                 );
-            });
+            }
+        );
+    }
 
-        const savedTheme =
-            localStorage.getItem(
-                "megchat_theme"
+    function selectAppearance(option) {
+        const theme =
+            option.dataset.theme;
+
+        const density =
+            option.dataset.density;
+
+        if (theme) {
+            currentTheme = theme;
+
+            localStorage.setItem(
+                "megchat_theme",
+                theme
             );
-
-        const savedDensity =
-            localStorage.getItem(
-                "megchat_density"
-            );
-
-        if (savedTheme) {
-            document.body.dataset.theme =
-                savedTheme;
         }
 
-        if (savedDensity) {
-            document.body.dataset.density =
-                savedDensity;
+        if (density) {
+            currentDensity = density;
+
+            localStorage.setItem(
+                "megchat_density",
+                density
+            );
         }
+
+        applyAppearance();
     }
 
     /* =========================================================
        LANGUAGE
        ========================================================= */
 
-    function setupLanguage() {
-        $$(".language-option")
-            .forEach(option => {
-                option.addEventListener(
-                    "click",
-                    () => {
-                        const language =
-                            option.dataset.language;
+    function applyLanguage(language) {
+        currentLanguage =
+            language || "en";
 
-                        if (!language) return;
+        localStorage.setItem(
+            "megchat_language",
+            currentLanguage
+        );
 
-                        localStorage.setItem(
-                            "megchat_language",
-                            language
-                        );
-
-                        $$(".language-option")
-                            .forEach(item =>
-                                item.classList.remove(
-                                    "active"
-                                )
-                            );
-
-                        option.classList.add(
-                            "active"
-                        );
-
-                        toast(
-                            "Language setting saved"
-                        );
-                    }
-                );
-            });
+        document.documentElement.lang =
+            currentLanguage;
     }
 
     /* =========================================================
        EMOJI
        ========================================================= */
 
-    function setupEmoji() {
+    const emojiList = [
+        "😀","😃","😄","😁","😆","😅",
+        "😂","🤣","😊","🙂","🙃","😉",
+        "😌","😍","🥰","😘","😎","🤩",
+        "🤔","😐","😑","😶","🙄","😏",
+        "😴","😭","😡","🤬","😱","🤯",
+        "👍","👎","👏","🙏","🔥","❤️",
+        "💙","💚","💛","💜","🖤","✨",
+        "🎉","🚀","💀","😂","🤣"
+    ];
+
+    function renderEmojiPanel() {
         const panel =
             $("#emojiPanel");
 
-        const button =
-            $("#emojiBtn");
+        if (!panel) return;
 
+        panel.innerHTML =
+            emojiList
+                .map(
+                    emoji =>
+                        `<button
+                            type="button"
+                            class="emoji-item"
+                            data-emoji="${emoji}"
+                        >
+                            ${emoji}
+                        </button>`
+                )
+                .join("");
+    }
+
+    function insertEmoji(emoji) {
         const input =
             $("#messageInput");
 
-        if (!panel || !button || !input) return;
+        if (!input) return;
 
-        const emojis = [
-            "😀","😃","😄","😁","😆",
-            "😅","😂","🤣","😊","🙂",
-            "🙃","😉","😎","😍","🥰",
-            "😘","😜","🤪","🤔","🤨",
-            "😐","😑","😶","🙄","😏",
-            "😴","🤯","😱","😭","😡",
-            "👍","👎","👏","🙏","🔥",
-            "❤️","💙","💚","💛","💜",
-            "✨","🎉","😂","💀","👀"
-        ];
+        const start =
+            input.selectionStart ??
+            input.value.length;
 
-        panel.innerHTML = emojis.map(
-            emoji =>
-                `<button type="button" class="emoji-item">${emoji}</button>`
-        ).join("");
+        const end =
+            input.selectionEnd ??
+            input.value.length;
 
-        button.addEventListener(
-            "click",
-            e => {
-                e.stopPropagation();
+        input.value =
+            input.value.slice(0, start) +
+            emoji +
+            input.value.slice(end);
 
-                panel.classList.toggle(
-                    "show"
-                );
-            }
-        );
+        input.focus();
 
-        panel.querySelectorAll(
-            ".emoji-item"
-        ).forEach(item => {
-            item.addEventListener(
-                "click",
-                () => {
-                    input.value +=
-                        item.textContent;
-
-                    input.focus();
-                }
-            );
-        });
+        input.selectionStart =
+            input.selectionEnd =
+                start + emoji.length;
     }
 
     /* =========================================================
        STICKERS
        ========================================================= */
 
-    function setupStickers() {
+    async function loadStickers() {
         const panel =
             $("#stickerPanel");
 
-        const button =
-            $("#stickerBtn");
+        if (!panel) return;
 
-        if (!panel || !button) return;
+        const {
+            data,
+            error
+        } = await db.storage
+            .from("stickers")
+            .list("", {
+                limit: 100
+            });
 
-        button.addEventListener(
-            "click",
-            e => {
-                e.stopPropagation();
+        if (error) {
+            console.error(error);
+            return;
+        }
 
-                panel.classList.toggle(
-                    "show"
-                );
-            }
-        );
+        if (!data?.length) {
+            panel.innerHTML = `
+                <div class="empty-state">
+                    No stickers
+                </div>
+            `;
+            return;
+        }
+
+        panel.innerHTML =
+            data
+                .filter(file =>
+                    /\.(png|jpg|jpeg|webp|gif)$/i
+                        .test(file.name)
+                )
+                .map(file => {
+                    const {
+                        data: urlData
+                    } = db.storage
+                        .from("stickers")
+                        .getPublicUrl(
+                            file.name
+                        );
+
+                    const url =
+                        urlData?.publicUrl;
+
+                    return `
+                        <button
+                            type="button"
+                            class="sticker-item"
+                            data-sticker-url="${escapeAttr(
+                                url || ""
+                            )}"
+                        >
+                            <img
+                                src="${escapeAttr(
+                                    url || ""
+                                )}"
+                                alt="sticker"
+                            >
+                        </button>
+                    `;
+                })
+                .join("");
     }
 
-    /* =========================================================
-       SETTINGS
-       ========================================================= */
+    async function sendSticker(url) {
+        if (!url) return;
 
-    function setupSettings() {
-        $("#myProfileBtn")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    await loadProfileForm();
-                    openModal(
-                        $("#profileModal")
-                    );
-                }
-            );
+        if (activeChatType === "direct") {
+            if (!activeChatUser) return;
 
-        $("#profileSettingsBtn")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    await loadProfileForm();
-                    openModal(
-                        $("#profileModal")
-                    );
-                }
-            );
+            const {
+                error
+            } = await db
+                .from("messages")
+                .insert({
+                    sender_id:
+                        currentUser.id,
+                    receiver_id:
+                        activeChatUser.id,
+                    content: "",
+                    message_type:
+                        "sticker",
+                    sticker_url: url
+                });
 
-        $("#privacySettingsBtn")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    await loadPrivacySettings();
-                    openModal(
-                        $("#privacyModal")
-                    );
-                }
-            );
+            if (error) {
+                safeError(
+                    error,
+                    "Sticker yuborilmadi."
+                );
+                return;
+            }
 
-        $("#appearanceSettingsBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    openModal(
-                        $("#appearanceModal")
-                    );
-                }
-            );
+            await loadDirectMessages();
+        }
 
-        $("#languageSettingsBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    openModal(
-                        $("#languageModal")
-                    );
-                }
+        if (activeChatType === "group") {
+            await sendGroupMessage(
+                "",
+                "sticker",
+                url
             );
+        }
 
-        $("#savedMessagesBtn")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    await loadSavedMessages();
-                    openModal(
-                        $("#savedMessagesModal")
-                    );
-                }
+        if (activeChatType === "channel") {
+            await sendChannelMessage(
+                "",
+                "sticker",
+                url
             );
-
-        $("#updatesSettingsBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    openModal(
-                        $("#updatesModal")
-                    );
-                }
-            );
-
-        $("#ownerPanelButton")
-            ?.addEventListener(
-                "click",
-                () => {
-                    openModal(
-                        $("#ownerModal")
-                    );
-                }
-            );
-
-        $("#adminPanelButton")
-            ?.addEventListener(
-                "click",
-                () => {
-                    openModal(
-                        $("#adminModal")
-                    );
-                }
-            );
-
-        $("#settingsLogoutBtn")
-            ?.addEventListener(
-                "click",
-                logout
-            );
+        }
     }
 
     /* =========================================================
        OWNER
        ========================================================= */
 
-    async function loadOwnerPanel() {
-        if (!isOwner()) return;
+    async function isOwner() {
+        if (!currentUser) return false;
 
-        const button =
-            $("#ownerPanelButton");
+        const {
+            data,
+            error
+        } = await db.rpc(
+            "is_owner"
+        );
 
-        if (button) {
-            button.style.display =
-                "block";
+        if (error) {
+            console.error(error);
+            return false;
         }
+
+        return data === true;
     }
 
-    async function ownerVerifyUser() {
-        if (!isOwner()) {
-            toast(
-                "Owner access required",
-                "error"
-            );
-            return;
-        }
-
-        const username =
-            $("#ownerVerifiedUsername")
-                ?.value.trim();
-
-        if (!username) {
-            toast(
-                "Username kiriting",
-                "error"
-            );
-            return;
-        }
+    async function isAdminOrOwner() {
+        if (!currentUser) return false;
 
         const {
-            data: user,
+            data,
             error
-        } = await db
-            .from("profiles")
-            .select("id,username,is_verified")
-            .eq("username", username.replace(/^@/, "").toLowerCase())
-            .maybeSingle();
-
-        if (error || !user) {
-            toast(
-                "User topilmadi",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            error: rpcError
         } = await db.rpc(
-            "owner_set_verified",
-            {
-                p_user_id: user.id,
-                p_action:
-                    user.is_verified
-                        ? "remove"
-                        : "give"
-            }
+            "is_admin_or_owner"
         );
 
-        if (rpcError) {
-            console.error(rpcError);
-            toast(
-                rpcError.message ||
-                "Verification o‘zgartirilmadi",
-                "error"
-            );
-            return;
+        if (error) {
+            console.error(error);
+            return false;
         }
 
-        toast(
-            user.is_verified
-                ? "Verification olib tashlandi"
-                : "Verification berildi ✓",
-            "success"
-        );
+        return data === true;
+    }
+
+    /* =========================================================
+       VERIFIED
+       ========================================================= */
+
+    async function findVerifiedUser() {
+        const username =
+            normalizeUsername(
+                getValue(
+                    "ownerVerifiedUsername"
+                )
+            );
 
         const result =
             $("#ownerVerifiedResult");
 
+        if (!username) {
+            showToast(
+                "Username kiriting."
+            );
+            return;
+        }
+
+        const {
+            data,
+            error
+        } = await db
+            .from("profiles")
+            .select("*")
+            .eq(
+                "username",
+                username
+            )
+            .maybeSingle();
+
+        if (error || !data) {
+            if (result) {
+                result.innerHTML = `
+                    <div class="empty-state">
+                        User not found
+                    </div>
+                `;
+            }
+
+            return;
+        }
+
         if (result) {
-            result.textContent =
-                user.is_verified
-                    ? "Verification removed"
-                    : "User verified";
+            result.innerHTML = `
+                <div class="verified-target">
+                    ${avatarHTML(data)}
+
+                    <div>
+                        <strong>
+                            ${escapeHTML(
+                                data.full_name ||
+                                data.username
+                            )}
+                        </strong>
+
+                        <span>
+                            @${escapeHTML(
+                                data.username
+                            )}
+                        </span>
+
+                        <div>
+                            Status:
+                            ${
+                                isVerified(data)
+                                    ? "Verified"
+                                    : "Not verified"
+                            }
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            result.dataset.userId =
+                data.id;
         }
     }
 
-    async function loadModerationReports() {
-        if (!isAdmin()) return;
+    async function setVerifiedUser(
+        userId,
+        days
+    ) {
+        const {
+            error
+        } = await db.rpc(
+            "owner_set_verified",
+            {
+                p_user_id: userId,
+                p_action: "give",
+                p_days: Number(days) || 0
+            }
+        );
+
+        if (error) {
+            console.error(error);
+            showToast(
+                "Verified berilmadi."
+            );
+            return false;
+        }
+
+        showToast(
+            Number(days) > 0
+                ? `Verified ${days} kunga berildi.`
+                : "Verified permanent berildi."
+        );
+
+        return true;
+    }
+
+    async function removeVerifiedUser(
+        userId
+    ) {
+        const {
+            error
+        } = await db.rpc(
+            "owner_set_verified",
+            {
+                p_user_id: userId,
+                p_action: "remove",
+                p_days: 0
+            }
+        );
+
+        if (error) {
+            console.error(error);
+            showToast(
+                "Verified olib tashlanmadi."
+            );
+            return false;
+        }
+
+        showToast(
+            "Verified olib tashlandi."
+        );
+
+        return true;
+    }
+
+    /* =========================================================
+       MODERATION
+       ========================================================= */
+
+    async function loadModerationUsers() {
+        if (!(await isAdminOrOwner())) {
+            return;
+        }
 
         const list =
-            $("#ownerReportsList") ||
+            $("#moderationUsersList");
+
+        if (!list) return;
+
+        const {
+            data,
+            error
+        } = await db
+            .from("profiles")
+            .select("*")
+            .order("created_at", {
+                ascending: false
+            })
+            .limit(100);
+
+        if (error) {
+            console.error(error);
+            return;
+        }
+
+        list.innerHTML =
+            (data || [])
+                .map(user => `
+                    <div
+                        class="moderation-user"
+                        data-user-id="${user.id}"
+                    >
+                        ${avatarHTML(user)}
+
+                        <div>
+                            <strong>
+                                ${escapeHTML(
+                                    user.full_name ||
+                                    user.username
+                                )}
+                            </strong>
+
+                            <small>
+                                @${escapeHTML(
+                                    user.username
+                                )}
+                            </small>
+                        </div>
+
+                        <div>
+                            <button
+                                class="moderation-block-account"
+                                data-id="${user.id}"
+                            >
+                                ${
+                                    user.account_blocked
+                                        ? "Unblock"
+                                        : "Block"
+                                }
+                            </button>
+
+                            <button
+                                class="moderation-block-message"
+                                data-id="${user.id}"
+                            >
+                                ${
+                                    user.messaging_blocked
+                                        ? "Unblock msg"
+                                        : "Block msg"
+                                }
+                            </button>
+                        </div>
+                    </div>
+                `)
+                .join("");
+    }
+
+    async function toggleAccountBlock(userId) {
+        if (!(await isAdminOrOwner())) {
+            showToast(
+                "Admin/Owner permission kerak."
+            );
+            return;
+        }
+
+        const {
+            data
+        } = await db
+            .from("profiles")
+            .select("account_blocked")
+            .eq("id", userId)
+            .maybeSingle();
+
+        const next =
+            !data?.account_blocked;
+
+        const {
+            error
+        } = await db
+            .from("profiles")
+            .update({
+                account_blocked: next,
+                account_blocked_until: null
+            })
+            .eq("id", userId);
+
+        if (error) {
+            safeError(
+                error,
+                "Account status o‘zgarmadi."
+            );
+            return;
+        }
+
+        showToast(
+            next
+                ? "Account blocked."
+                : "Account unblocked."
+        );
+
+        await loadModerationUsers();
+    }
+
+    async function toggleMessagingBlock(userId) {
+        if (!(await isAdminOrOwner())) {
+            showToast(
+                "Admin/Owner permission kerak."
+            );
+            return;
+        }
+
+        const {
+            data
+        } = await db
+            .from("profiles")
+            .select("messaging_blocked")
+            .eq("id", userId)
+            .maybeSingle();
+
+        const next =
+            !data?.messaging_blocked;
+
+        const {
+            error
+        } = await db
+            .from("profiles")
+            .update({
+                messaging_blocked: next,
+                messaging_blocked_until: null
+            })
+            .eq("id", userId);
+
+        if (error) {
+            safeError(
+                error,
+                "Messaging status o‘zgarmadi."
+            );
+            return;
+        }
+
+        showToast(
+            next
+                ? "Messaging blocked."
+                : "Messaging unblocked."
+        );
+
+        await loadModerationUsers();
+    }
+
+    /* =========================================================
+       REPORT MANAGEMENT
+       ========================================================= */
+
+    async function loadReports() {
+        if (!(await isAdminOrOwner())) {
+            return;
+        }
+
+        const list =
             $("#reportsList");
 
         if (!list) return;
@@ -3603,35 +4315,98 @@
             return;
         }
 
-        list.innerHTML =
-            (data || []).map(report => `
-                <div class="report-item">
-
-                    <strong>
-                        Report #${report.id}
-                    </strong>
-
-                    <span>
-                        ${escapeHTML(
-                            report.reason || ""
-                        )}
-                    </span>
-
-                    <small>
-                        ${escapeHTML(
-                            report.status || "pending"
-                        )}
-                    </small>
-
+        if (!data?.length) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    No reports
                 </div>
-            `).join("");
+            `;
+            return;
+        }
+
+        list.innerHTML =
+            data
+                .map(report => `
+                    <div
+                        class="report-item"
+                        data-report-id="${report.id}"
+                    >
+                        <strong>
+                            Report #${report.id}
+                        </strong>
+
+                        <p>
+                            ${escapeHTML(
+                                report.reason || ""
+                            )}
+                        </p>
+
+                        <small>
+                            Status:
+                            ${escapeHTML(
+                                report.status || "pending"
+                            )}
+                        </small>
+
+                        ${
+                            report.status ===
+                            "pending"
+                                ? `
+                                    <button
+                                        class="resolve-report"
+                                        data-id="${report.id}"
+                                    >
+                                        Resolve
+                                    </button>
+                                `
+                                : ""
+                        }
+                    </div>
+                `)
+                .join("");
+    }
+
+    async function resolveReport(reportId) {
+        if (!(await isAdminOrOwner())) {
+            return;
+        }
+
+        const {
+            error
+        } = await db
+            .from("reports")
+            .update({
+                status: "resolved",
+                resolved_at:
+                    new Date().toISOString(),
+                resolved_by:
+                    currentUser.id
+            })
+            .eq(
+                "id",
+                reportId
+            );
+
+        if (error) {
+            safeError(
+                error,
+                "Report resolve qilinmadi."
+            );
+            return;
+        }
+
+        showToast(
+            "Report resolved."
+        );
+
+        await loadReports();
     }
 
     /* =========================================================
        UPDATES
        ========================================================= */
 
-    async function loadAppUpdates() {
+    async function loadUpdates() {
         const list =
             $("#updatesList");
 
@@ -3646,422 +4421,1149 @@
             .order("created_at", {
                 ascending: false
             })
-            .limit(30);
+            .limit(50);
 
         if (error) {
             console.error(error);
             return;
         }
 
-        list.innerHTML =
-            (data || []).map(update => `
-                <div class="update-item">
-
-                    <h3>
-                        ${escapeHTML(
-                            update.title || ""
-                        )}
-                    </h3>
-
-                    <p>
-                        ${escapeHTML(
-                            update.content || ""
-                        )}
-                    </p>
-
-                    <small>
-                        ${formatDate(
-                            update.created_at
-                        )}
-                    </small>
-
+        if (!data?.length) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    No updates
                 </div>
-            `).join("");
+            `;
+            return;
+        }
+
+        list.innerHTML =
+            data
+                .map(update => `
+                    <div class="update-item">
+                        <h4>
+                            ${escapeHTML(
+                                update.title || ""
+                            )}
+                        </h4>
+
+                        <p>
+                            ${escapeHTML(
+                                update.content || ""
+                            )}
+                        </p>
+
+                        <small>
+                            ${formatDate(
+                                update.created_at
+                            )}
+                        </small>
+                    </div>
+                `)
+                .join("");
     }
 
     /* =========================================================
-       SEARCH
+       COPY
        ========================================================= */
 
-    function setupSearch() {
-        const input =
-            $("#searchInput");
+    async function copyText(text) {
+        try {
+            await navigator.clipboard.writeText(
+                String(text)
+            );
 
-        if (!input) return;
+            showToast("Copied.");
+        } catch {
+            showToast(
+                "Copy qilib bo‘lmadi."
+            );
+        }
+    }
 
-        let timer = null;
+    /* =========================================================
+       SEARCH EVERYTHING
+       ========================================================= */
 
-        input.addEventListener(
-            "input",
-            () => {
-                clearTimeout(timer);
+    let searchTimer = null;
 
-                const value =
-                    input.value.trim();
+    async function performGlobalSearch(value) {
+        clearTimeout(searchTimer);
 
-                if (!value) {
-                    loadContacts();
-                    return;
-                }
+        searchTimer =
+            setTimeout(async () => {
+                const query =
+                    value.trim();
 
-                timer = setTimeout(
-                    () => {
-                        searchUsers(value);
-                    },
-                    300
-                );
-            }
+                await Promise.all([
+                    loadUsers(query),
+                    loadGroups(query),
+                    loadChannels(query)
+                ]);
+            }, 250);
+    }
+
+    /* =========================================================
+       SETTINGS
+       ========================================================= */
+
+    async function openSettings() {
+        openModal("settingsModal");
+
+        await loadPrivacySettings();
+    }
+
+    async function deleteAccount() {
+        const ok =
+            confirm(
+                "Accountni o‘chirishni xohlaysizmi?"
+            );
+
+        if (!ok) return;
+
+        showToast(
+            "Account deletion uchun server-side RPC kerak."
         );
     }
 
     /* =========================================================
-       SIDEBAR TABS
+       LOGOUT
        ========================================================= */
 
-    function setupSidebarTabs() {
+    async function logout() {
+        localStorage.removeItem(
+            "messageAppLoggedIn"
+        );
+
+        localStorage.removeItem(
+            "messageAppUser"
+        );
+
+        await db.auth.signOut();
+
+        window.location.href =
+            "index.html";
+    }
+
+    /* =========================================================
+       MOBILE
+       ========================================================= */
+
+    function closeMobileSidebar() {
+        document.body.classList.remove(
+            "mobile-sidebar-open"
+        );
+
+        document.body.classList.add(
+            "mobile-chat-open"
+        );
+    }
+
+    function openMobileSidebar() {
+        document.body.classList.remove(
+            "mobile-chat-open"
+        );
+
+        document.body.classList.add(
+            "mobile-sidebar-open"
+        );
+    }
+
+    /* =========================================================
+       MODAL X BUTTONS
+       ========================================================= */
+
+    function setupModalClosing() {
+        $$(
+            "[data-close-modal]"
+        ).forEach(button => {
+            button.addEventListener(
+                "click",
+                () => {
+                    closeModal(
+                        button.dataset.closeModal
+                    );
+                }
+            );
+        });
+
+        $$(
+            ".modal-close"
+        ).forEach(button => {
+            button.addEventListener(
+                "click",
+                () => {
+                    const modal =
+                        button.closest(".modal");
+
+                    if (modal) {
+                        closeModal(modal);
+                    }
+                }
+            );
+        });
+
+        $$(".modal").forEach(modal => {
+            modal.addEventListener(
+                "click",
+                event => {
+                    if (
+                        event.target === modal
+                    ) {
+                        closeModal(modal);
+                    }
+                }
+            );
+        });
+    }
+
+    /* =========================================================
+       PROFILE MENU
+       ========================================================= */
+
+    function toggleProfileMenu() {
+        const menu =
+            $("#userProfileMenu");
+
+        if (!menu) return;
+
+        menu.classList.toggle(
+            "show"
+        );
+    }
+
+    function closeProfileMenu() {
+        const menu =
+            $("#userProfileMenu");
+
+        if (menu) {
+            menu.classList.remove(
+                "show"
+            );
+        }
+    }
+
+    /* =========================================================
+       EVENT SETUP
+       ========================================================= */
+
+    function setupEvents() {
+
+        /* Search */
+
+        const search =
+            $("#searchInput");
+
+        if (search) {
+            search.addEventListener(
+                "input",
+                event => {
+                    performGlobalSearch(
+                        event.target.value
+                    );
+                }
+            );
+        }
+
+        /* Users */
+
+        document.addEventListener(
+            "click",
+            event => {
+                const userItem =
+                    event.target.closest(
+                        ".user-item"
+                    );
+
+                if (
+                    userItem &&
+                    userItem.dataset.userId
+                ) {
+                    openDirectChat(
+                        userItem.dataset.userId
+                    );
+                }
+            }
+        );
+
+        /* Groups */
+
+        document.addEventListener(
+            "click",
+            event => {
+                const button =
+                    event.target.closest(
+                        ".group-open-btn"
+                    );
+
+                if (button) {
+                    openGroup(
+                        button.dataset.groupId
+                    );
+                }
+            }
+        );
+
+        /* Channels */
+
+        document.addEventListener(
+            "click",
+            event => {
+                const button =
+                    event.target.closest(
+                        ".channel-open-btn"
+                    );
+
+                if (button) {
+                    openChannel(
+                        button.dataset.channelId
+                    );
+                }
+            }
+        );
+
+        /* Contact request */
+
+        const add =
+            $("#addContactBtn");
+
+        if (add) {
+            add.addEventListener(
+                "click",
+                async () => {
+                    if (
+                        activeProfileUser
+                    ) {
+                        await sendContactRequest(
+                            activeProfileUser.id
+                        );
+                    }
+                }
+            );
+        }
+
+        const accept =
+            $("#acceptContactBtn");
+
+        if (accept) {
+            accept.addEventListener(
+                "click",
+                async () => {
+                    const id =
+                        accept.dataset.requestId;
+
+                    if (id) {
+                        await acceptContactRequest(
+                            id
+                        );
+                    }
+
+                    await updateProfilePopupActions();
+                }
+            );
+        }
+
+        const decline =
+            $("#declineContactBtn");
+
+        if (decline) {
+            decline.addEventListener(
+                "click",
+                async () => {
+                    const id =
+                        decline.dataset.requestId;
+
+                    if (id) {
+                        await declineContactRequest(
+                            id
+                        );
+                    }
+
+                    closeModal(
+                        "userProfileModal"
+                    );
+                }
+            );
+        }
+
+        /* Message */
+
+        const form =
+            $("#messageForm");
+
+        if (form) {
+            form.addEventListener(
+                "submit",
+                sendCurrentMessage
+            );
+        }
+
+        /* Message actions */
+
+        document.addEventListener(
+            "click",
+            handleMessageAction
+        );
+
+        /* Image */
+
+        const imageBtn =
+            $("#imageBtn");
+
+        const imageInput =
+            $("#imageInput");
+
+        if (imageBtn && imageInput) {
+            imageBtn.addEventListener(
+                "click",
+                () => imageInput.click()
+            );
+
+            imageInput.addEventListener(
+                "change",
+                async () => {
+                    const file =
+                        imageInput.files?.[0];
+
+                    if (file) {
+                        await uploadChatImage(
+                            file
+                        );
+                    }
+
+                    imageInput.value = "";
+                }
+            );
+        }
+
+        /* Emoji */
+
+        const emojiBtn =
+            $("#emojiBtn");
+
+        if (emojiBtn) {
+            emojiBtn.addEventListener(
+                "click",
+                () => {
+                    const panel =
+                        $("#emojiPanel");
+
+                    if (panel) {
+                        panel.classList.toggle(
+                            "show"
+                        );
+                    }
+                }
+            );
+        }
+
+        document.addEventListener(
+            "click",
+            event => {
+                const btn =
+                    event.target.closest(
+                        ".emoji-item"
+                    );
+
+                if (btn) {
+                    insertEmoji(
+                        btn.dataset.emoji
+                    );
+                }
+            }
+        );
+
+        /* Stickers */
+
+        const stickerBtn =
+            $("#stickerBtn");
+
+        if (stickerBtn) {
+            stickerBtn.addEventListener(
+                "click",
+                async () => {
+                    const panel =
+                        $("#stickerPanel");
+
+                    if (!panel) return;
+
+                    panel.classList.toggle(
+                        "show"
+                    );
+
+                    if (
+                        panel.classList.contains(
+                            "show"
+                        )
+                    ) {
+                        await loadStickers();
+                    }
+                }
+            );
+        }
+
+        document.addEventListener(
+            "click",
+            event => {
+                const sticker =
+                    event.target.closest(
+                        ".sticker-item"
+                    );
+
+                if (sticker) {
+                    sendSticker(
+                        sticker.dataset.stickerUrl
+                    );
+                }
+            }
+        );
+
+        /* Profile menu */
+
+        const profileMenuBtn =
+            $("#userProfileMenuBtn");
+
+        if (profileMenuBtn) {
+            profileMenuBtn.addEventListener(
+                "click",
+                event => {
+                    event.stopPropagation();
+                    toggleProfileMenu();
+                }
+            );
+        }
+
+        document.addEventListener(
+            "click",
+            event => {
+                if (
+                    !event.target.closest(
+                        "#userProfileMenu"
+                    ) &&
+                    !event.target.closest(
+                        "#userProfileMenuBtn"
+                    )
+                ) {
+                    closeProfileMenu();
+                }
+            }
+        );
+
+        /* Nickname */
+
+        const editNickname =
+            $("#editNicknameBtn");
+
+        if (editNickname) {
+            editNickname.addEventListener(
+                "click",
+                async () => {
+                    await saveNickname();
+                    closeProfileMenu();
+                }
+            );
+        }
+
+        const removeNickname =
+            $("#removeNicknameBtn");
+
+        if (removeNickname) {
+            removeNickname.addEventListener(
+                "click",
+                async () => {
+                    await removeNickname();
+                    closeProfileMenu();
+                }
+            );
+        }
+
+        const removeNickname2 =
+            $("#removeNicknameBtn2");
+
+        if (removeNickname2) {
+            removeNickname2.addEventListener(
+                "click",
+                removeNickname
+            );
+        }
+
+        /* Block */
+
+        const blockBtn =
+            $("#blockUserBtn");
+
+        if (blockBtn) {
+            blockBtn.addEventListener(
+                "click",
+                async () => {
+                    if (
+                        activeProfileUser
+                    ) {
+                        await blockUser(
+                            activeProfileUser.id
+                        );
+                    }
+
+                    closeProfileMenu();
+                }
+            );
+        }
+
+        /* Report */
+
+        const reportBtn =
+            $("#reportUserBtn");
+
+        if (reportBtn) {
+            reportBtn.addEventListener(
+                "click",
+                async () => {
+                    await reportUser();
+                    closeProfileMenu();
+                }
+            );
+        }
+
+        /* Profile save */
+
+        const profileForm =
+            $("#profileForm");
+
+        if (profileForm) {
+            profileForm.addEventListener(
+                "submit",
+                saveProfile
+            );
+        }
+
+        /* Avatar */
+
+        const changeAvatar =
+            $("#changeAvatarBtn");
+
+        const avatarInput =
+            $("#profileAvatarInput");
+
+        if (
+            changeAvatar &&
+            avatarInput
+        ) {
+            changeAvatar.addEventListener(
+                "click",
+                () => avatarInput.click()
+            );
+
+            avatarInput.addEventListener(
+                "change",
+                async () => {
+                    const file =
+                        avatarInput.files?.[0];
+
+                    if (file) {
+                        await uploadAvatar(
+                            file
+                        );
+                    }
+
+                    avatarInput.value = "";
+                }
+            );
+        }
+
+        /* Privacy */
+
+        const privacySave =
+            $("#savePrivacyBtn");
+
+        if (privacySave) {
+            privacySave.addEventListener(
+                "click",
+                savePrivacySettings
+            );
+        }
+
+        /* Appearance */
+
+        $$(".appearance-option")
+            .forEach(option => {
+                option.addEventListener(
+                    "click",
+                    () =>
+                        selectAppearance(
+                            option
+                        )
+                );
+            });
+
+        /* Language */
+
+        $$(".language-option")
+            .forEach(option => {
+                option.addEventListener(
+                    "click",
+                    () =>
+                        applyLanguage(
+                            option.dataset.language
+                        )
+                );
+            });
+
+        /* Settings */
+
+        const settingsBtn =
+            $("#settingsBtn");
+
+        if (settingsBtn) {
+            settingsBtn.addEventListener(
+                "click",
+                openSettings
+            );
+        }
+
+        const profileSettingsBtn =
+            $("#profileSettingsBtn");
+
+        if (profileSettingsBtn) {
+            profileSettingsBtn.addEventListener(
+                "click",
+                () =>
+                    openModal(
+                        "profileModal"
+                    )
+            );
+        }
+
+        const privacySettingsBtn =
+            $("#privacySettingsBtn");
+
+        if (privacySettingsBtn) {
+            privacySettingsBtn.addEventListener(
+                "click",
+                () =>
+                    openModal(
+                        "privacyModal"
+                    )
+            );
+        }
+
+        const appearanceBtn =
+            $("#appearanceSettingsBtn");
+
+        if (appearanceBtn) {
+            appearanceBtn.addEventListener(
+                "click",
+                () =>
+                    openModal(
+                        "appearanceModal"
+                    )
+            );
+        }
+
+        const languageBtn =
+            $("#languageSettingsBtn");
+
+        if (languageBtn) {
+            languageBtn.addEventListener(
+                "click",
+                () =>
+                    openModal(
+                        "languageModal"
+                    )
+            );
+        }
+
+        const savedBtn =
+            $("#savedMessagesBtn");
+
+        if (savedBtn) {
+            savedBtn.addEventListener(
+                "click",
+                async () => {
+                    openModal(
+                        "savedMessagesModal"
+                    );
+
+                    await loadSavedMessages();
+                }
+            );
+        }
+
+        const updatesBtn =
+            $("#updatesSettingsBtn");
+
+        if (updatesBtn) {
+            updatesBtn.addEventListener(
+                "click",
+                async () => {
+                    openModal(
+                        "updatesModal"
+                    );
+
+                    await loadUpdates();
+                }
+            );
+        }
+
+        const logoutBtn =
+            $("#settingsLogoutBtn");
+
+        if (logoutBtn) {
+            logoutBtn.addEventListener(
+                "click",
+                logout
+            );
+        }
+
+        const deleteAccountBtn =
+            $("#deleteAccountBtn");
+
+        if (deleteAccountBtn) {
+            deleteAccountBtn.addEventListener(
+                "click",
+                deleteAccount
+            );
+        }
+
+        /* Create group */
+
+        const groupForm =
+            $("#groupForm");
+
+        if (groupForm) {
+            groupForm.addEventListener(
+                "submit",
+                createGroup
+            );
+        }
+
+        /* Create channel */
+
+        const channelForm =
+            $("#channelForm");
+
+        if (channelForm) {
+            channelForm.addEventListener(
+                "submit",
+                createChannel
+            );
+        }
+
+        /* Join group */
+
+        const joinGroupBtn =
+            $("#joinGroupBtn");
+
+        if (joinGroupBtn) {
+            joinGroupBtn.addEventListener(
+                "click",
+                joinGroup
+            );
+        }
+
+        /* Join channel */
+
+        const joinChannelBtn =
+            $("#joinChannelBtn");
+
+        if (joinChannelBtn) {
+            joinChannelBtn.addEventListener(
+                "click",
+                joinChannel
+            );
+        }
+
+        /* Group info */
+
+        const groupInfoBtn =
+            $("#groupInfoBtn");
+
+        if (groupInfoBtn) {
+            groupInfoBtn.addEventListener(
+                "click",
+                () =>
+                    openGroupInfo()
+            );
+        }
+
+        /* Channel info */
+
+        const channelInfoBtn =
+            $("#channelInfoBtn");
+
+        if (channelInfoBtn) {
+            channelInfoBtn.addEventListener(
+                "click",
+                () =>
+                    openChannelInfo()
+            );
+        }
+
+        /* Chat avatar/profile */
+
+        const chatAvatarButton =
+            $("#chatAvatarButton");
+
+        if (chatAvatarButton) {
+            chatAvatarButton.addEventListener(
+                "click",
+                () => {
+                    if (
+                        activeChatType ===
+                        "direct" &&
+                        activeChatUser
+                    ) {
+                        openUserProfile(
+                            activeChatUser.id
+                        );
+                    }
+
+                    if (
+                        activeChatType ===
+                        "group"
+                    ) {
+                        openGroupInfo();
+                    }
+
+                    if (
+                        activeChatType ===
+                        "channel"
+                    ) {
+                        openChannelInfo();
+                    }
+                }
+            );
+        }
+
+        /* Owner verified search */
+
+        const verifiedSearchBtn =
+            $("#ownerVerifiedSearchBtn");
+
+        if (verifiedSearchBtn) {
+            verifiedSearchBtn.addEventListener(
+                "click",
+                findVerifiedUser
+            );
+        }
+
+        /* Owner verified give */
+
+        const verifiedDuration =
+            $("#verifiedDuration");
+
+        document.addEventListener(
+            "click",
+            async event => {
+                const btn =
+                    event.target.closest(
+                        "#giveVerifiedBtn"
+                    );
+
+                if (!btn) return;
+
+                const result =
+                    $("#ownerVerifiedResult");
+
+                const userId =
+                    result?.dataset.userId;
+
+                if (!userId) {
+                    showToast(
+                        "Avval user toping."
+                    );
+                    return;
+                }
+
+                const days =
+                    Number(
+                        verifiedDuration?.value ||
+                        0
+                    );
+
+                await setVerifiedUser(
+                    userId,
+                    days
+                );
+            }
+        );
+
+        /* Owner verified remove */
+
+        document.addEventListener(
+            "click",
+            async event => {
+                const btn =
+                    event.target.closest(
+                        "#removeVerifiedBtn"
+                    );
+
+                if (!btn) return;
+
+                const result =
+                    $("#ownerVerifiedResult");
+
+                const userId =
+                    result?.dataset.userId;
+
+                if (!userId) {
+                    showToast(
+                        "Avval user toping."
+                    );
+                    return;
+                }
+
+                await removeVerifiedUser(
+                    userId
+                );
+            }
+        );
+
+        /* Moderation */
+
+        document.addEventListener(
+            "click",
+            async event => {
+                const btn =
+                    event.target.closest(
+                        ".moderation-block-account"
+                    );
+
+                if (!btn) return;
+
+                await toggleAccountBlock(
+                    btn.dataset.id
+                );
+            }
+        );
+
+        document.addEventListener(
+            "click",
+            async event => {
+                const btn =
+                    event.target.closest(
+                        ".moderation-block-message"
+                    );
+
+                if (!btn) return;
+
+                await toggleMessagingBlock(
+                    btn.dataset.id
+                );
+            }
+        );
+
+        /* Reports */
+
+        document.addEventListener(
+            "click",
+            async event => {
+                const btn =
+                    event.target.closest(
+                        ".resolve-report"
+                    );
+
+                if (!btn) return;
+
+                await resolveReport(
+                    btn.dataset.id
+                );
+            }
+        );
+
+        /* Incoming request buttons */
+
+        document.addEventListener(
+            "click",
+            async event => {
+                const accept =
+                    event.target.closest(
+                        ".accept-request"
+                    );
+
+                if (accept) {
+                    await acceptContactRequest(
+                        accept.dataset.id
+                    );
+
+                    return;
+                }
+
+                const decline =
+                    event.target.closest(
+                        ".decline-request"
+                    );
+
+                if (decline) {
+                    await declineContactRequest(
+                        decline.dataset.id
+                    );
+                }
+            }
+        );
+
+        /* Sidebar tabs */
+
         $$(".sidebar-tab")
             .forEach(tab => {
                 tab.addEventListener(
                     "click",
-                    () => {
+                    async () => {
                         $$(".sidebar-tab")
-                            .forEach(item =>
-                                item.classList.remove(
-                                    "active"
-                                )
+                            .forEach(
+                                t =>
+                                    t.classList.remove(
+                                        "active"
+                                    )
                             );
 
                         tab.classList.add(
                             "active"
                         );
 
-                        const target =
-                            tab.dataset.target;
+                        const type =
+                            tab.dataset.tab;
 
-                        $$(".sidebar-section")
-                            .forEach(section => {
-                                section.style.display =
-                                    section.id === target
-                                        ? ""
-                                        : "none";
-                            });
+                        if (type === "users") {
+                            await loadUsers();
+                        }
+
+                        if (type === "groups") {
+                            await loadGroups();
+                        }
+
+                        if (type === "channels") {
+                            await loadChannels();
+                        }
                     }
                 );
             });
-    }
 
-    /* =========================================================
-       MESSAGE SWIPE
-       HOLD + SWIPE LEFT ONLY
-       ========================================================= */
+        /* Mobile */
 
-    function setupMessageSwipe(wrapper) {
-        if (!wrapper) return;
+        const mobileBack =
+            $("#mobileBackBtn");
 
-        const bubble =
-            wrapper.querySelector(
-                ".message-bubble"
+        if (mobileBack) {
+            mobileBack.addEventListener(
+                "click",
+                openMobileSidebar
             );
-
-        if (!bubble) return;
-
-        const HOLD_TIME = 450;
-        const SWIPE_DISTANCE = 60;
-        const MAX_TRANSLATE = 145;
-
-        let startX = 0;
-        let startY = 0;
-        let currentX = 0;
-
-        let holdTimer = null;
-
-        let holdStarted = false;
-        let movedAfterHold = false;
-
-        function resetSwipe() {
-            clearTimeout(holdTimer);
-
-            holdTimer = null;
-            holdStarted = false;
-            movedAfterHold = false;
-
-            wrapper.classList.remove(
-                "swiped"
-            );
-
-            bubble.style.transform = "";
         }
 
-        function closeOthers() {
-            document
-                .querySelectorAll(
-                    ".message-wrapper.swiped"
-                )
-                .forEach(item => {
-                    if (item === wrapper) return;
+        /* Close swiped */
 
-                    item.classList.remove(
-                        "swiped"
-                    );
-
-                    const itemBubble =
-                        item.querySelector(
-                            ".message-bubble"
-                        );
-
-                    if (itemBubble) {
-                        itemBubble.style.transform =
-                            "";
-                    }
-                });
-        }
-
-        wrapper.addEventListener(
-            "pointerdown",
-            e => {
-                startX = e.clientX;
-                startY = e.clientY;
-                currentX = startX;
-
-                holdStarted = false;
-                movedAfterHold = false;
-
-                clearTimeout(
-                    holdTimer
-                );
-
-                holdTimer = setTimeout(
-                    () => {
-                        holdStarted = true;
-                    },
-                    HOLD_TIME
-                );
-            }
-        );
-
-        wrapper.addEventListener(
-            "pointermove",
-            e => {
-                currentX = e.clientX;
-
-                const deltaX =
-                    currentX - startX;
-
-                const deltaY =
-                    Math.abs(
-                        e.clientY - startY
-                    );
-
-                if (deltaY > 35) {
-                    clearTimeout(
-                        holdTimer
-                    );
-
-                    return;
-                }
-
-                /*
-                 * HOLD YETARLI EMAS.
-                 * HOLD + SWIPE kerak.
-                 */
-                if (!holdStarted) {
-                    return;
-                }
-
-                if (deltaX < 0) {
-                    movedAfterHold = true;
-
-                    closeOthers();
-
-                    const distance =
-                        Math.min(
-                            Math.abs(deltaX),
-                            MAX_TRANSLATE
-                        );
-
-                    bubble.style.transform =
-                        `translateX(-${distance}px)`;
-                }
-            }
-        );
-
-        wrapper.addEventListener(
-            "pointerup",
-            () => {
-                clearTimeout(
-                    holdTimer
-                );
-
-                const deltaX =
-                    currentX - startX;
-
+        document.addEventListener(
+            "click",
+            event => {
                 if (
-                    holdStarted &&
-                    movedAfterHold &&
-                    deltaX <= -SWIPE_DISTANCE
+                    !event.target.closest(
+                        ".message-wrapper"
+                    )
                 ) {
-                    closeOthers();
-
-                    wrapper.classList.add(
-                        "swiped"
-                    );
-
-                    bubble.style.transform =
-                        `translateX(-${MAX_TRANSLATE}px)`;
-                } else {
-                    resetSwipe();
+                    closeAllSwipedMessages();
                 }
-
-                holdStarted = false;
-                movedAfterHold = false;
             }
         );
-
-        wrapper.addEventListener(
-            "pointercancel",
-            resetSwipe
-        );
-
-        wrapper
-            .querySelectorAll(
-                ".message-action"
-            )
-            .forEach(button => {
-                button.addEventListener(
-                    "pointerdown",
-                    e => {
-                        e.stopPropagation();
-                    }
-                );
-
-                button.addEventListener(
-                    "click",
-                    e => {
-                        e.stopPropagation();
-                    }
-                );
-            });
-    }
-
-    function initializeMessageSwipes() {
-        $$(".message-wrapper")
-            .forEach(setupMessageSwipe);
-    }
-
-    document.addEventListener(
-        "click",
-        e => {
-            if (
-                e.target.closest(
-                    ".message-wrapper"
-                )
-            ) {
-                return;
-            }
-
-            $$(".message-wrapper.swiped")
-                .forEach(wrapper => {
-                    wrapper.classList.remove(
-                        "swiped"
-                    );
-
-                    const bubble =
-                        wrapper.querySelector(
-                            ".message-bubble"
-                        );
-
-                    if (bubble) {
-                        bubble.style.transform =
-                            "";
-                    }
-                });
-        }
-    );
-
-    /* =========================================================
-       CHAT SCROLL
-       ========================================================= */
-
-    function scrollMessagesToBottom() {
-        const container =
-            $("#messages");
-
-        if (!container) return;
-
-        requestAnimationFrame(() => {
-            container.scrollTop =
-                container.scrollHeight;
-        });
-    }
-
-    /* =========================================================
-       RESET CHAT
-       ========================================================= */
-
-    function resetChat() {
-        currentChatUser = null;
-        currentGroup = null;
-        currentChannel = null;
-
-        currentChatType = null;
-        currentChatId = null;
-
-        currentMessages = [];
-
-        hideElement(
-            $("#activeChat")
-        );
-
-        showElement(
-            $("#chatEmpty")
-        );
-
-        if ($("#messages")) {
-            $("#messages").innerHTML = "";
-        }
-
-        if ($("#messageInput")) {
-            $("#messageInput").value = "";
-            $("#messageInput").disabled = true;
-        }
-
-        if ($("#sendButton")) {
-            $("#sendButton").disabled = true;
-        }
-
-        hideElement(
-            $("#contactActions")
-        );
-    }
-
-    /* =========================================================
-       MESSAGE FORM
-       ========================================================= */
-
-    async function handleMessageSubmit(event) {
-        event.preventDefault();
-
-        const input =
-            $("#messageInput");
-
-        if (!input) return;
-
-        const text =
-            input.value.trim();
-
-        if (!text) return;
-
-        if (currentChatType === "direct") {
-            await sendDirectMessage(text);
-        }
-
-        if (currentChatType === "group") {
-            await sendGroupMessage(text);
-        }
-
-        if (currentChatType === "channel") {
-            await sendChannelMessage(text);
-        }
     }
 
     /* =========================================================
@@ -4080,17 +5582,17 @@
         realtimeChannels = [];
     }
 
-    function setupMessageRealtime() {
+    function setupRealtime() {
         removeRealtimeChannels();
 
-        if (!currentUser) return;
+        /* Direct messages */
 
-        const channel =
+        const direct =
             db.channel(
-                `megchat-messages-${currentUser.id}-${Date.now()}`
+                `messages-${currentUser.id}`
             );
 
-        channel
+        direct
             .on(
                 "postgres_changes",
                 {
@@ -4103,26 +5605,47 @@
                         payload.new ||
                         payload.old;
 
-                    if (
-                        !row ||
-                        (
-                            row.sender_id !== currentUser.id &&
-                            row.receiver_id !== currentUser.id
-                        )
-                    ) {
-                        return;
-                    }
+                    if (!row) return;
+
+                    const relevant =
+                        row.sender_id ===
+                            currentUser.id ||
+                        row.receiver_id ===
+                            currentUser.id;
+
+                    if (!relevant) return;
 
                     if (
-                        currentChatType === "direct" &&
-                        currentChatUser
+                        activeChatType ===
+                        "direct" &&
+                        activeChatUser
                     ) {
-                        await loadDirectMessages(
-                            currentChatUser.id
-                        );
+                        const belongs =
+                            row.sender_id ===
+                                activeChatUser.id ||
+                            row.receiver_id ===
+                                activeChatUser.id;
+
+                        if (belongs) {
+                            await loadDirectMessages();
+                        }
                     }
                 }
             )
+            .subscribe();
+
+        realtimeChannels.push(
+            direct
+        );
+
+        /* Contact requests */
+
+        const requests =
+            db.channel(
+                `requests-${currentUser.id}`
+            );
+
+        requests
             .on(
                 "postgres_changes",
                 {
@@ -4130,17 +5653,43 @@
                     schema: "public",
                     table: "contact_requests"
                 },
-                async () => {
-                    await loadContacts();
-                    await loadContactRequests();
+                async payload => {
+                    const row =
+                        payload.new ||
+                        payload.old;
 
-                    if (currentChatUser) {
-                        await updateContactButtons(
-                            currentChatUser.id
-                        );
+                    if (!row) return;
+
+                    if (
+                        row.sender_id ===
+                            currentUser.id ||
+                        row.receiver_id ===
+                            currentUser.id
+                    ) {
+                        await loadIncomingRequests();
+
+                        if (
+                            activeProfileUser
+                        ) {
+                            await updateProfilePopupActions();
+                        }
                     }
                 }
             )
+            .subscribe();
+
+        realtimeChannels.push(
+            requests
+        );
+
+        /* Group messages */
+
+        const groups =
+            db.channel(
+                `groups-${currentUser.id}`
+            );
+
+        groups
             .on(
                 "postgres_changes",
                 {
@@ -4154,17 +5703,32 @@
                         payload.old;
 
                     if (
-                        currentChatType === "group" &&
-                        currentGroup &&
+                        activeChatType ===
+                            "group" &&
+                        activeGroup &&
                         row?.group_id ===
-                            currentGroup.id
+                            activeGroup.id
                     ) {
                         await loadGroupMessages(
-                            currentGroup.id
+                            activeGroup.id
                         );
                     }
                 }
             )
+            .subscribe();
+
+        realtimeChannels.push(
+            groups
+        );
+
+        /* Channel messages */
+
+        const channels =
+            db.channel(
+                `channels-${currentUser.id}`
+            );
+
+        channels
             .on(
                 "postgres_changes",
                 {
@@ -4178,13 +5742,14 @@
                         payload.old;
 
                     if (
-                        currentChatType === "channel" &&
-                        currentChannel &&
+                        activeChatType ===
+                            "channel" &&
+                        activeChannel &&
                         row?.channel_id ===
-                            currentChannel.id
+                            activeChannel.id
                     ) {
                         await loadChannelMessages(
-                            currentChannel.id
+                            activeChannel.id
                         );
                     }
                 }
@@ -4192,532 +5757,343 @@
             .subscribe();
 
         realtimeChannels.push(
-            channel
+            channels
         );
     }
 
     /* =========================================================
-       MOBILE
+       SEEN / DELIVERED
        ========================================================= */
 
-    function setupMobile() {
-        $("#mobileBackBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    resetChat();
-
-                    document.body.classList.remove(
-                        "chat-open"
-                    );
-                }
-            );
-
-        $$("#userList .user-item")
-            .forEach(item => {
-                item.addEventListener(
-                    "click",
-                    () => {
-                        document.body.classList.add(
-                            "chat-open"
-                        );
-                    }
-                );
-            });
-    }
-
-    /* =========================================================
-       MODAL CLOSE BUTTONS
-       ========================================================= */
-
-    function setupModalCloseButtons() {
-        const modalMap = {
-            closeGroupBtn:
-                "createGroupModal",
-
-            closeChannelBtn:
-                "createChannelModal",
-
-            closeUserProfileBtn:
-                "userProfileModal"
-        };
-
-        Object.entries(
-            modalMap
-        ).forEach(
-            ([buttonId, modalId]) => {
-                document
-                    .getElementById(buttonId)
-                    ?.addEventListener(
-                        "click",
-                        () => {
-                            closeModal(
-                                document.getElementById(
-                                    modalId
-                                )
-                            );
-                        }
-                    );
-            }
-        );
-
-        $$("[data-close-modal]")
-            .forEach(button => {
-                button.addEventListener(
-                    "click",
-                    () => {
-                        const id =
-                            button.dataset.closeModal;
-
-                        closeModal(
-                            document.getElementById(
-                                id
-                            )
-                        );
-                    }
-                );
-            });
-
-        $$(".modal")
-            .forEach(modal => {
-                modal.addEventListener(
-                    "click",
-                    e => {
-                        if (
-                            e.target === modal
-                        ) {
-                            closeModal(
-                                modal
-                            );
-                        }
-                    }
-                );
-            });
-    }
-
-    /* =========================================================
-       EVENT SETUP
-       ========================================================= */
-
-    function setupEvents() {
-
-        /* MESSAGE */
-
-        $("#messageForm")
-            ?.addEventListener(
-                "submit",
-                handleMessageSubmit
-            );
-
-        $("#imageBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    $("#imageInput")?.click();
-                }
-            );
-
-        $("#imageInput")
-            ?.addEventListener(
-                "change",
-                async e => {
-                    const file =
-                        e.target.files?.[0];
-
-                    if (file) {
-                        await uploadChatImage(
-                            file
-                        );
-                    }
-
-                    e.target.value = "";
-                }
-            );
-
-        /* CONTACT */
-
-        $("#addContactBtn")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    if (
-                        currentChatUser
-                    ) {
-                        await sendContactRequest(
-                            currentChatUser.id
-                        );
-                    }
-                }
-            );
-
-        /* CREATE GROUP */
-
-        $("#groupForm")
-            ?.addEventListener(
-                "submit",
-                createGroup
-            );
-
-        /* CREATE CHANNEL */
-
-        $("#channelForm")
-            ?.addEventListener(
-                "submit",
-                createChannel
-            );
-
-        /* JOIN */
-
-        $("#joinGroupBtn")
-            ?.addEventListener(
-                "click",
-                joinGroup
-            );
-
-        $("#joinChannelBtn")
-            ?.addEventListener(
-                "click",
-                joinChannel
-            );
-
-        /* GROUP INFO */
-
-        $("#groupInviteBtn")
-            ?.addEventListener(
-                "click",
-                createGroupInvite
-            );
-
-        $("#groupMembersBtn")
-            ?.addEventListener(
-                "click",
-                showGroupMembers
-            );
-
-        $("#leaveGroupBtn")
-            ?.addEventListener(
-                "click",
-                leaveGroup
-            );
-
-        /* CHANNEL INFO */
-
-        $("#channelInviteBtn")
-            ?.addEventListener(
-                "click",
-                createChannelInvite
-            );
-
-        $("#channelMembersBtn")
-            ?.addEventListener(
-                "click",
-                showChannelMembers
-            );
-
-        $("#leaveChannelBtn")
-            ?.addEventListener(
-                "click",
-                leaveChannel
-            );
-
-        /* PROFILE POPUP */
-
-        $("#chatAvatarButton")
-            ?.addEventListener(
-                "click",
-                () => {
-                    if (
-                        currentChatType ===
-                            "direct" &&
-                        currentChatUser
-                    ) {
-                        openUserProfile(
-                            currentChatUser.id
-                        );
-                    }
-
-                    if (
-                        currentChatType ===
-                            "group"
-                    ) {
-                        openGroupInfo();
-                    }
-
-                    if (
-                        currentChatType ===
-                            "channel"
-                    ) {
-                        openChannelInfo();
-                    }
-                }
-            );
-
-        $("#userProfileMenuBtn")
-            ?.addEventListener(
-                "click",
-                e => {
-                    e.stopPropagation();
-                    toggleUserProfileMenu();
-                }
-            );
-
-        $("#editNicknameBtn")
-            ?.addEventListener(
-                "click",
-                saveNickname
-            );
-
-        $("#removeNicknameBtn")
-            ?.addEventListener(
-                "click",
-                removeNickname
-            );
-
-        $("#removeNicknameBtn2")
-            ?.addEventListener(
-                "click",
-                removeNickname
-            );
-
-        $("#blockUserBtn")
-            ?.addEventListener(
-                "click",
-                blockUser
-            );
-
-        $("#reportUserBtn")
-            ?.addEventListener(
-                "click",
-                reportUser
-            );
-
-        /* PROFILE SETTINGS */
-
-        $("#profileForm")
-            ?.addEventListener(
-                "submit",
-                saveProfile
-            );
-
-        $("#changeAvatarBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    $("#profileAvatarInput")
-                        ?.click();
-                }
-            );
-
-        $("#profileAvatarInput")
-            ?.addEventListener(
-                "change",
-                async e => {
-                    const file =
-                        e.target.files?.[0];
-
-                    if (file) {
-                        await uploadProfileAvatar(
-                            file
-                        );
-                    }
-
-                    e.target.value = "";
-                }
-            );
-
-        /* PRIVACY */
-
-        $("#savePrivacyBtn")
-            ?.addEventListener(
-                "click",
-                savePrivacySettings
-            );
-
-        /* OWNER */
-
-        $("#ownerVerifiedSearchBtn")
-            ?.addEventListener(
-                "click",
-                ownerVerifyUser
-            );
-
-        /* SEARCH */
-
-        setupSearch();
-
-        /* SETTINGS */
-
-        setupSettings();
-
-        /* TABS */
-
-        setupSidebarTabs();
-
-        /* OTHER */
-
-        setupAppearance();
-        setupLanguage();
-        setupEmoji();
-        setupStickers();
-        setupMobile();
-        setupModalCloseButtons();
-
-        /* CLOSE MENUS */
-
-        document.addEventListener(
-            "click",
-            e => {
-                if (
-                    !e.target.closest(
-                        "#userProfileMenu"
-                    ) &&
-                    !e.target.closest(
-                        "#userProfileMenuBtn"
-                    )
-                ) {
-                    closeAllMenus();
-                }
-
-                if (
-                    !e.target.closest(
-                        "#emojiPanel"
-                    ) &&
-                    !e.target.closest(
-                        "#emojiBtn"
-                    )
-                ) {
-                    $("#emojiPanel")
-                        ?.classList.remove(
-                            "show"
-                        );
-                }
-
-                if (
-                    !e.target.closest(
-                        "#stickerPanel"
-                    ) &&
-                    !e.target.closest(
-                        "#stickerBtn"
-                    )
-                ) {
-                    $("#stickerPanel")
-                        ?.classList.remove(
-                            "show"
-                        );
-                }
-            }
-        );
-    }
-
-    /* =========================================================
-       REFRESH ALL
-       ========================================================= */
-
-    async function refreshAll() {
-        await loadMyProfile();
-        await loadContacts();
-        await loadContactRequests();
-        await loadGroups();
-        await loadChannels();
-        await loadAppUpdates();
-        await loadPrivacySettings();
-        await loadOwnerPanel();
-    }
-
-    /* =========================================================
-       LOGOUT
-       ========================================================= */
-
-    async function logout() {
-        try {
-            removeRealtimeChannels();
-
-            await db.auth.signOut();
-        } catch (error) {
-            console.error(error);
+    async function markDirectMessagesSeen() {
+        if (
+            !currentUser ||
+            !activeChatUser
+        ) {
+            return;
         }
 
-        localStorage.removeItem(
-            "messageAppLoggedIn"
-        );
-
-        localStorage.removeItem(
-            "messageAppUser"
-        );
-
-        window.location.href =
-            "index.html";
+        await db
+            .from("messages")
+            .update({
+                seen_at:
+                    new Date().toISOString()
+            })
+            .eq(
+                "sender_id",
+                activeChatUser.id
+            )
+            .eq(
+                "receiver_id",
+                currentUser.id
+            )
+            .is(
+                "seen_at",
+                null
+            );
     }
 
     /* =========================================================
-       GLOBAL FUNCTIONS
+       ACCOUNT STATE
        ========================================================= */
 
-    window.openDirectChat =
-        openDirectChat;
+    function checkAccountBlocked() {
+        if (!myProfile) return false;
 
-    window.openGroup =
-        openGroup;
+        if (
+            myProfile.account_blocked !== true
+        ) {
+            return false;
+        }
 
-    window.openChannel =
-        openChannel;
+        if (
+            !myProfile.account_blocked_until
+        ) {
+            showAccountBlocked();
+            return true;
+        }
 
-    window.openUserProfile =
-        openUserProfile;
+        const until =
+            new Date(
+                myProfile.account_blocked_until
+            ).getTime();
 
-    window.logout =
-        logout;
+        if (
+            until > Date.now()
+        ) {
+            showAccountBlocked(
+                new Date(
+                    until
+                ).toLocaleString()
+            );
 
-    window.createGroup =
-        createGroup;
+            return true;
+        }
 
-    window.createChannel =
-        createChannel;
+        return false;
+    }
 
-    window.joinGroup =
-        joinGroup;
-
-    window.joinChannel =
-        joinChannel;
-
-    window.saveNickname =
-        saveNickname;
-
-    window.removeNickname =
-        removeNickname;
-
-    window.blockUser =
-        blockUser;
-
-    window.reportUser =
-        reportUser;
-
-    window.loadSavedMessages =
-        loadSavedMessages;
+    function showAccountBlocked(until = "") {
+        showToast(
+            until
+                ? `Account blocked until ${until}`
+                : "Account blocked."
+        );
+    }
 
     /* =========================================================
-       INITIALIZE
+       VERIFIED AUTO REFRESH
+       ========================================================= */
+
+    async function refreshExpiredVerification() {
+        if (!myProfile) return;
+
+        if (
+            myProfile.is_verified &&
+            myProfile.verified_until
+        ) {
+            const until =
+                new Date(
+                    myProfile.verified_until
+                ).getTime();
+
+            if (
+                until <= Date.now()
+            ) {
+                /*
+                 * User cannot change verification
+                 * directly. Owner RPC is authoritative.
+                 *
+                 * Refresh UI locally immediately.
+                 */
+                myProfile.is_verified =
+                    false;
+
+                renderMyProfile();
+            }
+        }
+    }
+
+    /* =========================================================
+       COUNTS
+       ========================================================= */
+
+    async function updateCounts() {
+        if (!currentUser) return;
+
+        const [
+            contactsResult,
+            groupsResult,
+            channelsResult
+        ] = await Promise.all([
+            db
+                .from("contact_requests")
+                .select(
+                    "id",
+                    {
+                        count: "exact",
+                        head: true
+                    }
+                )
+                .eq(
+                    "receiver_id",
+                    currentUser.id
+                )
+                .eq(
+                    "status",
+                    "pending"
+                ),
+
+            db
+                .from("group_members")
+                .select(
+                    "group_id",
+                    {
+                        count: "exact",
+                        head: true
+                    }
+                )
+                .eq(
+                    "user_id",
+                    currentUser.id
+                ),
+
+            db
+                .from("channel_members")
+                .select(
+                    "channel_id",
+                    {
+                        count: "exact",
+                        head: true
+                    }
+                )
+                .eq(
+                    "user_id",
+                    currentUser.id
+                )
+        ]);
+
+        setText(
+            "contactCount",
+            contactsResult.count || 0
+        );
+
+        setText(
+            "groupCount",
+            groupsResult.count || 0
+        );
+
+        setText(
+            "channelCount",
+            channelsResult.count || 0
+        );
+    }
+
+    /* =========================================================
+       PROFILE AVATAR FIX
+       ========================================================= */
+
+    function fixProfileAvatars() {
+        $$(".profile-avatar, #userProfileAvatar")
+            .forEach(avatar => {
+                avatar.style.aspectRatio =
+                    "1 / 1";
+
+                avatar.style.overflow =
+                    "hidden";
+            });
+    }
+
+    /* =========================================================
+       CHAT LIST NICKNAMES
+       ========================================================= */
+
+    async function getNickname(userId) {
+        if (!currentUser || !userId) {
+            return null;
+        }
+
+        const {
+            data
+        } = await db
+            .from("contact_nicknames")
+            .select("nickname")
+            .eq(
+                "owner_id",
+                currentUser.id
+            )
+            .eq(
+                "contact_id",
+                userId
+            )
+            .maybeSingle();
+
+        return data?.nickname || null;
+    }
+
+    /* =========================================================
+       REFRESH
+       ========================================================= */
+
+    async function refreshDashboard() {
+        await Promise.all([
+            loadUsers(),
+            loadGroups(),
+            loadChannels(),
+            loadIncomingRequests(),
+            updateCounts()
+        ]);
+
+        await refreshMyProfile();
+    }
+
+    /* =========================================================
+       INITIALIZATION
        ========================================================= */
 
     async function init() {
-        const user =
+        applyAppearance();
+        applyLanguage(
+            currentLanguage
+        );
+
+        setupEvents();
+        setupModalClosing();
+        renderEmojiPanel();
+
+        const authenticated =
             await loadCurrentUser();
 
-        if (!user) return;
+        if (!authenticated) {
+            return;
+        }
 
         await loadMyProfile();
 
-        setupEvents();
+        if (!myProfile) {
+            showToast(
+                "Profile topilmadi."
+            );
+            return;
+        }
 
-        await refreshAll();
+        checkAccountBlocked();
 
-        setupMessageRealtime();
+        await refreshExpiredVerification();
 
-        console.log(
-            "MegChatBox dashboard ready ✓"
+        renderMyProfile();
+
+        await refreshDashboard();
+
+        setupRealtime();
+
+        fixProfileAvatars();
+
+        setInterval(
+            async () => {
+                await refreshExpiredVerification();
+
+                await refreshMyProfile();
+            },
+            60 * 1000
+        );
+
+        /*
+         * Keep last_seen updated.
+         */
+        setInterval(
+            async () => {
+                if (!currentUser) return;
+
+                await db
+                    .from("profiles")
+                    .update({
+                        last_seen:
+                            new Date().toISOString()
+                    })
+                    .eq(
+                        "id",
+                        currentUser.id
+                    );
+            },
+            60 * 1000
         );
     }
 
-    init();
+    /* =========================================================
+       DOM READY
+       ========================================================= */
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+        document.addEventListener(
+            "DOMContentLoaded",
+            init
+        );
+    } else {
+        init();
+    }
 
 })();
