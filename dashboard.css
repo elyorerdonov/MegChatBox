@@ -2118,7 +2118,7 @@ body[data-density="comfortable"] .chat-item {
         flex-basis: 39px;
     }
 /* =========================================
-   MESSAGE SWIPE ACTIONS — FIX
+   MESSAGE SWIPE FIX
 ========================================= */
 
 .message-wrapper {
@@ -2128,10 +2128,10 @@ body[data-density="comfortable"] .chat-item {
 
 .message-actions {
     position: absolute;
-    right: 0;
+    right: 8px;
     top: 50%;
     transform: translateY(-50%);
-    
+
     display: flex;
     align-items: center;
     gap: 6px;
@@ -2140,66 +2140,48 @@ body[data-density="comfortable"] .chat-item {
     visibility: hidden;
     pointer-events: none;
 
-    transition:
-        opacity 0.18s ease,
-        visibility 0.18s ease;
+    z-index: 1;
 }
 
-/* Faqat swipe qilinganda */
 .message-wrapper.swiped .message-actions {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
 }
 
-/* Message o'zi */
-.message-wrapper .message-bubble {
+.message-bubble {
     position: relative;
     z-index: 2;
     transition: transform 0.2s ease;
 }
 
-/* Swipe qilinganda xabar chapga siljiydi */
-.message-wrapper.swiped .message-bubble {
-    transform: translateX(-145px);
-}
-
 .message-action {
     width: 38px;
     height: 38px;
-
-    border: 0;
+    border: none;
     border-radius: 10px;
 
     display: flex;
     align-items: center;
     justify-content: center;
 
-    cursor: pointer;
-
     background: #202a3b;
-    color: #fff;
-}
+    color: white;
 
-.message-action:hover {
-    background: #2d3a50;
+    cursor: pointer;
 }
 
 .message-action.delete {
     background: #ef4444;
 }
 
-.message-action.save {
-    background: #334155;
-}
-
 
 /* =========================================
-   USER PROFILE AVATAR — FIX
+   PROFILE AVATAR — SQUARE
 ========================================= */
 
-.user-profile-avatar,
-.profile-popup-avatar-wrap {
+.profile-popup-avatar-wrap,
+.user-profile-avatar {
     width: 110px !important;
     height: 110px !important;
 
@@ -2212,55 +2194,24 @@ body[data-density="comfortable"] .chat-item {
     aspect-ratio: 1 / 1 !important;
 
     border-radius: 50%;
-
     overflow: hidden;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    margin: 0 auto;
+    margin-left: auto;
+    margin-right: auto;
 }
 
-.user-profile-avatar img,
 .profile-popup-avatar-wrap img,
-.profile-popup-avatar {
+.user-profile-avatar img,
+#profilePopupAvatar,
+#userProfileAvatar {
     width: 100% !important;
     height: 100% !important;
 
     min-width: 100% !important;
     min-height: 100% !important;
 
-    max-width: 100% !important;
-    max-height: 100% !important;
-
-    aspect-ratio: 1 / 1 !important;
-
     object-fit: cover !important;
     object-position: center !important;
 
     display: block;
-}
-
-
-/* Avatar ichidagi icon/initial ham kvadrat */
-.profile-popup-avatar-wrap > * {
-    width: 100%;
-    height: 100%;
-}
-
-
-/* =========================================
-   PROFILE POPUP
-========================================= */
-
-.user-profile-modal .modal-content {
-    width: min(420px, calc(100vw - 30px));
-}
-
-.user-profile-modal .profile-popup-avatar-wrap {
-    width: 110px !important;
-    height: 110px !important;
-
-    margin: 10px auto 16px;
 }
