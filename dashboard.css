@@ -1,3 +1,4 @@
+```css
 * {
     margin: 0;
     padding: 0;
@@ -11,31 +12,45 @@
     --panel-2: #172235;
     --panel-3: #1c2a40;
     --border: #24324a;
+
     --text: #f1f5f9;
     --muted: #94a3b8;
+
     --blue: #00a8ff;
     --blue-dark: #008bd1;
     --green: #22c55e;
     --red: #ef4444;
     --yellow: #f59e0b;
     --purple: #a78bfa;
+
+    --message-in: #172235;
     --message-out: #075985;
+
     --input-height: 43px;
 }
 
-/* LIGHT THEME */
+/* =========================================================
+   LIGHT THEME
+========================================================= */
 
 body[data-theme="light"] {
     --bg: #eef3f8;
     --sidebar: #ffffff;
-    --panel: #f5f7fa;
+    --panel: #f7f9fc;
     --panel-2: #e9eef5;
     --panel-3: #dce5f0;
     --border: #d5dde8;
+
     --text: #172033;
     --muted: #64748b;
+
+    --message-in: #e2e8f0;
     --message-out: #0284c7;
 }
+
+/* =========================================================
+   BASE
+========================================================= */
 
 html,
 body {
@@ -80,9 +95,9 @@ img {
     max-width: 100%;
 }
 
-/* ================================================= */
-/* APP */
-/* ================================================= */
+/* =========================================================
+   APP
+========================================================= */
 
 .app {
     width: 100%;
@@ -95,9 +110,9 @@ img {
     background: var(--bg);
 }
 
-/* ================================================= */
-/* SIDEBAR */
-/* ================================================= */
+/* =========================================================
+   SIDEBAR
+========================================================= */
 
 .sidebar {
     width: 340px;
@@ -112,9 +127,9 @@ img {
     border-right: 1px solid var(--border);
 }
 
-/* ================================================= */
-/* SIDEBAR HEADER */
-/* ================================================= */
+/* =========================================================
+   SIDEBAR HEADER
+========================================================= */
 
 .sidebar-header {
     height: 72px;
@@ -169,9 +184,9 @@ img {
     color: var(--muted);
 }
 
-/* ================================================= */
-/* ICON BUTTON */
-/* ================================================= */
+/* =========================================================
+   ICON BUTTON
+========================================================= */
 
 .icon-btn {
     width: 38px;
@@ -194,9 +209,9 @@ img {
     color: var(--text);
 }
 
-/* ================================================= */
-/* PROFILE */
-/* ================================================= */
+/* =========================================================
+   PROFILE
+========================================================= */
 
 .profile-card {
     width: calc(100% - 20px);
@@ -266,9 +281,9 @@ img {
     font-size: 11px;
 }
 
-/* ================================================= */
-/* AVATARS */
-/* ================================================= */
+/* =========================================================
+   AVATARS
+========================================================= */
 
 .avatar {
     flex-shrink: 0;
@@ -313,9 +328,9 @@ img {
     font-size: 30px;
 }
 
-/* ================================================= */
-/* VERIFIED */
-/* ================================================= */
+/* =========================================================
+   VERIFIED
+========================================================= */
 
 .verified-badge {
     width: 18px;
@@ -338,9 +353,9 @@ img {
     font-weight: 800;
 }
 
-/* ================================================= */
-/* SEARCH */
-/* ================================================= */
+/* =========================================================
+   SEARCH
+========================================================= */
 
 .search-box {
     height: 42px;
@@ -400,9 +415,9 @@ img {
     color: var(--text);
 }
 
-/* ================================================= */
-/* TABS */
-/* ================================================= */
+/* =========================================================
+   TABS
+========================================================= */
 
 .sidebar-tabs {
     display: flex;
@@ -438,10 +453,6 @@ img {
     transition: .2s;
 }
 
-.sidebar-tab i {
-    font-size: 11px;
-}
-
 .sidebar-tab:hover {
     color: var(--text);
 }
@@ -451,9 +462,9 @@ img {
     color: white;
 }
 
-/* ================================================= */
-/* TAB CONTENT */
-/* ================================================= */
+/* =========================================================
+   TAB CONTENT
+========================================================= */
 
 .tab-content {
     flex: 1;
@@ -469,9 +480,9 @@ img {
     display: flex;
 }
 
-/* ================================================= */
-/* LIST HEADER */
-/* ================================================= */
+/* =========================================================
+   LIST HEADER
+========================================================= */
 
 .list-header {
     height: 32px;
@@ -492,31 +503,30 @@ img {
     letter-spacing: .7px;
 }
 
-.list-count {
-    color: #475569;
-}
-
-/* ================================================= */
-/* CREATE ACTIONS */
-/* ================================================= */
+/* =========================================================
+   CREATE ACTIONS
+========================================================= */
 
 .tab-create-actions {
-    padding: 8px 10px 5px;
+    padding: 8px 10px 7px;
 
-    display: block;
+    display: flex;
+    gap: 7px;
 
     border-bottom: 1px solid rgba(36, 50, 74, .6);
 }
 
 .create-btn {
-    width: 100%;
-    height: 42px;
+    flex: 1;
+
+    min-width: 0;
+    height: 40px;
 
     display: flex;
     align-items: center;
     justify-content: center;
 
-    gap: 8px;
+    gap: 7px;
 
     border-radius: 9px;
 
@@ -525,7 +535,7 @@ img {
 
     border: 1px solid var(--border);
 
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
 
     transition: .2s;
@@ -541,9 +551,9 @@ img {
     color: var(--blue);
 }
 
-/* ================================================= */
-/* CHAT LIST */
-/* ================================================= */
+/* =========================================================
+   CHAT LIST
+========================================================= */
 
 .chat-list {
     flex: 1;
@@ -573,9 +583,9 @@ img {
     border-radius: 10px;
 }
 
-/* ================================================= */
-/* CHAT ITEM */
-/* ================================================= */
+/* =========================================================
+   CHAT ITEM
+========================================================= */
 
 .chat-item {
     width: 100%;
@@ -618,7 +628,6 @@ img {
 .chat-info-top {
     display: flex;
     align-items: center;
-
     gap: 4px;
 }
 
@@ -668,23 +677,11 @@ img {
     font-weight: 700;
 }
 
-/* ================================================= */
-/* ONLINE DOT */
-/* ================================================= */
+/* =========================================================
+   ONLINE
+========================================================= */
 
-.online-dot {
-    width: 8px;
-    height: 8px;
-
-    flex-shrink: 0;
-
-    border-radius: 50%;
-
-    background: var(--green);
-
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, .08);
-}
-
+.online-dot,
 .offline-dot {
     width: 8px;
     height: 8px;
@@ -692,13 +689,20 @@ img {
     flex-shrink: 0;
 
     border-radius: 50%;
+}
 
+.online-dot {
+    background: var(--green);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, .08);
+}
+
+.offline-dot {
     background: #64748b;
 }
 
-/* ================================================= */
-/* EMPTY STATE */
-/* ================================================= */
+/* =========================================================
+   EMPTY STATE
+========================================================= */
 
 .empty-state {
     min-height: 180px;
@@ -740,9 +744,9 @@ img {
     font-size: 11px;
 }
 
-/* ================================================= */
-/* SIDEBAR FOOTER */
-/* ================================================= */
+/* =========================================================
+   SIDEBAR FOOTER
+========================================================= */
 
 .sidebar-footer {
     padding: 8px 10px;
@@ -775,9 +779,9 @@ img {
     color: #f87171;
 }
 
-/* ================================================= */
-/* CHAT AREA */
-/* ================================================= */
+/* =========================================================
+   CHAT AREA
+========================================================= */
 
 .chat-area {
     flex: 1;
@@ -792,9 +796,9 @@ img {
     background: var(--bg);
 }
 
-/* ================================================= */
-/* EMPTY CHAT */
-/* ================================================= */
+/* =========================================================
+   EMPTY CHAT
+========================================================= */
 
 .chat-empty {
     width: 100%;
@@ -843,9 +847,9 @@ img {
     font-size: 12px;
 }
 
-/* ================================================= */
-/* ACTIVE CHAT */
-/* ================================================= */
+/* =========================================================
+   ACTIVE CHAT
+========================================================= */
 
 .active-chat {
     width: 100%;
@@ -867,9 +871,9 @@ img {
     display: none;
 }
 
-/* ================================================= */
-/* CHAT HEADER */
-/* ================================================= */
+/* =========================================================
+   CHAT HEADER
+========================================================= */
 
 .chat-header {
     height: 70px;
@@ -882,7 +886,7 @@ img {
 
     gap: 11px;
 
-    background: rgba(16, 24, 39, .97);
+    background: var(--sidebar);
 
     border-bottom: 1px solid var(--border);
 }
@@ -950,9 +954,9 @@ img {
     margin-left: auto;
 }
 
-/* ================================================= */
-/* CONTACT ACTIONS */
-/* ================================================= */
+/* =========================================================
+   CONTACT ACTIONS
+========================================================= */
 
 .contact-actions {
     min-height: 52px;
@@ -965,7 +969,7 @@ img {
 
     gap: 7px;
 
-    background: rgba(16, 24, 39, .9);
+    background: var(--sidebar);
 
     border-bottom: 1px solid var(--border);
 }
@@ -1004,13 +1008,9 @@ img {
     color: #f87171;
 }
 
-.contact-action:hover {
-    filter: brightness(1.08);
-}
-
-/* ================================================= */
-/* MESSAGES */
-/* ================================================= */
+/* =========================================================
+   MESSAGES
+========================================================= */
 
 .messages {
     flex: 1;
@@ -1025,11 +1025,17 @@ img {
     flex-direction: column;
 
     gap: 5px;
+
+    /* IMPORTANT:
+       message bubble itself stays small.
+       no large rectangle behind the whole message area.
+    */
+    background: transparent;
 }
 
-/* ================================================= */
-/* DAY DIVIDER */
-/* ================================================= */
+/* =========================================================
+   DAY DIVIDER
+========================================================= */
 
 .day-divider {
     width: 100%;
@@ -1069,14 +1075,15 @@ img {
     letter-spacing: .7px;
 }
 
-/* ================================================= */
-/* MESSAGE */
-/* ================================================= */
+/* =========================================================
+   MESSAGE BUBBLE
+========================================================= */
 
 .message {
+    width: fit-content;
     max-width: min(72%, 600px);
 
-    padding: 9px 12px;
+    padding: 8px 10px;
 
     display: flex;
     flex-direction: column;
@@ -1089,12 +1096,14 @@ img {
     word-break: break-word;
 
     position: relative;
+
+    box-shadow: none;
 }
 
 .message.incoming {
     align-self: flex-start;
 
-    background: var(--panel-2);
+    background: var(--message-in);
 
     border-bottom-left-radius: 4px;
 }
@@ -1109,10 +1118,14 @@ img {
 
 .message-content {
     white-space: pre-wrap;
+
+    display: block;
+
+    max-width: 100%;
 }
 
 .message-meta {
-    margin-top: 3px;
+    margin-top: 4px;
 
     display: flex;
     align-items: center;
@@ -1150,11 +1163,12 @@ img {
     font-style: italic;
 }
 
-/* ================================================= */
-/* MESSAGE IMAGE */
-/* ================================================= */
+/* =========================================================
+   MESSAGE IMAGE / STICKER
+========================================================= */
 
 .message-image {
+    width: auto;
     max-width: 280px;
     max-height: 350px;
 
@@ -1169,9 +1183,20 @@ img {
     cursor: pointer;
 }
 
-/* ================================================= */
-/* MESSAGE MENU */
-/* ================================================= */
+.message-sticker {
+    width: 150px;
+    height: 150px;
+
+    max-width: 100%;
+
+    display: block;
+
+    object-fit: contain;
+}
+
+/* =========================================================
+   MESSAGE MENU
+========================================================= */
 
 .message-menu {
     position: absolute;
@@ -1219,9 +1244,9 @@ img {
     color: #f87171;
 }
 
-/* ================================================= */
-/* MESSAGE FORM */
-/* ================================================= */
+/* =========================================================
+   MESSAGE FORM
+========================================================= */
 
 .message-form {
     width: 100%;
@@ -1238,11 +1263,11 @@ img {
 
     gap: 6px;
 
-    background: rgba(16, 24, 39, .97);
+    background: var(--sidebar);
 
     border-top: 1px solid var(--border);
 
-    overflow: hidden;
+    overflow: visible;
 }
 
 .message-form > * {
@@ -1294,8 +1319,6 @@ img {
     color: var(--text);
 
     font-size: 13px;
-
-    box-shadow: none;
 }
 
 .message-form input[type="text"]:focus {
@@ -1336,9 +1359,9 @@ img {
     cursor: not-allowed;
 }
 
-/* ================================================= */
-/* EMOJI / STICKER PANEL */
-/* ================================================= */
+/* =========================================================
+   EMOJI / STICKER
+========================================================= */
 
 .emoji-panel,
 .sticker-panel {
@@ -1391,9 +1414,9 @@ img {
     background: var(--panel-2);
 }
 
-/* ================================================= */
-/* MODALS */
-/* ================================================= */
+/* =========================================================
+   MODALS
+========================================================= */
 
 .modal-overlay {
     position: fixed;
@@ -1506,9 +1529,9 @@ img {
     color: white;
 }
 
-/* ================================================= */
-/* SETTINGS */
-/* ================================================= */
+/* =========================================================
+   SETTINGS
+========================================================= */
 
 .settings-list {
     padding: 8px;
@@ -1567,6 +1590,8 @@ img {
     width: 38px;
     height: 38px;
 
+    flex-shrink: 0;
+
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1613,9 +1638,9 @@ img {
     background: rgba(239, 68, 68, .14);
 }
 
-/* ================================================= */
-/* FORMS */
-/* ================================================= */
+/* =========================================================
+   FORMS
+========================================================= */
 
 #groupForm,
 #channelForm,
@@ -1747,9 +1772,9 @@ img {
     width: 100%;
 }
 
-/* ================================================= */
-/* PROFILE EDITOR */
-/* ================================================= */
+/* =========================================================
+   PROFILE EDITOR
+========================================================= */
 
 .profile-avatar-editor {
     padding: 20px 18px 5px;
@@ -1785,9 +1810,9 @@ img {
     color: white;
 }
 
-/* ================================================= */
-/* PRIVACY */
-/* ================================================= */
+/* =========================================================
+   PRIVACY
+========================================================= */
 
 .privacy-options {
     padding: 10px;
@@ -1886,9 +1911,9 @@ img {
     width: calc(100% - 36px);
 }
 
-/* ================================================= */
-/* LANGUAGE */
-/* ================================================= */
+/* =========================================================
+   LANGUAGE
+========================================================= */
 
 .language-list {
     padding: 8px;
@@ -1938,32 +1963,33 @@ img {
     display: block;
 }
 
-/* ================================================= */
-/* APPEARANCE */
-/* ================================================= */
+/* =========================================================
+   APPEARANCE
+========================================================= */
 
 .appearance-list {
-    padding: 10px;
+    padding: 12px;
 }
 
 .appearance-option {
     width: 100%;
 
-    min-height: 62px;
+    min-height: 68px;
 
     padding: 10px;
 
-    margin-bottom: 6px;
+    margin-bottom: 7px;
 
     display: flex;
     align-items: center;
 
     gap: 11px;
 
-    border: 1px solid transparent;
-    border-radius: 10px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
 
-    background: transparent;
+    background: var(--panel);
+
     color: var(--text);
 
     text-align: left;
@@ -1973,16 +1999,19 @@ img {
 
 .appearance-option:hover {
     background: var(--panel-2);
+    transform: translateY(-1px);
 }
 
 .appearance-option.selected {
-    border-color: rgba(0, 168, 255, .35);
-    background: rgba(0, 168, 255, .07);
+    border-color: rgba(0, 168, 255, .55);
+    background: rgba(0, 168, 255, .08);
+
+    box-shadow: 0 0 0 1px rgba(0, 168, 255, .08);
 }
 
 .appearance-preview {
-    width: 44px;
-    height: 34px;
+    width: 48px;
+    height: 36px;
 
     flex-shrink: 0;
 
@@ -2000,7 +2029,11 @@ img {
 }
 
 .appearance-preview.blue {
-    background: linear-gradient(135deg, #0ea5e9, #2563eb);
+    background: linear-gradient(
+        135deg,
+        #0ea5e9,
+        #2563eb
+    );
 }
 
 .appearance-option-info {
@@ -2021,36 +2054,43 @@ img {
     font-size: 10px;
 }
 
-/* ================================================= */
-/* SAVED MESSAGES */
-/* ================================================= */
-
-.saved-list,
-.updates-list {
-    padding: 10px;
+.appearance-option > i {
+    color: var(--blue);
+    font-size: 11px;
 }
 
-.saved-message-item,
-.update-item {
-    padding: 11px;
+/* =========================================================
+   SAVED MESSAGES
+========================================================= */
 
-    margin-bottom: 7px;
+.saved-list {
+    padding: 12px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 8px;
+}
+
+.saved-message-item {
+    width: 100%;
+
+    padding: 12px;
 
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 11px;
 
     background: var(--panel);
 
     transition: .2s;
 }
 
-.saved-message-item:hover,
-.update-item:hover {
+.saved-message-item:hover {
     background: var(--panel-2);
+    border-color: #334763;
 }
 
-.saved-message-content,
-.update-content {
+.saved-message-content {
     color: var(--text);
 
     font-size: 12px;
@@ -2060,9 +2100,8 @@ img {
     word-break: break-word;
 }
 
-.saved-message-meta,
-.update-meta {
-    margin-top: 7px;
+.saved-message-meta {
+    margin-top: 8px;
 
     display: flex;
     align-items: center;
@@ -2074,18 +2113,37 @@ img {
 }
 
 .saved-delete-btn {
+    padding: 4px 7px;
+
+    border-radius: 6px;
+
     color: #f87171;
     background: transparent;
 
     font-size: 10px;
 }
 
-/* ================================================= */
-/* UPDATES */
-/* ================================================= */
+.saved-delete-btn:hover {
+    background: rgba(239, 68, 68, .1);
+}
+
+/* =========================================================
+   UPDATES / FUTURE
+========================================================= */
+
+.updates-list {
+    padding: 12px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 8px;
+}
 
 .update-create {
     padding: 15px;
+
+    background: var(--panel);
 
     border-bottom: 1px solid var(--border);
 }
@@ -2096,7 +2154,6 @@ img {
     width: 100%;
 
     margin-bottom: 9px;
-
     padding: 10px;
 
     border: 1px solid var(--border);
@@ -2110,12 +2167,65 @@ img {
 
 .update-create textarea {
     min-height: 90px;
+
     resize: vertical;
 }
 
-/* ================================================= */
-/* PROFILE POPUP */
-/* ================================================= */
+.update-item {
+    width: 100%;
+
+    padding: 13px;
+
+    border: 1px solid var(--border);
+    border-radius: 11px;
+
+    background: var(--panel);
+
+    transition: .2s;
+}
+
+.update-item:hover {
+    background: var(--panel-2);
+    border-color: #334763;
+}
+
+.update-content {
+    color: var(--text);
+
+    font-size: 12px;
+    line-height: 1.5;
+
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.update-meta {
+    margin-top: 8px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    color: #64748b;
+
+    font-size: 9px;
+}
+
+.update-type {
+    padding: 3px 7px;
+
+    border-radius: 6px;
+
+    background: rgba(0, 168, 255, .1);
+    color: var(--blue);
+
+    font-size: 8px;
+    font-weight: 700;
+}
+
+/* =========================================================
+   PROFILE POPUP
+========================================================= */
 
 .profile-popup {
     padding: 20px;
@@ -2193,9 +2303,9 @@ img {
     color: #f87171;
 }
 
-/* ================================================= */
-/* POPUP MENU */
-/* ================================================= */
+/* =========================================================
+   USER PROFILE MENU
+========================================================= */
 
 .user-profile-menu {
     position: absolute;
@@ -2203,7 +2313,7 @@ img {
     right: 20px;
     top: 65px;
 
-    min-width: 160px;
+    min-width: 170px;
 
     padding: 5px;
 
@@ -2246,9 +2356,9 @@ img {
     color: #f87171;
 }
 
-/* ================================================= */
-/* NICKNAME */
-/* ================================================= */
+/* =========================================================
+   NICKNAME
+========================================================= */
 
 .nickname-form {
     padding: 18px;
@@ -2270,9 +2380,9 @@ img {
     font-size: 12px;
 }
 
-/* ================================================= */
-/* JOIN INVITE */
-/* ================================================= */
+/* =========================================================
+   JOIN FORM
+========================================================= */
 
 .join-form {
     padding: 18px;
@@ -2303,9 +2413,9 @@ img {
     font-size: 12px;
 }
 
-/* ================================================= */
-/* GROUP / CHANNEL INFO */
-/* ================================================= */
+/* =========================================================
+   GROUP / CHANNEL INFO
+========================================================= */
 
 .info-card {
     padding: 20px;
@@ -2335,7 +2445,7 @@ img {
 .info-card-bio {
     margin: 12px 0 17px;
 
-    color: #cbd5e1;
+    color: var(--muted);
 
     font-size: 11px;
     line-height: 1.5;
@@ -2368,9 +2478,9 @@ img {
     color: #f87171;
 }
 
-/* ================================================= */
-/* MEMBERS */
-/* ================================================= */
+/* =========================================================
+   MEMBERS
+========================================================= */
 
 .members-list {
     max-height: 55vh;
@@ -2438,9 +2548,9 @@ img {
     font-size: 8px;
 }
 
-/* ================================================= */
-/* DELETE ACCOUNT */
-/* ================================================= */
+/* =========================================================
+   DELETE ACCOUNT
+========================================================= */
 
 .danger-box {
     padding: 18px;
@@ -2454,6 +2564,7 @@ img {
     border-radius: 9px;
 
     background: rgba(239, 68, 68, .08);
+
     border: 1px solid rgba(239, 68, 68, .18);
 
     color: #fca5a5;
@@ -2480,9 +2591,9 @@ img {
     background: #b91c1c;
 }
 
-/* ================================================= */
-/* OWNER / ADMIN */
-/* ================================================= */
+/* =========================================================
+   OWNER / ADMIN
+========================================================= */
 
 .panel-tabs {
     padding: 8px;
@@ -2505,10 +2616,13 @@ img {
     color: #64748b;
 
     font-size: 10px;
+
+    transition: .2s;
 }
 
 .panel-tab:hover {
     color: white;
+    background: var(--panel);
 }
 
 .panel-tab.active {
@@ -2569,21 +2683,27 @@ img {
     color: #94a3b8;
 
     font-size: 11px;
+
+    transition: .2s;
 }
 
 .admin-panel-btn i {
     color: var(--blue);
+
     font-size: 16px;
 }
 
 .admin-panel-btn:hover {
     color: white;
+
     background: var(--panel-3);
+
+    transform: translateY(-1px);
 }
 
-/* ================================================= */
-/* TOAST */
-/* ================================================= */
+/* =========================================================
+   TOAST
+========================================================= */
 
 .toast {
     position: fixed;
@@ -2632,9 +2752,9 @@ img {
     color: var(--blue);
 }
 
-/* ================================================= */
-/* SEARCH RESULTS / REQUESTS */
-/* ================================================= */
+/* =========================================================
+   SEARCH RESULTS / REQUESTS
+========================================================= */
 
 .search-result-label {
     padding: 7px 10px;
@@ -2645,6 +2765,7 @@ img {
     font-weight: 700;
 
     text-transform: uppercase;
+
     letter-spacing: .6px;
 }
 
@@ -2654,15 +2775,16 @@ img {
     border-radius: 6px;
 
     background: rgba(245, 158, 11, .12);
+
     color: #fbbf24;
 
     font-size: 8px;
     font-weight: 700;
 }
 
-/* ================================================= */
-/* DISABLED / BLOCKED */
-/* ================================================= */
+/* =========================================================
+   BLOCKED
+========================================================= */
 
 .blocked-banner {
     padding: 10px 14px;
@@ -2688,9 +2810,18 @@ img {
     font-size: 11px;
 }
 
-/* ================================================= */
-/* RESPONSIVE */
-/* ================================================= */
+/* =========================================================
+   HIDDEN HELPERS
+========================================================= */
+
+.hidden,
+[hidden] {
+    display: none !important;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
 
 @media (max-width: 800px) {
 
@@ -2713,6 +2844,7 @@ img {
 
     .mobile-back-btn {
         display: flex;
+
         align-items: center;
         justify-content: center;
     }
@@ -2731,7 +2863,8 @@ img {
 
     .message-form {
         min-height: 60px;
-        padding: 8px 8px;
+
+        padding: 8px;
 
         gap: 4px;
     }
@@ -2765,18 +2898,23 @@ img {
 
     .modal {
         max-height: 94vh;
+
         border-radius: 14px;
     }
 
-    .profile-popup-actions,
+    .profile-popup-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
     .info-actions {
         grid-template-columns: 1fr;
     }
 }
 
-/* ================================================= */
-/* SMALL MOBILE */
-/* ================================================= */
+/* =========================================================
+   SMALL MOBILE
+========================================================= */
 
 @media (max-width: 430px) {
 
@@ -2864,11 +3002,23 @@ img {
     .panel-tab {
         min-width: 75px;
     }
+
+    .tab-create-actions {
+        flex-direction: column;
+    }
+
+    .create-btn {
+        width: 100%;
+    }
+
+    .admin-actions {
+        grid-template-columns: 1fr;
+    }
 }
 
-/* ================================================= */
-/* ACCESSIBILITY */
-/* ================================================= */
+/* =========================================================
+   ACCESSIBILITY
+========================================================= */
 
 button:focus-visible,
 input:focus-visible,
@@ -2877,3 +3027,4 @@ select:focus-visible {
     outline: 2px solid rgba(0, 168, 255, .5);
     outline-offset: 2px;
 }
+```
