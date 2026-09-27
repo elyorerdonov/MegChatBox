@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>MSGBox - Login</title>
+
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css"
+    >
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+
+<div class="auth-wrapper">
+
+    <div class="auth-card">
+
+
+        <!-- LOGIN -->
+
+        <div class="form-panel login-panel">
+
+            <div class="logo">
+                <i class="fa-solid fa-comments"></i>
+            </div>
+
+
+            <h1>Welcome Back</h1>
+
+            <p class="subtitle">
+                Login to your messages
+            </p>
+
+
+            <form id="loginForm">
+
+
+                <div class="input-group">
+
+                    <input
+                        type="email"
+                        id="loginEmail"
+                        placeholder=" "
+                        required
+                    >
+
+                    <label>Email Address</label>
+
+                </div>
+
+
+                <div class="input-group">
+
+                    <input
+                        type="password"
+                        id="loginPassword"
+                        placeholder=" "
+                        required
+                    >
+
+                    <label>Password</label>
+
+
+                    <button
+                        type="button"
+                        class="password-toggle"
+                        onclick="togglePassword('loginPassword', this)"
+                    >
+
+                        <i class="fa-solid fa-eye"></i>
+
+                    </button>
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="main-btn"
+                >
+                    LOGIN
+                </button>
+
+
+            </form>
+
+
+            <div class="switch-area">
+
+                <span>
+                    Don't have an account?
+                </span>
+
+                <button
+                    type="button"
+                    onclick="showSignup()"
+                >
+                    Sign Up
+                </button>
+
+            </div>
+
+
+        </div>
+
+
+        <!-- SIGN UP -->
+
+        <div class="form-panel signup-panel">
+
+
+            <div class="logo">
+                <i class="fa-solid fa-user-plus"></i>
+            </div>
+
+
+            <h1>Create Account</h1>
+
+            <p class="subtitle">
+                Create your messaging account
+            </p>
+
+
+            <form id="signupForm">
+
+
+                <!-- FULL NAME -->
+
+                <div class="input-group">
+
+                    <input
+                        type="text"
+                        id="signupName"
+                        placeholder=" "
+                        required
+                    >
+
+                    <label>Full Name</label>
+
+                </div>
+
+
+                <!-- USERNAME -->
+
+                <div class="input-group">
+
+                    <input
+                        type="text"
+                        id="signupUsername"
+                        placeholder=" "
+                        required
+                        minlength="3"
+                        maxlength="20"
+                    >
+
+                    <label>Username</label>
+
+                </div>
+
+
+                <!-- EMAIL -->
+
+                <div class="input-group">
+
+                    <input
+                        type="email"
+                        id="signupEmail"
+                        placeholder=" "
+                        required
+                    >
+
+                    <label>Email Address</label>
+
+                </div>
+
+
+                <!-- PASSWORD -->
+
+                <div class="input-group">
+
+                    <input
+                        type="password"
+                        id="signupPassword"
+                        placeholder=" "
+                        required
+                    >
+
+                    <label>Password</label>
+
+
+                    <button
+                        type="button"
+                        class="password-toggle"
+                        onclick="togglePassword('signupPassword', this)"
+                    >
+
+                        <i class="fa-solid fa-eye"></i>
+
+                    </button>
+
+                </div>
+
+
+                <!-- CONFIRM PASSWORD -->
+
+                <div class="input-group">
+
+                    <input
+                        type="password"
+                        id="confirmPassword"
+                        placeholder=" "
+                        required
+                    >
+
+                    <label>Confirm Password</label>
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="main-btn"
+                >
+                    CREATE ACCOUNT
+                </button>
+
+
+            </form>
+
+
+            <div class="switch-area">
+
+                <span>
+                    Already have an account?
+                </span>
+
+                <button
+                    type="button"
+                    onclick="showLogin()"
+                >
+                    Login
+                </button>
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+<!-- SUPABASE -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="supabase.js"></script>
+
+<script src="script.js"></script>
+
+
+</body>
+
+</html>

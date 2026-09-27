@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>MSGBox</title>
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
+
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- =========================
+         SIDEBAR
+    ========================== -->
+
+    <aside class="sidebar">
+
+        <div class="sidebar-header">
+
+            <div class="profile">
+
+                <div class="profile-avatar" id="myAvatar">
+                    ?
+                </div>
+
+                <div class="profile-info">
+
+                    <h3>
+
+                        <span id="myName">
+                            Loading...
+                        </span>
+
+                        <span
+                            id="myVerified"
+                            class="verified-badge"
+                            style="display: none;"
+                        >
+                            ✓
+                        </span>
+
+                    </h3>
+
+                    <p id="myUsername">
+                        @username
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <button
+                class="logout-btn"
+                onclick="logout()"
+                title="Logout"
+            >
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+
+        </div>
+
+
+        <!-- SEARCH -->
+
+        <div class="search-box">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            <input
+                type="text"
+                id="searchInput"
+                placeholder="Search username..."
+                autocomplete="off"
+            >
+
+        </div>
+
+
+        <!-- USER LIST -->
+
+        <div
+            class="chat-list"
+            id="userList"
+        >
+
+            <p class="no-users">
+                Search for users by username
+            </p>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =========================
+         CHAT AREA
+    ========================== -->
+
+    <main class="chat-area">
+
+        <!-- CHAT HEADER -->
+
+        <header class="chat-header">
+
+            <div class="chat-user">
+
+                <div
+                    class="chat-avatar"
+                    id="chatAvatar"
+                >
+                    ?
+                </div>
+
+
+                <div class="chat-user-info">
+
+                    <h2 id="chatName">
+                        Select a user
+                    </h2>
+
+                    <p id="chatStatus">
+                        Search for someone to start chatting
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- CONTACT BUTTONS -->
+
+            <div
+                class="contact-actions"
+                id="contactActions"
+            >
+
+                <button
+                    id="addContactBtn"
+                    class="contact-btn"
+                >
+                    <i class="fa-solid fa-user-plus"></i>
+                    Add Contact
+                </button>
+
+
+                <button
+                    id="acceptContactBtn"
+                    class="contact-btn accept-btn"
+                >
+                    <i class="fa-solid fa-check"></i>
+                    Accept
+                </button>
+
+
+                <button
+                    id="declineContactBtn"
+                    class="contact-btn decline-btn"
+                >
+                    <i class="fa-solid fa-xmark"></i>
+                    Decline
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <!-- =========================
+             MESSAGES
+        ========================== -->
+
+        <div
+            class="messages"
+            id="messages"
+        >
+
+            <div class="welcome-message">
+
+                <h2>
+                    Welcome to MSGBox
+                </h2>
+
+                <p>
+                    Search for a user to start chatting
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- =========================
+             MESSAGE FORM
+        ========================== -->
+
+        <form
+            class="message-form"
+            id="messageForm"
+        >
+
+            <input
+                type="text"
+                id="messageInput"
+                placeholder="Type a message..."
+                autocomplete="off"
+                disabled
+            >
+
+
+            <button
+                type="submit"
+                id="sendButton"
+                disabled
+            >
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+
+        </form>
+
+    </main>
+
+</div>
+
+
+<!-- =========================
+     SCRIPTS
+========================== -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="supabase.js"></script>
+
+<script src="dashboard.js"></script>
+
+</body>
+
+</html>
