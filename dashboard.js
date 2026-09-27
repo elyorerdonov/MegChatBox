@@ -22,7 +22,7 @@
     let selectedContactRequest = null;
 
     let currentTab = "chats";
-    let currentLanguage = localStorage.getItem("msgboxLanguage") || "en";
+    let currentLanguage = localStorage.getItem("MegChatBoxLanguage") || "en";
 
     let realtimeChannel = null;
     let lastMessageIds = new Set();
