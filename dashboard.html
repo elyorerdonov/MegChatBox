@@ -28,16 +28,16 @@
 
     <aside class="sidebar">
 
-        <!-- BRAND -->
-
         <div class="app-header">
 
             <div class="brand">
+
                 <div class="brand-icon">
                     <i class="fa-solid fa-comments"></i>
                 </div>
 
                 <span>MegChatBox</span>
+
             </div>
 
             <button
@@ -60,6 +60,7 @@
         >
 
             <div class="avatar avatar-medium">
+
                 <img
                     id="myAvatar"
                     src=""
@@ -67,10 +68,10 @@
                     style="display:none;"
                 >
 
-                <span id="myAvatarInitial">
-                    ?
-                </span>
+                <span id="myAvatarInitial">?</span>
+
             </div>
+
 
             <div class="sidebar-profile-info">
 
@@ -116,6 +117,7 @@
                 id="clearSearchBtn"
                 type="button"
                 style="display:none;"
+                title="Clear"
             >
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -132,14 +134,18 @@
                 data-tab="contacts"
                 type="button"
             >
+
                 <i class="fa-solid fa-user-group"></i>
+
                 <span>Contacts</span>
+
                 <span
                     class="tab-count"
                     id="contactCount"
                 >
                     0
                 </span>
+
             </button>
 
 
@@ -148,14 +154,18 @@
                 data-tab="groups"
                 type="button"
             >
+
                 <i class="fa-solid fa-users"></i>
+
                 <span>Groups</span>
+
                 <span
                     class="tab-count"
                     id="groupCount"
                 >
                     0
                 </span>
+
             </button>
 
 
@@ -164,14 +174,18 @@
                 data-tab="channels"
                 type="button"
             >
+
                 <i class="fa-solid fa-bullhorn"></i>
+
                 <span>Channels</span>
+
                 <span
                     class="tab-count"
                     id="channelCount"
                 >
                     0
                 </span>
+
             </button>
 
         </div>
@@ -192,6 +206,7 @@
             </div>
 
             <div id="userList"></div>
+
 
             <!-- SAVED MESSAGES -->
 
@@ -313,8 +328,11 @@
                 class="logout-btn"
                 type="button"
             >
+
                 <i class="fa-solid fa-right-from-bracket"></i>
+
                 <span>Logout</span>
+
             </button>
 
         </div>
@@ -364,6 +382,7 @@
                     type="button"
                     id="chatAvatarButton"
                     class="chat-header-avatar-button"
+                    title="Open profile"
                 >
 
                     <div class="chat-avatar chat-header-avatar">
@@ -475,7 +494,7 @@
             ></div>
 
 
-            <!-- MESSAGE INPUT -->
+            <!-- MESSAGE FORM -->
 
             <form
                 id="messageForm"
@@ -490,6 +509,7 @@
                 >
                     <i class="fa-solid fa-image"></i>
                 </button>
+
 
                 <input
                     type="file"
@@ -562,6 +582,30 @@
 
             </div>
 
+
+            <!-- STICKER PANEL -->
+
+            <div
+                id="stickerPanel"
+                class="sticker-panel"
+                style="display:none;"
+            >
+
+                <button type="button">😀</button>
+                <button type="button">😂</button>
+                <button type="button">😍</button>
+                <button type="button">😎</button>
+                <button type="button">😭</button>
+                <button type="button">😡</button>
+                <button type="button">👍</button>
+                <button type="button">👎</button>
+                <button type="button">❤️</button>
+                <button type="button">🔥</button>
+                <button type="button">🎉</button>
+                <button type="button">💀</button>
+
+            </div>
+
         </section>
 
     </main>
@@ -570,7 +614,7 @@
 
 
 <!-- =====================================================
-     SETTINGS MODAL
+     SETTINGS
 ====================================================== -->
 
 <div
@@ -601,10 +645,12 @@
                 type="button"
             >
                 <i class="fa-solid fa-user"></i>
+
                 <span>
                     <strong>Profile</strong>
                     <small>Edit your profile</small>
                 </span>
+
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
@@ -615,10 +661,12 @@
                 type="button"
             >
                 <i class="fa-solid fa-shield-halved"></i>
+
                 <span>
                     <strong>Privacy</strong>
                     <small>Online and last seen</small>
                 </span>
+
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
@@ -629,10 +677,12 @@
                 type="button"
             >
                 <i class="fa-solid fa-palette"></i>
+
                 <span>
                     <strong>Appearance</strong>
                     <small>Theme and density</small>
                 </span>
+
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
@@ -643,10 +693,12 @@
                 type="button"
             >
                 <i class="fa-solid fa-language"></i>
+
                 <span>
                     <strong>Language</strong>
                     <small>English / Uzbek / Russian</small>
                 </span>
+
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
@@ -657,10 +709,12 @@
                 type="button"
             >
                 <i class="fa-solid fa-bookmark"></i>
+
                 <span>
                     <strong>Saved Messages</strong>
                     <small>Your saved messages</small>
                 </span>
+
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
@@ -671,10 +725,12 @@
                 type="button"
             >
                 <i class="fa-solid fa-bullhorn"></i>
+
                 <span>
                     <strong>Tips & Features</strong>
                     <small>What's new in MegChatBox</small>
                 </span>
+
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
@@ -686,10 +742,12 @@
                 style="display:none;"
             >
                 <i class="fa-solid fa-crown"></i>
+
                 <span>
                     <strong>Owner Tools</strong>
                     <small>Manage MegChatBox</small>
                 </span>
+
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
@@ -701,10 +759,12 @@
                 style="display:none;"
             >
                 <i class="fa-solid fa-user-shield"></i>
+
                 <span>
                     <strong>Admin Tools</strong>
                     <small>Moderation tools</small>
                 </span>
+
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
 
@@ -715,6 +775,7 @@
                 type="button"
             >
                 <i class="fa-solid fa-right-from-bracket"></i>
+
                 <span>
                     <strong>Logout</strong>
                     <small>Sign out of your account</small>
@@ -728,6 +789,7 @@
                 type="button"
             >
                 <i class="fa-solid fa-trash"></i>
+
                 <span>
                     <strong>Delete Account</strong>
                     <small>Permanently delete your account</small>
@@ -760,6 +822,7 @@
             <i class="fa-solid fa-xmark"></i>
         </button>
 
+
         <div class="modal-header">
             <h2>Edit Profile</h2>
         </div>
@@ -773,6 +836,7 @@
                     class="avatar avatar-large"
                     id="profileAvatarPreview"
                 >
+
                     <img
                         id="profileAvatarImage"
                         src=""
@@ -783,7 +847,9 @@
                     <span id="profileAvatarInitial">
                         ?
                     </span>
+
                 </div>
+
 
                 <label
                     for="profileAvatarInput"
@@ -791,6 +857,7 @@
                 >
                     <i class="fa-solid fa-camera"></i>
                 </label>
+
 
                 <input
                     type="file"
@@ -825,6 +892,7 @@
                 </label>
 
                 <div class="username-input">
+
                     <span>@</span>
 
                     <input
@@ -834,7 +902,12 @@
                         pattern="[a-z0-9_]{3,32}"
                         required
                     >
+
                 </div>
+
+                <small>
+                    Username must be unique.
+                </small>
 
             </div>
 
@@ -888,6 +961,7 @@
             <i class="fa-solid fa-xmark"></i>
         </button>
 
+
         <div class="modal-header">
             <h2>Privacy</h2>
         </div>
@@ -899,6 +973,7 @@
 
                 <div>
                     <strong>Show Online Status</strong>
+
                     <small>
                         Let contacts see when you are online.
                     </small>
@@ -919,6 +994,7 @@
 
                 <div>
                     <strong>Show Last Seen</strong>
+
                     <small>
                         Let contacts see your last active time.
                     </small>
@@ -935,6 +1011,15 @@
             </label>
 
         </div>
+
+
+        <button
+            id="savePrivacyBtn"
+            type="button"
+            class="primary-btn"
+        >
+            Save Privacy
+        </button>
 
     </div>
 
@@ -959,6 +1044,7 @@
         >
             <i class="fa-solid fa-xmark"></i>
         </button>
+
 
         <div class="modal-header">
             <h2>Appearance</h2>
@@ -1019,6 +1105,7 @@
                     Comfortable
                 </button>
 
+
                 <button
                     type="button"
                     class="appearance-option"
@@ -1054,6 +1141,7 @@
         >
             <i class="fa-solid fa-xmark"></i>
         </button>
+
 
         <div class="modal-header">
             <h2>Language</h2>
@@ -1122,19 +1210,19 @@
         <div class="modal-header">
 
             <div>
+
                 <h2>Create Group</h2>
 
                 <p>
                     Create a new community for your friends.
                 </p>
+
             </div>
 
         </div>
 
 
         <form id="groupForm">
-
-            <!-- AVATAR -->
 
             <div class="community-avatar-picker">
 
@@ -1145,15 +1233,18 @@
                     <i class="fa-solid fa-users"></i>
                 </div>
 
+
                 <label
                     for="groupAvatarInput"
                     class="community-avatar-button"
                 >
                     <i class="fa-solid fa-camera"></i>
+
                     <span id="groupAvatarText">
                         Add photo
                     </span>
                 </label>
+
 
                 <input
                     type="file"
@@ -1164,8 +1255,6 @@
 
             </div>
 
-
-            <!-- NAME -->
 
             <div class="form-group">
 
@@ -1183,8 +1272,6 @@
 
             </div>
 
-
-            <!-- USERNAME -->
 
             <div class="form-group">
 
@@ -1214,8 +1301,6 @@
             </div>
 
 
-            <!-- BIO -->
-
             <div class="form-group">
 
                 <label for="groupBio">
@@ -1231,8 +1316,6 @@
 
             </div>
 
-
-            <!-- PRIVACY -->
 
             <div class="community-privacy">
 
@@ -1254,7 +1337,7 @@
                         <strong>Public</strong>
 
                         <span>
-                            Anyone can find and join this group.
+                            Anyone can find this group.
                         </span>
 
                     </div>
@@ -1279,7 +1362,7 @@
                         <strong>Private</strong>
 
                         <span>
-                            People can join only with an invite link.
+                            People can join with an invite.
                         </span>
 
                     </div>
@@ -1328,19 +1411,19 @@
         <div class="modal-header">
 
             <div>
+
                 <h2>Create Channel</h2>
 
                 <p>
                     Create a channel to share updates.
                 </p>
+
             </div>
 
         </div>
 
 
         <form id="channelForm">
-
-            <!-- AVATAR -->
 
             <div class="community-avatar-picker">
 
@@ -1351,15 +1434,18 @@
                     <i class="fa-solid fa-bullhorn"></i>
                 </div>
 
+
                 <label
                     for="channelAvatarInput"
                     class="community-avatar-button"
                 >
                     <i class="fa-solid fa-camera"></i>
+
                     <span id="channelAvatarText">
                         Add photo
                     </span>
                 </label>
+
 
                 <input
                     type="file"
@@ -1370,8 +1456,6 @@
 
             </div>
 
-
-            <!-- NAME -->
 
             <div class="form-group">
 
@@ -1389,8 +1473,6 @@
 
             </div>
 
-
-            <!-- USERNAME -->
 
             <div class="form-group">
 
@@ -1420,8 +1502,6 @@
             </div>
 
 
-            <!-- BIO -->
-
             <div class="form-group">
 
                 <label for="channelBio">
@@ -1437,8 +1517,6 @@
 
             </div>
 
-
-            <!-- PRIVACY -->
 
             <div class="community-privacy">
 
@@ -1460,7 +1538,7 @@
                         <strong>Public</strong>
 
                         <span>
-                            Anyone can find and join this channel.
+                            Anyone can find this channel.
                         </span>
 
                     </div>
@@ -1485,7 +1563,7 @@
                         <strong>Private</strong>
 
                         <span>
-                            People can join only with an invite link.
+                            People can join with an invite.
                         </span>
 
                     </div>
@@ -1529,10 +1607,17 @@
             <i class="fa-solid fa-xmark"></i>
         </button>
 
+
         <div class="modal-header">
+
             <h2>Join Group</h2>
-            <p>Enter an invite link or invite code.</p>
+
+            <p>
+                Enter an invite code.
+            </p>
+
         </div>
+
 
         <div class="join-form">
 
@@ -1542,6 +1627,7 @@
                 placeholder="Invite code"
                 autocomplete="off"
             >
+
 
             <button
                 id="joinGroupBtn"
@@ -1578,10 +1664,17 @@
             <i class="fa-solid fa-xmark"></i>
         </button>
 
+
         <div class="modal-header">
+
             <h2>Join Channel</h2>
-            <p>Enter an invite link or invite code.</p>
+
+            <p>
+                Enter an invite code.
+            </p>
+
         </div>
+
 
         <div class="join-form">
 
@@ -1591,6 +1684,7 @@
                 placeholder="Invite code"
                 autocomplete="off"
             >
+
 
             <button
                 id="joinChannelBtn"
@@ -1629,8 +1723,6 @@
         </button>
 
 
-        <!-- THREE DOT MENU -->
-
         <div class="profile-popup-menu-wrapper">
 
             <button
@@ -1668,6 +1760,15 @@
 
 
                 <button
+                    id="removeNicknameBtn2"
+                    type="button"
+                    style="display:none;"
+                >
+                    Delete nickname
+                </button>
+
+
+                <button
                     id="blockUserBtn"
                     type="button"
                 >
@@ -1688,8 +1789,6 @@
 
         </div>
 
-
-        <!-- PROFILE -->
 
         <div class="profile-popup">
 
@@ -1772,9 +1871,11 @@
             <i class="fa-solid fa-xmark"></i>
         </button>
 
+
         <div class="modal-header">
             <h2>Edit Nickname</h2>
         </div>
+
 
         <div class="nickname-form">
 
@@ -1785,6 +1886,7 @@
                 maxlength="50"
             >
 
+
             <button
                 id="saveNicknameBtn"
                 type="button"
@@ -1792,6 +1894,7 @@
             >
                 Save
             </button>
+
 
             <button
                 id="removeNicknameBtnModal"
@@ -1827,6 +1930,7 @@
             <i class="fa-solid fa-xmark"></i>
         </button>
 
+
         <div class="modal-header">
 
             <h2>Report User</h2>
@@ -1841,43 +1945,55 @@
         <div class="report-options">
 
             <label>
+
                 <input
                     type="radio"
                     name="reportReason"
                     value="spam"
                     checked
                 >
+
                 Spam
+
             </label>
 
 
             <label>
+
                 <input
                     type="radio"
                     name="reportReason"
                     value="harassment"
                 >
+
                 Harassment
+
             </label>
 
 
             <label>
+
                 <input
                     type="radio"
                     name="reportReason"
                     value="fake_account"
                 >
+
                 Fake account
+
             </label>
 
 
             <label>
+
                 <input
                     type="radio"
                     name="reportReason"
                     value="other"
                 >
+
                 Other
+
             </label>
 
         </div>
@@ -1923,6 +2039,7 @@
             <i class="fa-solid fa-xmark"></i>
         </button>
 
+
         <div class="modal-header">
 
             <h2>
@@ -1931,6 +2048,7 @@
             </h2>
 
         </div>
+
 
         <div
             id="savedMessagesList"
@@ -1961,6 +2079,7 @@
             <i class="fa-solid fa-xmark"></i>
         </button>
 
+
         <div class="modal-header">
 
             <h2>
@@ -1974,8 +2093,6 @@
 
         </div>
 
-
-        <!-- OWNER / ADMIN CREATE UPDATE -->
 
         <div
             id="updateCreateSection"
@@ -2327,8 +2444,6 @@
         </div>
 
 
-        <!-- OWNER TABS -->
-
         <div class="owner-tabs">
 
             <button
@@ -2382,7 +2497,9 @@
                     id="ownerVerifiedUsername"
                     type="text"
                     placeholder="@username"
+                    autocomplete="off"
                 >
+
 
                 <button
                     id="ownerVerifiedSearchBtn"
@@ -2401,7 +2518,7 @@
             <div class="form-group">
 
                 <label for="verifiedDuration">
-                    Duration
+                    Verification duration
                 </label>
 
                 <select id="verifiedDuration">
@@ -2447,7 +2564,9 @@
                     id="ownerModerationUsername"
                     type="text"
                     placeholder="@username"
+                    autocomplete="off"
                 >
+
 
                 <button
                     id="ownerModerationSearchBtn"
@@ -2479,7 +2598,9 @@
                     id="ownerAdminUsername"
                     type="text"
                     placeholder="@username"
+                    autocomplete="off"
                 >
+
 
                 <button
                     id="ownerAdminSearchBtn"
@@ -2608,6 +2729,8 @@
     id="toast"
     class="toast"
     style="display:none;"
+    role="status"
+    aria-live="polite"
 >
 
     <i class="fa-solid fa-circle-info"></i>
