@@ -4018,12 +4018,11 @@
                         } = await db.rpc(
                             "owner_set_verified",
                             {
-                                p_user_id:
-                                    user.id,
-                                p_action:
-                                    verified
-                                        ? "remove"
-                                        : "give"
+                                p_user_id: user.id,
+                                p_action: verified
+                                    ? "remove"
+                                    : "give",
+                                p_expires_at: null
                             }
                         );
 
