@@ -1,18 +1,13 @@
 (async function () {
-    "use strict";
 
-    /* =========================================================
-       MEGCHATBOX V2.1 — FIXED
-       ========================================================= */
+    "use strict";
 
     const db = supabaseClient;
 
-    const $ = (selector) => document.querySelector(selector);
-    const $$ = (selector) => [...document.querySelectorAll(selector)];
 
-    /* =========================================================
+    /* =====================================================
        STATE
-       ========================================================= */
+       ===================================================== */
 
     let currentUser = null;
     let currentProfile = null;
@@ -28,213 +23,221 @@
     let groupsCache = [];
     let channelsCache = [];
 
-    let realtimeChannel = null;
-    let lastSeenInterval = null;
-
     let editingMessageId = null;
+
+    let swipeStartX = 0;
+    let swipeCurrentX = 0;
 
     let currentTheme =
         localStorage.getItem("megchatbox-theme") || "dark";
 
     let currentDensity =
-        localStorage.getItem("megchatbox-density") || "comfortable";
+        localStorage.getItem("megchatbox-density") ||
+        "comfortable";
 
     let currentLanguage =
-        localStorage.getItem("megchatbox-language") || "en";
+        localStorage.getItem("megchatbox-language") ||
+        "en";
+
+    let realtimeChannel = null;
+    let lastSeenTimer = null;
 
 
-    /* =========================================================
+    /* =====================================================
        HELPERS
-       ========================================================= */
+       ===================================================== */
+
+    const $ = selector =>
+        document.querySelector(selector);
+
+    const $$ = selector =>
+        [...document.querySelectorAll(selector)];
+
 
     function escapeHTML(value) {
+
         return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
     }
 
-    function getInitial(name) {
-        return String(name || "?")
+
+    function initial(value) {
+
+        return String(value || "?")
             .trim()
             .charAt(0)
             .toUpperCase();
     }
 
-    function formatTime(date) {
+
+    function time(date) {
+
         if (!date) return "";
 
-        return new Date(date).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit"
-        });
+        return new Date(date)
+            .toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit"
+            });
     }
 
-    function formatDate(date) {
+
+    function dateText(date) {
+
         if (!date) return "";
 
-        return new Date(date).toLocaleDateString([], {
-            day: "numeric",
-            month: "short",
-            year: "numeric"
-        });
+        return new Date(date)
+            .toLocaleDateString([], {
+                day: "numeric",
+                month: "short",
+                year: "numeric"
+            });
     }
 
-    function showToast(message, type = "info") {
-        let toast = $("#toast");
 
-        if (!toast) {
-            toast = document.createElement("div");
-            toast.id = "toast";
-            toast.className = "toast";
-            document.body.appendChild(toast);
+    function toast(message, type = "info") {
+
+        const element = $("#toast");
+        const text = $("#toastMessage");
+
+        if (!element) return;
+
+        if (text) {
+            text.textContent = message;
         }
 
-        toast.textContent = message;
-        toast.className = `toast show ${type}`;
+        element.className =
+            `toast show ${type}`;
 
-        clearTimeout(showToast.timer);
+        clearTimeout(toast.timer);
 
-        showToast.timer = setTimeout(() => {
-            toast.classList.remove("show");
+        toast.timer = setTimeout(() => {
+
+            element.classList.remove("show");
+
         }, 3000);
     }
 
+
     function openModal(id) {
-        const modal =
-            typeof id === "string"
-                ? document.getElementById(id)
-                : id;
+
+        const modal = document.getElementById(id);
 
         if (!modal) return;
 
         modal.classList.add("show");
     }
 
+
     function closeModal(id) {
-        const modal =
-            typeof id === "string"
-                ? document.getElementById(id)
-                : id;
+
+        const modal = document.getElementById(id);
 
         if (!modal) return;
 
         modal.classList.remove("show");
     }
 
+
     function closeAllModals() {
-        $$(".modal-overlay").forEach(modal => {
-            modal.classList.remove("show");
-        });
+
+        $$(".modal-overlay")
+            .forEach(modal =>
+                modal.classList.remove("show")
+            );
     }
 
-    function setAvatar(element, user) {
+
+    function avatar(element, user) {
+
         if (!element) return;
 
         element.innerHTML = "";
 
         if (user?.avatar_url) {
-            const img = document.createElement("img");
 
-            img.src = user.avatar_url;
-            img.alt = user.full_name || user.username || "Avatar";
-            img.loading = "lazy";
+            const image =
+                document.createElement("img");
 
-            element.appendChild(img);
-            return;
+            image.src = user.avatar_url;
+
+            image.alt =
+                user.full_name ||
+                user.username ||
+                "Avatar";
+
+            element.appendChild(image);
+
+        } else {
+
+            element.textContent =
+                initial(
+                    user?.full_name ||
+                    user?.name ||
+                    user?.username
+                );
         }
-
-        element.textContent = getInitial(
-            user?.full_name || user?.username
-        );
-    }
-
-    function getListElement() {
-        return (
-            $("#userList") ||
-            $("#chatList")
-        );
-    }
-
-    function getProfileNameInput() {
-        return (
-            $("#profileFullName") ||
-            $("#profileName")
-        );
-    }
-
-    function getProfileUsernameInput() {
-        return $("#profileUsername");
-    }
-
-    function getProfileBioInput() {
-        return $("#profileBio");
-    }
-
-    function getOnlineToggle() {
-        return (
-            $("#showOnlineToggle") ||
-            $("#showOnline")
-        );
-    }
-
-    function getLastSeenToggle() {
-        return (
-            $("#showLastSeenToggle") ||
-            $("#showLastSeen")
-        );
     }
 
 
-    /* =========================================================
-       THEME / APPEARANCE
-       ========================================================= */
+    /* =====================================================
+       THEME
+       ===================================================== */
 
     function applyTheme() {
-        document.documentElement.dataset.theme = currentTheme;
-        document.body.dataset.theme = currentTheme;
 
-        document.documentElement.style.colorScheme =
-            currentTheme === "light"
-                ? "light"
-                : "dark";
+        let actualTheme =
+            currentTheme;
+
+        if (currentTheme === "system") {
+
+            actualTheme =
+                window.matchMedia(
+                    "(prefers-color-scheme: dark)"
+                ).matches
+                    ? "dark"
+                    : "light";
+        }
+
+        document.body.dataset.theme =
+            actualTheme;
+
+        document.documentElement.dataset.theme =
+            actualTheme;
 
         localStorage.setItem(
             "megchatbox-theme",
             currentTheme
         );
 
-        $$(".appearance-option").forEach(button => {
-            const value =
-                button.dataset.theme ||
-                button.dataset.themeChoice;
+        $$(".appearance-option[data-theme]")
+            .forEach(button => {
 
-            button.classList.toggle(
-                "active",
-                value === currentTheme
-            );
+                button.classList.toggle(
+                    "active",
+                    button.dataset.theme ===
+                    currentTheme
+                );
 
-            button.classList.toggle(
-                "selected",
-                value === currentTheme
-            );
-        });
-
-        $$(".theme-option").forEach(button => {
-            button.classList.toggle(
-                "active",
-                button.dataset.theme === currentTheme
-            );
-        });
+                button.classList.toggle(
+                    "selected",
+                    button.dataset.theme ===
+                    currentTheme
+                );
+            });
     }
 
+
     function applyDensity() {
-        document.documentElement.dataset.density =
-            currentDensity;
 
         document.body.dataset.density =
+            currentDensity;
+
+        document.documentElement.dataset.density =
             currentDensity;
 
         localStorage.setItem(
@@ -242,224 +245,153 @@
             currentDensity
         );
 
-        $$(".appearance-option").forEach(button => {
-            if (!button.dataset.density) return;
+        $$(".appearance-option[data-density]")
+            .forEach(button => {
 
-            button.classList.toggle(
-                "active",
-                button.dataset.density === currentDensity
-            );
+                button.classList.toggle(
+                    "active",
+                    button.dataset.density ===
+                    currentDensity
+                );
 
-            button.classList.toggle(
-                "selected",
-                button.dataset.density === currentDensity
-            );
-        });
+                button.classList.toggle(
+                    "selected",
+                    button.dataset.density ===
+                    currentDensity
+                );
+            });
     }
+
 
     function setupAppearance() {
-        $$(".appearance-option").forEach(option => {
-            option.addEventListener("click", () => {
-                if (option.dataset.theme) {
-                    currentTheme =
-                        option.dataset.theme;
 
-                    applyTheme();
+        $$(".appearance-option[data-theme]")
+            .forEach(button => {
 
-                    showToast(
-                        "Theme updated.",
-                        "success"
-                    );
-                }
+                button.addEventListener(
+                    "click",
+                    () => {
 
-                if (option.dataset.density) {
-                    currentDensity =
-                        option.dataset.density;
+                        currentTheme =
+                            button.dataset.theme;
 
-                    applyDensity();
+                        applyTheme();
 
-                    showToast(
-                        "Chat density updated.",
-                        "success"
-                    );
-                }
-            });
-        });
-
-        $$(".theme-option").forEach(option => {
-            option.addEventListener("click", () => {
-                const theme =
-                    option.dataset.theme;
-
-                if (!["dark", "light", "system"].includes(theme)) {
-                    return;
-                }
-
-                if (theme === "system") {
-                    const systemDark =
-                        window.matchMedia &&
-                        window.matchMedia(
-                            "(prefers-color-scheme: dark)"
-                        ).matches;
-
-                    currentTheme =
-                        systemDark
-                            ? "dark"
-                            : "light";
-                } else {
-                    currentTheme = theme;
-                }
-
-                applyTheme();
-
-                showToast(
-                    "Appearance updated.",
-                    "success"
+                        toast(
+                            "Theme updated.",
+                            "success"
+                        );
+                    }
                 );
             });
-        });
 
-        $$("[data-theme-choice]").forEach(option => {
-            option.addEventListener("click", () => {
-                currentTheme =
-                    option.dataset.themeChoice;
 
-                applyTheme();
+        $$(".appearance-option[data-density]")
+            .forEach(button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        currentDensity =
+                            button.dataset.density;
+
+                        applyDensity();
+
+                        toast(
+                            "Chat density updated.",
+                            "success"
+                        );
+                    }
+                );
             });
-        });
     }
 
 
-    /* =========================================================
+    /* =====================================================
        LANGUAGE
-       ========================================================= */
-
-    const translations = {
-        en: {
-            search: "Search users...",
-            select: "Select a chat...",
-            write: "Write a message..."
-        },
-
-        uz: {
-            search: "Foydalanuvchilarni qidiring...",
-            select: "Chat tanlang...",
-            write: "Xabar yozing..."
-        },
-
-        ru: {
-            search: "Поиск пользователей...",
-            select: "Выберите чат...",
-            write: "Введите сообщение..."
-        }
-    };
-
-    function applyLanguage() {
-        const t =
-            translations[currentLanguage] ||
-            translations.en;
-
-        const search = $("#searchInput");
-
-        if (search) {
-            search.placeholder = t.search;
-        }
-
-        const input = $("#messageInput");
-
-        if (input && !selectedUser && !selectedGroup && !selectedChannel) {
-            input.placeholder = t.select;
-        }
-
-        $$(".language-option").forEach(option => {
-            option.classList.toggle(
-                "active",
-                option.dataset.language === currentLanguage
-            );
-
-            option.classList.toggle(
-                "selected",
-                option.dataset.language === currentLanguage
-            );
-        });
-    }
+       ===================================================== */
 
     function setupLanguage() {
-        const select = $("#languageSelect");
 
-        if (select) {
-            select.value = currentLanguage;
+        $$(".language-option")
+            .forEach(button => {
 
-            select.addEventListener("change", () => {
-                currentLanguage = select.value;
+                button.addEventListener(
+                    "click",
+                    () => {
 
-                localStorage.setItem(
-                    "megchatbox-language",
-                    currentLanguage
-                );
+                        currentLanguage =
+                            button.dataset.language;
 
-                applyLanguage();
+                        localStorage.setItem(
+                            "megchatbox-language",
+                            currentLanguage
+                        );
 
-                showToast(
-                    "Language updated.",
-                    "success"
+                        $$(".language-option")
+                            .forEach(item =>
+                                item.classList.toggle(
+                                    "active",
+                                    item.dataset.language ===
+                                    currentLanguage
+                                )
+                            );
+
+                        closeModal(
+                            "languageModal"
+                        );
+
+                        toast(
+                            currentLanguage === "uz"
+                                ? "Til o‘zgartirildi."
+                                : currentLanguage === "ru"
+                                    ? "Язык изменён."
+                                    : "Language updated.",
+                            "success"
+                        );
+                    }
                 );
             });
-        }
 
-        $$(".language-option").forEach(option => {
-            option.addEventListener("click", () => {
-                const language =
-                    option.dataset.language;
 
-                if (!["en", "uz", "ru"].includes(language)) {
-                    return;
-                }
+        $$(".language-option")
+            .forEach(button => {
 
-                currentLanguage = language;
-
-                localStorage.setItem(
-                    "megchatbox-language",
+                button.classList.toggle(
+                    "active",
+                    button.dataset.language ===
                     currentLanguage
                 );
-
-                applyLanguage();
-
-                showToast(
-                    language === "uz"
-                        ? "Til o‘zgartirildi."
-                        : language === "ru"
-                            ? "Язык изменён."
-                            : "Language updated.",
-                    "success"
-                );
-
-                closeModal("languageModal");
             });
-        });
     }
 
 
-    /* =========================================================
+    /* =====================================================
        SESSION
-       ========================================================= */
+       ===================================================== */
 
     async function loadSession() {
+
         const {
             data,
             error
         } = await db.auth.getSession();
 
         if (error) {
+
             console.error(error);
+
             return false;
         }
 
         currentUser =
-            data?.session?.user || null;
+            data?.session?.user;
 
         if (!currentUser) {
-            window.location.href = "index.html";
+
+            location.href = "index.html";
+
             return false;
         }
 
@@ -467,12 +399,11 @@
     }
 
 
-    /* =========================================================
+    /* =====================================================
        PROFILE
-       ========================================================= */
+       ===================================================== */
 
-    async function loadMyProfile() {
-        if (!currentUser) return false;
+    async function loadProfile() {
 
         const {
             data,
@@ -480,13 +411,17 @@
         } = await db
             .from("profiles")
             .select("*")
-            .eq("id", currentUser.id)
+            .eq(
+                "id",
+                currentUser.id
+            )
             .single();
 
-        if (error || !data) {
+        if (error) {
+
             console.error(error);
 
-            showToast(
+            toast(
                 "Could not load profile.",
                 "error"
             );
@@ -501,195 +436,220 @@
         return true;
     }
 
+
     function renderMyProfile() {
+
         if (!currentProfile) return;
 
-        setAvatar(
+        avatar(
             $("#myAvatar"),
             currentProfile
         );
 
         if ($("#myName")) {
+
             $("#myName").textContent =
                 currentProfile.full_name ||
                 currentProfile.username;
         }
 
         if ($("#myUsername")) {
+
             $("#myUsername").textContent =
-                "@" + currentProfile.username;
+                "@" +
+                currentProfile.username;
         }
 
         if ($("#myVerified")) {
+
             $("#myVerified").style.display =
                 currentProfile.is_verified
                     ? "inline-flex"
                     : "none";
         }
 
-        const nameInput =
-            getProfileNameInput();
 
-        if (nameInput) {
-            nameInput.value =
+        if ($("#profileFullName")) {
+
+            $("#profileFullName").value =
                 currentProfile.full_name || "";
         }
 
-        const usernameInput =
-            getProfileUsernameInput();
+        if ($("#profileUsername")) {
 
-        if (usernameInput) {
-            usernameInput.value =
+            $("#profileUsername").value =
                 currentProfile.username || "";
         }
 
-        const bioInput =
-            getProfileBioInput();
+        if ($("#profileBio")) {
 
-        if (bioInput) {
-            bioInput.value =
+            $("#profileBio").value =
                 currentProfile.bio || "";
         }
 
-        setAvatar(
+        avatar(
             $("#profileAvatar"),
             currentProfile
         );
 
-        setupRoleUI();
-    }
+
+        const owner =
+            currentProfile.role === "owner";
+
+        const admin =
+            owner ||
+            currentProfile.role === "admin";
 
 
-    /* =========================================================
-       ROLE
-       ========================================================= */
+        if ($("#ownerPanelButton")) {
 
-    function isOwner() {
-        return currentProfile?.role === "owner";
-    }
-
-    function isAdmin() {
-        return (
-            currentProfile?.role === "admin" ||
-            currentProfile?.role === "owner"
-        );
-    }
-
-    function setupRoleUI() {
-        const owner = $("#ownerPanelButton");
-        const admin = $("#adminPanelButton");
-
-        if (owner) {
-            owner.style.display =
-                isOwner() ? "flex" : "none";
+            $("#ownerPanelButton").style.display =
+                owner
+                    ? "flex"
+                    : "none";
         }
 
-        if (admin) {
-            admin.style.display =
-                isAdmin() ? "flex" : "none";
+        if ($("#adminPanelButton")) {
+
+            $("#adminPanelButton").style.display =
+                admin
+                    ? "flex"
+                    : "none";
         }
 
-        const createUpdate =
-            $("#updateCreateSection");
+        if ($("#updateCreateSection")) {
 
-        if (createUpdate) {
-            createUpdate.style.display =
-                isAdmin() ? "block" : "none";
+            $("#updateCreateSection").style.display =
+                admin
+                    ? "flex"
+                    : "none";
         }
     }
 
 
-    /* =========================================================
+    /* =====================================================
        LAST SEEN
-       ========================================================= */
+       ===================================================== */
 
-    async function updateMyLastSeen() {
+    async function updateLastSeen() {
+
         if (!currentUser) return;
 
-        const {
-            error
-        } = await db
+        await db
             .from("profiles")
             .update({
-                last_seen: new Date().toISOString()
+                last_seen:
+                    new Date().toISOString()
             })
-            .eq("id", currentUser.id);
-
-        if (error) {
-            console.warn("last_seen:", error);
-        }
+            .eq(
+                "id",
+                currentUser.id
+            );
     }
 
-    function startLastSeenUpdater() {
-        clearInterval(lastSeenInterval);
 
-        updateMyLastSeen();
+    function startLastSeen() {
 
-        lastSeenInterval =
+        clearInterval(lastSeenTimer);
+
+        updateLastSeen();
+
+        lastSeenTimer =
             setInterval(
-                updateMyLastSeen,
+                updateLastSeen,
                 60000
             );
     }
 
 
-    /* =========================================================
+    /* =====================================================
        TABS
-       ========================================================= */
+       ===================================================== */
 
     function setupTabs() {
-        const buttons =
-            $$(".sidebar-tab, .tab-btn");
 
-        buttons.forEach(button => {
-            button.addEventListener("click", async () => {
-                buttons.forEach(btn => {
-                    btn.classList.remove("active");
-                });
+        $$(".sidebar-tab")
+            .forEach(button => {
 
-                button.classList.add("active");
+                button.addEventListener(
+                    "click",
+                    async () => {
 
-                currentTab =
-                    button.dataset.tab ||
-                    "chats";
+                        $$(".sidebar-tab")
+                            .forEach(item =>
+                                item.classList.remove(
+                                    "active"
+                                )
+                            );
 
-                $$(".tab-content").forEach(tab => {
-                    tab.classList.remove("active");
-                    tab.style.display = "none";
-                });
+                        button.classList.add(
+                            "active"
+                        );
 
-                const target =
-                    document.getElementById(
-                        `${currentTab}Tab`
-                    );
+                        currentTab =
+                            button.dataset.tab;
 
-                if (target) {
-                    target.classList.add("active");
-                    target.style.display = "";
-                }
+                        $$(".tab-content")
+                            .forEach(content =>
+                                content.classList.remove(
+                                    "active"
+                                )
+                            );
 
-                if (currentTab === "chats") {
-                    await loadContacts();
-                }
+                        const section =
+                            document.getElementById(
+                                currentTab === "chats"
+                                    ? "chatsTab"
+                                    : currentTab === "groups"
+                                        ? "groupsTab"
+                                        : "channelsTab"
+                            );
 
-                if (currentTab === "groups") {
-                    await loadGroups();
-                }
+                        section?.classList.add(
+                            "active"
+                        );
 
-                if (currentTab === "channels") {
-                    await loadChannels();
-                }
+
+                        if (
+                            currentTab ===
+                            "chats"
+                        ) {
+
+                            await loadContacts();
+                        }
+
+                        if (
+                            currentTab ===
+                            "groups"
+                        ) {
+
+                            await loadGroups();
+                        }
+
+                        if (
+                            currentTab ===
+                            "channels"
+                        ) {
+
+                            await loadChannels();
+                        }
+                    }
+                );
             });
-        });
     }
 
 
-    /* =========================================================
+    /* =====================================================
        CONTACTS
-       ========================================================= */
+       ===================================================== */
 
     async function loadContacts() {
-        if (!currentUser) return;
+
+        const list =
+            $("#userList");
+
+        if (!list) return;
+
 
         const {
             data: requests,
@@ -700,34 +660,50 @@
             .or(
                 `sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`
             )
-            .eq("status", "accepted");
+            .eq(
+                "status",
+                "accepted"
+            );
 
         if (error) {
-            console.error("Contacts:", error);
+
+            console.error(error);
+
             renderContacts([]);
+
             return;
         }
+
 
         const ids = [];
 
-        (requests || []).forEach(request => {
-            const id =
-                request.sender_id === currentUser.id
+        for (const request of requests || []) {
+
+            const other =
+                request.sender_id ===
+                currentUser.id
                     ? request.receiver_id
                     : request.sender_id;
 
-            if (id && !ids.includes(id)) {
-                ids.push(id);
+            if (
+                other &&
+                !ids.includes(other)
+            ) {
+
+                ids.push(other);
             }
-        });
+        }
+
 
         if (!ids.length) {
+
             contactsCache = [];
+
             renderContacts([]);
-            updateContactCount(0);
-            addSavedMessagesChat();
+
             return;
         }
+
 
         const {
             data: profiles,
@@ -735,49 +711,154 @@
         } = await db
             .from("profiles")
             .select("*")
-            .in("id", ids);
+            .in(
+                "id",
+                ids
+            );
 
         if (profileError) {
+
             console.error(profileError);
+
             return;
         }
 
-        contactsCache = profiles || [];
 
-        renderContacts(contactsCache);
+        contactsCache =
+            profiles || [];
 
-        updateContactCount(
-            contactsCache.length
+        renderContacts(
+            contactsCache
         );
-    }
 
-    function updateContactCount(count) {
-        const element =
-            $("#contactCount");
+        if ($("#contactCount")) {
 
-        if (element) {
-            element.textContent = count;
+            $("#contactCount").textContent =
+                contactsCache.length;
         }
     }
 
-    function addSavedMessagesChat() {
+
+    function renderContacts(users) {
+
         const list =
-            getListElement();
+            $("#userList");
+
+        if (!list) return;
+
+        list.innerHTML = "";
+
+
+        addSavedMessages();
+
+
+        if (!users.length) {
+
+            const empty =
+                document.createElement(
+                    "div"
+                );
+
+            empty.className =
+                "empty-state";
+
+            empty.innerHTML = `
+                <i class="fa-regular fa-user"></i>
+                <strong>No contacts yet</strong>
+                <span>Search for a username above.</span>
+            `;
+
+            list.appendChild(empty);
+
+            return;
+        }
+
+
+        users.forEach(user => {
+
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+            item.className =
+                "chat-item";
+
+            item.innerHTML = `
+                <div class="avatar"></div>
+
+                <div class="chat-info">
+
+                    <span class="chat-info-name">
+                        ${escapeHTML(
+                            user.full_name ||
+                            user.username
+                        )}
+
+                        ${
+                            user.is_verified
+                                ? `
+                                    <span class="verified-badge">
+                                        ✓
+                                    </span>
+                                `
+                                : ""
+                        }
+                    </span>
+
+                    <span class="chat-info-subtitle">
+                        @${escapeHTML(
+                            user.username
+                        )}
+                    </span>
+
+                </div>
+            `;
+
+            avatar(
+                item.querySelector(".avatar"),
+                user
+            );
+
+            item.addEventListener(
+                "click",
+                () =>
+                    openDirectChat(user)
+            );
+
+            list.appendChild(item);
+        });
+    }
+
+
+    function addSavedMessages() {
+
+        const list =
+            $("#userList");
 
         if (!list) return;
 
         const existing =
-            list.querySelector(
-                '[data-saved-messages="true"]'
-            );
+            $("#savedMessagesChat");
 
-        if (existing) return;
+        if (existing) {
+
+            list.prepend(existing);
+
+            return;
+        }
+
 
         const item =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
-        item.className = "chat-item saved-chat-item";
-        item.dataset.savedMessages = "true";
+        item.id =
+            "savedMessagesChat";
+
+        item.className =
+            "chat-item saved-chat-item";
 
         item.innerHTML = `
             <div class="avatar saved-avatar">
@@ -785,111 +866,33 @@
             </div>
 
             <div class="chat-info">
+
                 <span class="chat-info-name">
                     Saved Messages
                 </span>
 
                 <span class="chat-info-subtitle">
-                    Your personal saved chat
+                    Your personal messages
                 </span>
+
             </div>
         `;
 
         item.addEventListener(
             "click",
-            openSavedMessagesChat
+            openSavedMessages
         );
 
         list.prepend(item);
     }
 
-    function renderContacts(users) {
-        const list =
-            getListElement();
 
-        if (!list) return;
-
-        list.innerHTML = "";
-
-        addSavedMessagesChat();
-
-        if (!users.length) {
-            const empty =
-                document.createElement("div");
-
-            empty.className = "empty-state";
-
-            empty.innerHTML = `
-                <i class="fa-regular fa-comment"></i>
-                <strong>No contacts yet</strong>
-                <span>Search a username to add someone.</span>
-            `;
-
-            list.appendChild(empty);
-
-            addSavedMessagesChat();
-
-            return;
-        }
-
-        users.forEach(user => {
-            const item =
-                document.createElement("div");
-
-            item.className = "chat-item";
-
-            item.dataset.userId =
-                user.id;
-
-            item.innerHTML = `
-                <div class="avatar"></div>
-
-                <div class="chat-info">
-                    <span class="chat-info-name"></span>
-                    <span class="chat-info-subtitle"></span>
-                </div>
-            `;
-
-            setAvatar(
-                item.querySelector(".avatar"),
-                user
-            );
-
-            item.querySelector(
-                ".chat-info-name"
-            ).innerHTML =
-                `${escapeHTML(
-                    user.full_name ||
-                    user.username
-                )}
-                ${
-                    user.is_verified
-                        ? '<span class="verified-badge">✓</span>'
-                        : ""
-                }`;
-
-            item.querySelector(
-                ".chat-info-subtitle"
-            ).textContent =
-                "@" + user.username;
-
-            item.addEventListener(
-                "click",
-                () => openDirectChat(user)
-            );
-
-            list.appendChild(item);
-        });
-
-        addSavedMessagesChat();
-    }
-
-
-    /* =========================================================
+    /* =====================================================
        SEARCH
-       ========================================================= */
+       ===================================================== */
 
     function setupSearch() {
+
         const input =
             $("#searchInput");
 
@@ -897,39 +900,75 @@
 
         let timer;
 
-        input.addEventListener("input", () => {
-            clearTimeout(timer);
+        input.addEventListener(
+            "input",
+            () => {
 
-            timer = setTimeout(() => {
-                searchUsers(input.value);
-            }, 300);
-        });
+                clearTimeout(timer);
+
+                timer =
+                    setTimeout(
+                        () =>
+                            searchUsers(
+                                input.value
+                            ),
+                        250
+                    );
+            }
+        );
     }
 
+
     async function searchUsers(value) {
+
         const username =
             value
                 .trim()
                 .replace(/^@/, "")
                 .toLowerCase();
 
+
         if (!username) {
-            if (currentTab === "chats") {
-                renderContacts(contactsCache);
+
+            if (
+                currentTab ===
+                "chats"
+            ) {
+
+                renderContacts(
+                    contactsCache
+                );
             }
 
-            if (currentTab === "groups") {
-                renderGroups(groupsCache);
+            if (
+                currentTab ===
+                "groups"
+            ) {
+
+                renderGroups(
+                    groupsCache
+                );
             }
 
-            if (currentTab === "channels") {
-                renderChannels(channelsCache);
+            if (
+                currentTab ===
+                "channels"
+            ) {
+
+                renderChannels(
+                    channelsCache
+                );
             }
 
             return;
         }
 
-        if (currentTab === "groups") {
+
+        if (
+            currentTab ===
+            "groups"
+        ) {
+
             const {
                 data,
                 error
@@ -940,18 +979,24 @@
                     "username",
                     `%${username}%`
                 )
-                .limit(20);
+                .limit(30);
 
-            if (error) {
-                console.error(error);
-                return;
+            if (!error) {
+
+                renderGroups(
+                    data || []
+                );
             }
 
-            renderGroups(data || []);
             return;
         }
 
-        if (currentTab === "channels") {
+
+        if (
+            currentTab ===
+            "channels"
+        ) {
+
             const {
                 data,
                 error
@@ -962,16 +1007,18 @@
                     "username",
                     `%${username}%`
                 )
-                .limit(20);
+                .limit(30);
 
-            if (error) {
-                console.error(error);
-                return;
+            if (!error) {
+
+                renderChannels(
+                    data || []
+                );
             }
 
-            renderChannels(data || []);
             return;
         }
+
 
         const {
             data,
@@ -983,62 +1030,96 @@
                 "username",
                 `%${username}%`
             )
-            .limit(20);
+            .limit(30);
+
 
         if (error) {
+
             console.error(error);
+
             return;
         }
 
-        renderSearchResults(data || []);
+
+        renderSearchResults(
+            data || []
+        );
     }
 
+
     function renderSearchResults(users) {
+
         const list =
-            getListElement();
+            $("#userList");
 
         if (!list) return;
 
         list.innerHTML = "";
 
+
         if (!users.length) {
+
             list.innerHTML = `
                 <div class="empty-state">
                     <strong>No users found</strong>
                 </div>
             `;
+
             return;
         }
 
-        users.forEach(user => {
-            const item =
-                document.createElement("div");
 
-            item.className = "chat-item";
+        users.forEach(user => {
+
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+            item.className =
+                "chat-item";
 
             item.innerHTML = `
                 <div class="avatar"></div>
 
                 <div class="chat-info">
+
                     <span class="chat-info-name">
                         ${escapeHTML(
                             user.full_name ||
                             user.username
                         )}
+
+                        ${
+                            user.is_verified
+                                ? `
+                                    <span class="verified-badge">
+                                        ✓
+                                    </span>
+                                `
+                                : ""
+                        }
                     </span>
 
                     <span class="chat-info-subtitle">
-                        @${escapeHTML(user.username)}
+                        @${escapeHTML(
+                            user.username
+                        )}
                     </span>
+
                 </div>
 
                 ${
                     user.id === currentUser.id
-                        ? ""
+                        ? `
+                            <span class="request-badge">
+                                You
+                            </span>
+                        `
                         : `
                             <button
                                 type="button"
-                                class="secondary-btn search-user-btn"
+                                class="secondary-btn search-view-btn"
                             >
                                 View
                             </button>
@@ -1046,44 +1127,59 @@
                 }
             `;
 
-            setAvatar(
+            avatar(
                 item.querySelector(".avatar"),
                 user
             );
 
-            const viewButton =
-                item.querySelector(
-                    ".search-user-btn"
-                );
 
-            if (viewButton) {
-                viewButton.addEventListener(
-                    "click",
-                    event => {
-                        event.stopPropagation();
+            item.addEventListener(
+                "click",
+                event => {
 
-                        selectedUser = user;
-
-                        openUserProfilePopup(user);
+                    if (
+                        event.target.closest(
+                            ".search-view-btn"
+                        )
+                    ) {
+                        return;
                     }
-                );
-            }
+
+                    openUserProfile(
+                        user
+                    );
+                }
+            );
+
+
+            item.querySelector(
+                ".search-view-btn"
+            )?.addEventListener(
+                "click",
+                event => {
+
+                    event.stopPropagation();
+
+                    openUserProfile(
+                        user
+                    );
+                }
+            );
+
 
             list.appendChild(item);
         });
     }
 
 
-    /* =========================================================
-       CONTACT REQUESTS
-       ========================================================= */
+    /* =====================================================
+       CONTACT REQUEST
+       ===================================================== */
 
-    async function getContactRequest(userId) {
-        if (!currentUser || !userId) return null;
+    async function contactRequest(userId) {
 
         const {
-            data,
-            error
+            data
         } = await db
             .from("contact_requests")
             .select("*")
@@ -1092,47 +1188,69 @@
             )
             .maybeSingle();
 
-        if (error) {
-            console.warn("contact request:", error);
-            return null;
-        }
-
         return data;
     }
 
-    async function updateContactActions() {
-        const add = $("#addContactBtn");
-        const accept = $("#acceptContactBtn");
-        const decline = $("#declineContactBtn");
 
-        [add, accept, decline].forEach(button => {
-            if (button) {
-                button.style.display = "none";
-            }
-        });
+    async function updateContactActions() {
+
+        const add =
+            $("#addContactBtn");
+
+        const accept =
+            $("#acceptContactBtn");
+
+        const decline =
+            $("#declineContactBtn");
+
+
+        [add, accept, decline]
+            .forEach(button => {
+
+                if (button) {
+
+                    button.style.display =
+                        "none";
+                }
+            });
+
 
         if (!selectedUser) return;
 
-        if (selectedUser.id === currentUser.id) return;
 
         const request =
-            await getContactRequest(
+            await contactRequest(
                 selectedUser.id
             );
 
+
         if (!request) {
-            if (add) add.style.display = "inline-flex";
+
+            if (add) {
+                add.style.display =
+                    "inline-flex";
+            }
+
             return;
         }
 
-        if (request.status === "accepted") {
-            return;
-        }
 
         if (
-            request.status === "pending" &&
-            request.receiver_id === currentUser.id
+            request.status ===
+            "accepted"
         ) {
+
+            return;
+        }
+
+
+        if (
+            request.status ===
+            "pending" &&
+            request.receiver_id ===
+            currentUser.id
+        ) {
+
             if (accept) {
                 accept.style.display =
                     "inline-flex";
@@ -1146,7 +1264,12 @@
             return;
         }
 
-        if (request.status === "declined") {
+
+        if (
+            request.status ===
+            "declined"
+        ) {
+
             if (add) {
                 add.style.display =
                     "inline-flex";
@@ -1154,23 +1277,33 @@
         }
     }
 
+
     async function addContact() {
+
         if (!selectedUser) return;
+
 
         const {
             error
         } = await db
             .from("contact_requests")
             .insert({
-                sender_id: currentUser.id,
-                receiver_id: selectedUser.id,
-                status: "pending"
+                sender_id:
+                    currentUser.id,
+
+                receiver_id:
+                    selectedUser.id,
+
+                status:
+                    "pending"
             });
 
+
         if (error) {
-            showToast(
+
+            toast(
                 error.code === "23505"
-                    ? "A request already exists."
+                    ? "Request already exists."
                     : error.message,
                 "error"
             );
@@ -1178,7 +1311,8 @@
             return;
         }
 
-        showToast(
+
+        toast(
             "Contact request sent.",
             "success"
         );
@@ -1186,15 +1320,19 @@
         await updateContactActions();
     }
 
+
     async function acceptContact() {
+
         if (!selectedUser) return;
+
 
         const {
             error
         } = await db
             .from("contact_requests")
             .update({
-                status: "accepted"
+                status:
+                    "accepted"
             })
             .eq(
                 "sender_id",
@@ -1209,30 +1347,41 @@
                 "pending"
             );
 
+
         if (error) {
-            showToast(error.message, "error");
+
+            toast(
+                error.message,
+                "error"
+            );
+
             return;
         }
 
-        showToast(
+
+        toast(
             "Contact accepted.",
             "success"
         );
 
         await loadContacts();
         await updateContactActions();
-        await updateMessageInputState();
+        await updateInputState();
     }
 
+
     async function declineContact() {
+
         if (!selectedUser) return;
+
 
         const {
             error
         } = await db
             .from("contact_requests")
             .update({
-                status: "declined"
+                status:
+                    "declined"
             })
             .eq(
                 "sender_id",
@@ -1247,178 +1396,252 @@
                 "pending"
             );
 
+
         if (error) {
-            showToast(error.message, "error");
+
+            toast(
+                error.message,
+                "error"
+            );
+
             return;
         }
 
-        showToast(
-            "Contact request declined.",
+
+        toast(
+            "Request declined.",
             "info"
         );
 
         await updateContactActions();
-        await updateMessageInputState();
+        await updateInputState();
     }
 
 
-    /* =========================================================
+    /* =====================================================
        DIRECT CHAT
-       ========================================================= */
+       ===================================================== */
 
     async function openDirectChat(user) {
+
         selectedUser = user;
+
         selectedGroup = null;
         selectedChannel = null;
 
-        currentChatType = "direct";
+        currentChatType =
+            "direct";
 
-        $("#app")?.classList.add("chat-open");
 
-        if ($("#chatEmpty")) {
-            $("#chatEmpty").style.display = "none";
-        }
+        $("#app")
+            ?.classList.add(
+                "chat-open"
+            );
 
-        if ($("#activeChat")) {
-            $("#activeChat").style.display = "flex";
-        }
+
+        $("#chatEmpty")
+            && (
+                $("#chatEmpty").style.display =
+                    "none"
+            );
+
+
+        $("#activeChat")
+            && (
+                $("#activeChat").style.display =
+                    "flex"
+            );
+
 
         if ($("#chatName")) {
+
             $("#chatName").textContent =
                 user.full_name ||
                 user.username;
         }
 
+
         if ($("#chatVerified")) {
+
             $("#chatVerified").style.display =
                 user.is_verified
                     ? "inline-flex"
                     : "none";
         }
 
-        setAvatar(
+
+        avatar(
             $("#chatAvatar"),
             user
         );
 
+
         if ($("#chatStatus")) {
+
             $("#chatStatus").textContent =
-                getUserStatus(user);
+                getStatus(user);
         }
+
 
         await updateContactActions();
+
         await loadMessages();
-        await markMessagesDelivered();
-        await markChatSeen();
-        await updateMessageInputState();
+
+        await markDelivered();
+
+        await markSeen();
+
+        await updateInputState();
     }
 
-    function getUserStatus(user) {
-        if (!user) return "";
 
-        if (
-            user.account_blocked === true ||
-            (
-                user.account_blocked_until &&
-                new Date(user.account_blocked_until) > new Date()
-            )
-        ) {
-            return "Account blocked";
-        }
+    function getStatus(user) {
+
+        if (!user) return "";
 
         if (
             user.show_online !== false &&
             user.last_seen &&
             Date.now() -
-                new Date(user.last_seen).getTime() <
+                new Date(
+                    user.last_seen
+                ).getTime() <
                 120000
         ) {
+
             return "Online";
         }
+
 
         if (
             user.show_last_seen !== false &&
             user.last_seen
         ) {
-            return `Last seen ${formatTime(
+
+            return `Last seen ${time(
                 user.last_seen
             )}`;
         }
 
+
         return "Offline";
     }
 
-    async function hasAcceptedContact() {
+
+    async function accepted() {
+
         if (!selectedUser) return false;
 
         const request =
-            await getContactRequest(
+            await contactRequest(
                 selectedUser.id
             );
 
-        return request?.status === "accepted";
+        return request?.status ===
+            "accepted";
     }
 
 
-    /* =========================================================
-       MESSAGE CONTROLS
-       ========================================================= */
+    /* =====================================================
+       INPUT
+       ===================================================== */
 
-    async function updateMessageInputState() {
-        const input = $("#messageInput");
-        const send = $("#sendButton");
-        const image = $("#imageBtn");
-        const emoji = $("#emojiBtn");
-        const sticker = $("#stickerBtn");
+    async function updateInputState() {
 
-        if (!input) return;
+        const input =
+            $("#messageInput");
+
+        const send =
+            $("#sendButton");
+
+        const image =
+            $("#imageBtn");
+
+        const emoji =
+            $("#emojiBtn");
+
+        const sticker =
+            $("#stickerBtn");
+
 
         let enabled = false;
 
-        if (
-            selectedUser &&
-            currentChatType === "direct"
-        ) {
-            enabled =
-                await hasAcceptedContact();
-        }
 
         if (
-            selectedGroup &&
-            currentChatType === "group"
+            currentChatType ===
+            "direct"
         ) {
+
+            enabled =
+                await accepted();
+        }
+
+
+        if (
+            currentChatType ===
+            "group" &&
+            selectedGroup
+        ) {
+
             enabled =
                 await isGroupMember(
                     selectedGroup.id
                 );
         }
 
+
         if (
-            selectedChannel &&
-            currentChatType === "channel"
+            currentChatType ===
+            "channel" &&
+            selectedChannel
         ) {
+
             enabled =
                 await isChannelWriter(
                     selectedChannel.id
                 );
         }
 
-        [input, send, image, emoji, sticker]
-            .forEach(element => {
-                if (element) {
-                    element.disabled = !enabled;
-                }
-            });
 
-        input.placeholder =
-            enabled
-                ? "Write a message..."
-                : selectedUser
-                    ? "Accept contact request first..."
-                    : "Select a chat...";
+        if (
+            currentChatType ===
+            "saved"
+        ) {
+
+            enabled = true;
+        }
+
+
+        [
+            input,
+            send,
+            image,
+            emoji,
+            sticker
+        ].forEach(element => {
+
+            if (element) {
+
+                element.disabled =
+                    !enabled;
+            }
+        });
+
+
+        if (input) {
+
+            input.placeholder =
+                enabled
+                    ? currentChatType === "saved"
+                        ? "Write a saved message..."
+                        : "Write a message..."
+                    : "Accept contact request first...";
+        }
     }
 
-    function disableMessageControls() {
+
+    function disableInput() {
+
         [
             $("#messageInput"),
             $("#sendButton"),
@@ -1426,24 +1649,23 @@
             $("#emojiBtn"),
             $("#stickerBtn")
         ].forEach(element => {
+
             if (element) {
+
                 element.disabled = true;
             }
         });
-
-        if ($("#messageInput")) {
-            $("#messageInput").placeholder =
-                "Select a chat...";
-        }
     }
 
 
-    /* =========================================================
+    /* =====================================================
        DIRECT MESSAGES
-       ========================================================= */
+       ===================================================== */
 
     async function loadMessages() {
-        if (!selectedUser || !currentUser) return;
+
+        if (!selectedUser) return;
+
 
         const {
             data,
@@ -1461,20 +1683,33 @@
                 }
             );
 
+
         if (error) {
-            console.error("Messages:", error);
+
+            console.error(error);
+
             return;
         }
 
-        await renderMessages(data || []);
+
+        await renderMessages(
+            data || []
+        );
     }
 
+
     async function renderMessages(messages) {
-        const container = $("#messages");
+
+        const container =
+            $("#messages");
 
         if (!container) return;
 
+        container.innerHTML = "";
+
+
         if (!messages.length) {
+
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fa-regular fa-comments"></i>
@@ -1482,137 +1717,277 @@
                     <span>Start the conversation.</span>
                 </div>
             `;
+
             return;
         }
 
-        container.innerHTML = "";
 
         let lastDate = "";
 
-        for (const message of messages) {
-            const date =
+
+        for (
+            const message of messages
+        ) {
+
+            const currentDate =
                 new Date(
                     message.created_at
                 ).toDateString();
 
-            if (date !== lastDate) {
+
+            if (
+                currentDate !==
+                lastDate
+            ) {
+
                 const divider =
-                    document.createElement("div");
+                    document.createElement(
+                        "div"
+                    );
 
                 divider.className =
                     "day-divider";
 
                 divider.textContent =
-                    formatDate(
+                    dateText(
                         message.created_at
                     );
 
-                container.appendChild(divider);
+                container.appendChild(
+                    divider
+                );
 
-                lastDate = date;
+                lastDate =
+                    currentDate;
             }
 
-            const element =
-                await createMessageElement(
+
+            const row =
+                await messageElement(
                     message
                 );
 
-            container.appendChild(element);
+            container.appendChild(
+                row
+            );
         }
+
 
         container.scrollTop =
             container.scrollHeight;
     }
 
-    async function createMessageElement(message) {
+
+    async function messageElement(
+        message
+    ) {
+
         const mine =
-            message.sender_id === currentUser.id;
+            message.sender_id ===
+            currentUser.id;
 
-        const wrapper =
-            document.createElement("div");
 
-        wrapper.className =
+        const row =
+            document.createElement(
+                "div"
+            );
+
+        row.className =
             `message-row ${
-                mine ? "mine" : "theirs"
+                mine
+                    ? "mine"
+                    : "theirs"
             }`;
 
-        wrapper.dataset.messageId =
-            message.id;
+
+        const swipe =
+            document.createElement(
+                "div"
+            );
+
+        swipe.className =
+            "swipe-message";
+
 
         const bubble =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
         bubble.className =
             "message-bubble";
 
+
+        /* ACTIONS */
+
+        if (mine && !message.deleted_at) {
+
+            const actions =
+                document.createElement(
+                    "div"
+                );
+
+            actions.className =
+                "swipe-actions";
+
+            actions.innerHTML = `
+                <button
+                    type="button"
+                    class="swipe-action"
+                    data-action="edit"
+                    title="Edit"
+                >
+                    <i class="fa-solid fa-pen"></i>
+                </button>
+
+                <button
+                    type="button"
+                    class="swipe-action delete"
+                    data-action="delete"
+                    title="Delete"
+                >
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+
+                <button
+                    type="button"
+                    class="swipe-action"
+                    data-action="save"
+                    title="Save"
+                >
+                    <i class="fa-solid fa-bookmark"></i>
+                </button>
+            `;
+
+
+            actions
+                .querySelector(
+                    '[data-action="edit"]'
+                )
+                .addEventListener(
+                    "click",
+                    () => {
+
+                        editMessage(
+                            message
+                        );
+                    }
+                );
+
+
+            actions
+                .querySelector(
+                    '[data-action="delete"]'
+                )
+                .addEventListener(
+                    "click",
+                    () => {
+
+                        deleteMessage(
+                            message.id
+                        );
+                    }
+                );
+
+
+            actions
+                .querySelector(
+                    '[data-action="save"]'
+                )
+                .addEventListener(
+                    "click",
+                    () => {
+
+                        saveMessage(
+                            message
+                        );
+                    }
+                );
+
+
+            swipe.appendChild(
+                actions
+            );
+        }
+
+
         if (message.deleted_at) {
-            bubble.classList.add("deleted");
 
             bubble.innerHTML = `
                 <span class="deleted-message">
                     Message deleted
                 </span>
             `;
+
         } else if (
-            message.message_type === "image"
+            message.message_type ===
+            "image"
         ) {
+
             const image =
-                document.createElement("img");
+                document.createElement(
+                    "img"
+                );
 
             image.className =
                 "message-image";
 
-            image.alt = "Image";
-
             image.src =
-                await getChatMediaUrl(
+                await mediaUrl(
                     message.image_url
                 );
 
-            bubble.appendChild(image);
+            image.alt =
+                "Image";
+
+            bubble.appendChild(
+                image
+            );
+
 
             if (message.content) {
+
                 const caption =
-                    document.createElement("div");
+                    document.createElement(
+                        "div"
+                    );
 
                 caption.className =
-                    "message-caption";
+                    "message-text";
 
                 caption.textContent =
                     message.content;
 
-                bubble.appendChild(caption);
+                bubble.appendChild(
+                    caption
+                );
             }
-        } else if (
-            message.message_type === "sticker"
-        ) {
-            const image =
-                document.createElement("img");
 
-            image.className =
-                "message-sticker";
-
-            image.src =
-                message.sticker_url || "";
-
-            image.alt = "Sticker";
-
-            bubble.appendChild(image);
         } else {
+
             const text =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             text.className =
                 "message-text";
 
             text.textContent =
-                message.content || "";
+                message.content ||
+                "";
 
-            bubble.appendChild(text);
+            bubble.appendChild(
+                text
+            );
+
 
             if (message.edited_at) {
+
                 const edited =
-                    document.createElement("span");
+                    document.createElement(
+                        "span"
+                    );
 
                 edited.className =
                     "edited-label";
@@ -1620,91 +1995,503 @@
                 edited.textContent =
                     "edited";
 
-                bubble.appendChild(edited);
+                bubble.appendChild(
+                    edited
+                );
             }
         }
 
+
         const footer =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
         footer.className =
             "message-footer";
 
-        const time =
-            document.createElement("span");
 
-        time.className =
-            "message-time";
+        const timeEl =
+            document.createElement(
+                "span"
+            );
 
-        time.textContent =
-            formatTime(
+        timeEl.textContent =
+            time(
                 message.created_at
             );
 
-        footer.appendChild(time);
+        footer.appendChild(
+            timeEl
+        );
+
 
         if (mine && !message.deleted_at) {
+
             const status =
-                document.createElement("span");
+                document.createElement(
+                    "span"
+                );
 
             status.className =
                 "message-status";
 
+            status.textContent =
+                message.seen_at
+                    ? "✓✓"
+                    : message.delivered_at
+                        ? "✓✓"
+                        : "✓";
+
             if (message.seen_at) {
-                status.textContent = "✓✓";
-                status.classList.add("seen");
-            } else if (message.delivered_at) {
-                status.textContent = "✓✓";
-            } else {
-                status.textContent = "✓";
+
+                status.classList.add(
+                    "seen"
+                );
             }
 
-            footer.appendChild(status);
+            footer.appendChild(
+                status
+            );
         }
 
-        bubble.appendChild(footer);
+
+        bubble.appendChild(
+            footer
+        );
+
+        swipe.appendChild(
+            bubble
+        );
+
+        row.appendChild(
+            swipe
+        );
+
+
+        setupSwipe(
+            swipe,
+            message,
+            mine
+        );
+
+
+        return row;
+    }
+
+
+    function setupSwipe(
+        element,
+        message,
+        mine
+    ) {
+
+        if (!mine) return;
+
+
+        element.addEventListener(
+            "pointerdown",
+            event => {
+
+                swipeStartX =
+                    event.clientX;
+
+                swipeCurrentX =
+                    event.clientX;
+
+                element.setPointerCapture(
+                    event.pointerId
+                );
+            }
+        );
+
+
+        element.addEventListener(
+            "pointermove",
+            event => {
+
+                if (
+                    swipeStartX ===
+                    null
+                ) return;
+
+                swipeCurrentX =
+                    event.clientX;
+
+                const delta =
+                    swipeStartX -
+                    swipeCurrentX;
+
+
+                if (
+                    delta > 10 &&
+                    delta < 180
+                ) {
+
+                    element.style.transform =
+                        `translateX(-${delta}px)`;
+                }
+            }
+        );
+
+
+        element.addEventListener(
+            "pointerup",
+            () => {
+
+                const delta =
+                    swipeStartX -
+                    swipeCurrentX;
+
+
+                element.style.transform =
+                    "";
+
+
+                if (delta > 70) {
+
+                    element.classList.add(
+                        "show-actions"
+                    );
+
+                    setTimeout(
+                        () =>
+                            element.classList.remove(
+                                "show-actions"
+                            ),
+                        3500
+                    );
+                }
+
+
+                swipeStartX =
+                    null;
+            }
+        );
+    }
+
+
+    /* =====================================================
+       MESSAGE EDIT / DELETE / SAVE
+       ===================================================== */
+
+    function editMessage(message) {
 
         if (
-            mine &&
-            !message.deleted_at &&
-            message.message_type === "text"
+            message.message_type !==
+            "text"
+        ) return;
+
+
+        editingMessageId =
+            message.id;
+
+
+        const input =
+            $("#messageInput");
+
+        if (!input) return;
+
+
+        input.value =
+            message.content || "";
+
+        input.focus();
+
+
+        $("#sendButton").innerHTML =
+            '<i class="fa-solid fa-check"></i>';
+    }
+
+
+    async function deleteMessage(
+        messageId
+    ) {
+
+        const {
+            error
+        } = await db.rpc(
+            "delete_message",
+            {
+                p_message_id:
+                    messageId
+            }
+        );
+
+
+        if (error) {
+
+            toast(
+                error.message,
+                "error"
+            );
+
+            return;
+        }
+
+
+        toast(
+            "Message deleted.",
+            "success"
+        );
+
+        await loadMessages();
+    }
+
+
+    async function saveMessage(
+        message
+    ) {
+
+        const {
+            error
+        } = await db
+            .from("saved_messages")
+            .insert({
+                user_id:
+                    currentUser.id,
+
+                content:
+                    message.content || "",
+
+                message_type:
+                    message.message_type ||
+                    "text",
+
+                image_url:
+                    message.image_url ||
+                    null,
+
+                sticker_url:
+                    message.sticker_url ||
+                    null
+            });
+
+
+        if (error) {
+
+            toast(
+                error.message,
+                "error"
+            );
+
+            return;
+        }
+
+
+        toast(
+            "Message saved.",
+            "success"
+        );
+    }
+
+
+    /* =====================================================
+       SEND MESSAGE
+       ===================================================== */
+
+    async function sendMessage(
+        event
+    ) {
+
+        event?.preventDefault();
+
+
+        const input =
+            $("#messageInput");
+
+        if (!input) return;
+
+
+        const content =
+            input.value.trim();
+
+
+        if (!content) return;
+
+
+        /* SAVED */
+
+        if (
+            currentChatType ===
+            "saved"
         ) {
-            const menu =
-                document.createElement("button");
 
-            menu.type = "button";
-            menu.className =
-                "message-menu-btn";
+            const {
+                error
+            } = await db
+                .from("saved_messages")
+                .insert({
+                    user_id:
+                        currentUser.id,
 
-            menu.innerHTML =
-                '<i class="fa-solid fa-ellipsis"></i>';
+                    content,
 
-            menu.addEventListener(
-                "click",
-                event => {
-                    event.stopPropagation();
+                    message_type:
+                        "text"
+                });
 
-                    showMessageMenu(
-                        message,
-                        menu
-                    );
+
+            if (error) {
+
+                toast(
+                    error.message,
+                    "error"
+                );
+
+                return;
+            }
+
+
+            input.value = "";
+
+            await loadSavedMessages();
+
+            return;
+        }
+
+
+        /* EDIT */
+
+        if (editingMessageId) {
+
+            const {
+                error
+            } = await db.rpc(
+                "edit_message",
+                {
+                    p_message_id:
+                        editingMessageId,
+
+                    p_new_content:
+                        content
                 }
             );
 
-            bubble.appendChild(menu);
+
+            if (error) {
+
+                toast(
+                    error.message,
+                    "error"
+                );
+
+                return;
+            }
+
+
+            editingMessageId =
+                null;
+
+            input.value = "";
+
+            $("#sendButton").innerHTML =
+                '<i class="fa-solid fa-paper-plane"></i>';
+
+
+            await loadMessages();
+
+            return;
         }
 
-        wrapper.appendChild(bubble);
 
-        return wrapper;
+        /* DIRECT */
+
+        if (
+            currentChatType ===
+            "direct"
+        ) {
+
+            if (
+                !(await accepted())
+            ) {
+
+                toast(
+                    "Accept the contact request first.",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            const {
+                error
+            } = await db
+                .from("messages")
+                .insert({
+                    sender_id:
+                        currentUser.id,
+
+                    receiver_id:
+                        selectedUser.id,
+
+                    content,
+
+                    message_type:
+                        "text"
+                });
+
+
+            if (error) {
+
+                toast(
+                    error.message,
+                    "error"
+                );
+
+                return;
+            }
+        }
+
+
+        /* GROUP */
+
+        if (
+            currentChatType ===
+            "group"
+        ) {
+
+            await sendGroupMessage(
+                content
+            );
+        }
+
+
+        /* CHANNEL */
+
+        if (
+            currentChatType ===
+            "channel"
+        ) {
+
+            await sendChannelMessage(
+                content
+            );
+        }
+
+
+        input.value = "";
+
+        await refreshChat();
     }
 
-    async function getChatMediaUrl(path) {
+
+    /* =====================================================
+       MEDIA
+       ===================================================== */
+
+    async function mediaUrl(path) {
+
         if (!path) return "";
 
-        if (path.startsWith("http")) {
+        if (
+            path.startsWith("http")
+        ) {
+
             return path;
         }
+
 
         const {
             data,
@@ -1716,311 +2503,67 @@
                 3600
             );
 
+
         if (error) {
-            console.warn(error);
+
+            console.error(error);
+
             return "";
         }
+
 
         return data?.signedUrl || "";
     }
 
 
-    /* =========================================================
-       MESSAGE MENU
-       ========================================================= */
-
-    function showMessageMenu(message, button) {
-        $$(".message-context-menu")
-            .forEach(menu => menu.remove());
-
-        const menu =
-            document.createElement("div");
-
-        menu.className =
-            "message-context-menu";
-
-        menu.innerHTML = `
-            <button type="button" data-action="save">
-                <i class="fa-solid fa-bookmark"></i>
-                Save
-            </button>
-
-            <button type="button" data-action="edit">
-                <i class="fa-solid fa-pen"></i>
-                Edit
-            </button>
-
-            <button type="button" data-action="delete">
-                <i class="fa-solid fa-trash"></i>
-                Delete
-            </button>
-        `;
-
-        document.body.appendChild(menu);
-
-        const rect =
-            button.getBoundingClientRect();
-
-        menu.style.position = "fixed";
-        menu.style.left =
-            `${Math.max(8, rect.left - 130)}px`;
-        menu.style.top =
-            `${rect.bottom + 6}px`;
-
-        menu.querySelector(
-            '[data-action="save"]'
-        )?.addEventListener(
-            "click",
-            async () => {
-                menu.remove();
-
-                await saveMessage(message);
-            }
-        );
-
-        menu.querySelector(
-            '[data-action="edit"]'
-        )?.addEventListener(
-            "click",
-            () => {
-                menu.remove();
-
-                editingMessageId =
-                    message.id;
-
-                const input =
-                    $("#messageInput");
-
-                if (input) {
-                    input.value =
-                        message.content || "";
-
-                    input.focus();
-                }
-
-                if ($("#sendButton")) {
-                    $("#sendButton").innerHTML =
-                        '<i class="fa-solid fa-check"></i>';
-                }
-            }
-        );
-
-        menu.querySelector(
-            '[data-action="delete"]'
-        )?.addEventListener(
-            "click",
-            async () => {
-                menu.remove();
-
-                await deleteMessage(
-                    message.id
-                );
-            }
-        );
-
-        setTimeout(() => {
-            document.addEventListener(
-                "click",
-                function closeMenu(event) {
-                    if (!menu.contains(event.target)) {
-                        menu.remove();
-
-                        document.removeEventListener(
-                            "click",
-                            closeMenu
-                        );
-                    }
-                }
-            );
-        }, 0);
-    }
-
-    async function deleteMessage(messageId) {
-        const {
-            error
-        } = await db.rpc(
-            "delete_message",
-            {
-                p_message_id: messageId
-            }
-        );
-
-        if (error) {
-            showToast(
-                error.message,
-                "error"
-            );
-            return;
-        }
-
-        showToast(
-            "Message deleted.",
-            "success"
-        );
-
-        await loadMessages();
-    }
-
-
-    /* =========================================================
-       SEND
-       ========================================================= */
-
-    async function sendMessage(event) {
-        event?.preventDefault();
-
-        const input =
-            $("#messageInput");
-
-        if (!input) return;
-
-        const content =
-            input.value.trim();
-
-        if (!content) return;
-
-        if (editingMessageId) {
-            const {
-                error
-            } = await db.rpc(
-                "edit_message",
-                {
-                    p_message_id:
-                        editingMessageId,
-                    p_new_content:
-                        content
-                }
-            );
-
-            if (error) {
-                showToast(
-                    error.message,
-                    "error"
-                );
-                return;
-            }
-
-            editingMessageId = null;
-            input.value = "";
-
-            if ($("#sendButton")) {
-                $("#sendButton").innerHTML =
-                    '<i class="fa-solid fa-paper-plane"></i>';
-            }
-
-            await loadMessages();
-            return;
-        }
-
-        if (
-            selectedUser &&
-            currentChatType === "direct"
-        ) {
-            if (!(await hasAcceptedContact())) {
-                showToast(
-                    "Accept the contact request first.",
-                    "error"
-                );
-                return;
-            }
-
-            const {
-                error
-            } = await db
-                .from("messages")
-                .insert({
-                    sender_id:
-                        currentUser.id,
-                    receiver_id:
-                        selectedUser.id,
-                    content,
-                    message_type:
-                        "text"
-                });
-
-            if (error) {
-                showToast(
-                    error.message,
-                    "error"
-                );
-                return;
-            }
-        }
-
-        if (
-            selectedGroup &&
-            currentChatType === "group"
-        ) {
-            await sendGroupMessage(content);
-        }
-
-        if (
-            selectedChannel &&
-            currentChatType === "channel"
-        ) {
-            await sendChannelMessage(content);
-        }
-
-        input.value = "";
-
-        await refreshCurrentChat();
-    }
-
-
-    /* =========================================================
-       IMAGE
-       ========================================================= */
-
     async function sendImage(file) {
+
         if (!file) return;
 
-        if (
-            !selectedUser &&
-            !selectedGroup &&
-            !selectedChannel
-        ) {
-            return;
-        }
 
-        if (!file.type.startsWith("image/")) {
-            showToast(
-                "Please select an image.",
+        if (
+            !file.type.startsWith(
+                "image/"
+            )
+        ) {
+
+            toast(
+                "Please choose an image.",
                 "error"
             );
+
             return;
         }
 
-        if (file.size > 10 * 1024 * 1024) {
-            showToast(
+
+        if (
+            file.size >
+            10 * 1024 * 1024
+        ) {
+
+            toast(
                 "Image must be under 10 MB.",
                 "error"
             );
+
             return;
         }
 
+
         if (
-            selectedUser &&
-            currentChatType === "direct" &&
-            !(await hasAcceptedContact())
+            currentChatType ===
+            "direct" &&
+            !(await accepted())
         ) {
-            showToast(
+
+            toast(
                 "Accept the contact request first.",
                 "error"
             );
+
             return;
         }
 
-        if (
-            selectedChannel &&
-            currentChatType === "channel" &&
-            !(await isChannelWriter(selectedChannel.id))
-        ) {
-            showToast(
-                "Only channel admins can send media.",
-                "error"
-            );
-            return;
-        }
 
         const extension =
             file.name
@@ -2028,8 +2571,10 @@
                 .pop()
                 .toLowerCase();
 
+
         const path =
-            `${currentUser.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+            `${currentUser.id}/${crypto.randomUUID()}.${extension}`;
+
 
         const {
             error: uploadError
@@ -2040,138 +2585,175 @@
                 file,
                 {
                     upsert: false,
-                    contentType: file.type
+                    contentType:
+                        file.type
                 }
             );
 
+
         if (uploadError) {
-            showToast(
+
+            toast(
                 uploadError.message,
                 "error"
             );
+
             return;
         }
 
+
         let error = null;
 
+
         if (
-            selectedUser &&
-            currentChatType === "direct"
+            currentChatType ===
+            "direct"
         ) {
-            ({ error } = await db
+
+            ({
+                error
+            } = await db
                 .from("messages")
                 .insert({
                     sender_id:
                         currentUser.id,
+
                     receiver_id:
                         selectedUser.id,
+
                     content: "",
+
                     message_type:
                         "image",
+
                     image_url:
                         path
                 }));
         }
 
+
         if (
-            selectedGroup &&
-            currentChatType === "group"
+            currentChatType ===
+            "group"
         ) {
-            ({ error } = await db
+
+            ({
+                error
+            } = await db
                 .from("group_messages")
                 .insert({
                     group_id:
                         selectedGroup.id,
+
                     sender_id:
                         currentUser.id,
+
                     content: "",
+
                     message_type:
                         "image",
+
                     image_url:
                         path
                 }));
         }
 
+
         if (
-            selectedChannel &&
-            currentChatType === "channel"
+            currentChatType ===
+            "channel"
         ) {
-            ({ error } = await db
+
+            if (
+                !(await isChannelWriter(
+                    selectedChannel.id
+                ))
+            ) {
+
+                toast(
+                    "Only channel admins can post.",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            ({
+                error
+            } = await db
                 .from("channel_messages")
                 .insert({
                     channel_id:
                         selectedChannel.id,
+
                     sender_id:
                         currentUser.id,
+
                     content: "",
+
                     message_type:
                         "image",
+
                     image_url:
                         path
                 }));
         }
 
+
         if (error) {
-            showToast(
+
+            toast(
                 error.message,
                 "error"
             );
+
             return;
         }
 
-        showToast(
-            "Image sent.",
-            "success"
+
+        await refreshChat();
+    }
+
+
+    /* =====================================================
+       DELIVERY
+       ===================================================== */
+
+    async function markDelivered() {
+
+        if (!selectedUser) return;
+
+        await db.rpc(
+            "mark_messages_delivered",
+            {
+                p_other_user_id:
+                    selectedUser.id
+            }
         );
-
-        await refreshCurrentChat();
     }
 
 
-    /* =========================================================
-       DELIVERY / SEEN
-       ========================================================= */
+    async function markSeen() {
 
-    async function markMessagesDelivered() {
         if (!selectedUser) return;
 
-        const { error } =
-            await db.rpc(
-                "mark_messages_delivered",
-                {
-                    p_other_user_id:
-                        selectedUser.id
-                }
-            );
-
-        if (error) {
-            console.warn(error);
-        }
-    }
-
-    async function markChatSeen() {
-        if (!selectedUser) return;
-
-        const { error } =
-            await db.rpc(
-                "mark_chat_seen",
-                {
-                    p_other_user_id:
-                        selectedUser.id
-                }
-            );
-
-        if (error) {
-            console.warn(error);
-        }
+        await db.rpc(
+            "mark_chat_seen",
+            {
+                p_other_user_id:
+                    selectedUser.id
+            }
+        );
     }
 
 
-    /* =========================================================
+    /* =====================================================
        GROUPS
-       ========================================================= */
+       ===================================================== */
 
     async function loadGroups() {
+
         const {
             data: memberships,
             error
@@ -2183,21 +2765,66 @@
                 currentUser.id
             );
 
+
         if (error) {
-            console.error(error);
-            renderGroups([]);
-            return;
+
+            console.error(
+                "Group membership:",
+                error
+            );
         }
+
 
         const ids =
             (memberships || [])
-                .map(item => item.group_id);
+                .map(item =>
+                    item.group_id
+                );
 
-        if (!ids.length) {
+
+        /*
+         * Owner-created groups are also loaded.
+         * This makes them visible even if the membership
+         * trigger has not been installed yet.
+         */
+
+        const {
+            data: ownedGroups
+        } = await db
+            .from("groups")
+            .select("*")
+            .eq(
+                "owner_id",
+                currentUser.id
+            );
+
+
+        const allIds = [
+            ...ids,
+            ...(ownedGroups || [])
+                .map(group => group.id)
+        ];
+
+
+        const uniqueIds =
+            [...new Set(allIds)];
+
+
+        if (!uniqueIds.length) {
+
             groupsCache = [];
+
             renderGroups([]);
+
+            $("#groupCount")
+                && (
+                    $("#groupCount").textContent =
+                        "0"
+                );
+
             return;
         }
+
 
         const {
             data,
@@ -2205,7 +2832,10 @@
         } = await db
             .from("groups")
             .select("*")
-            .in("id", ids)
+            .in(
+                "id",
+                uniqueIds
+            )
             .order(
                 "created_at",
                 {
@@ -2213,33 +2843,46 @@
                 }
             );
 
+
         if (groupError) {
-            console.error(groupError);
+
+            console.error(
+                groupError
+            );
+
             return;
         }
 
-        groupsCache = data || [];
 
-        renderGroups(groupsCache);
+        groupsCache =
+            data || [];
 
-        const count =
-            $("#groupCount");
 
-        if (count) {
-            count.textContent =
-                groupsCache.length;
-        }
+        renderGroups(
+            groupsCache
+        );
+
+
+        $("#groupCount")
+            && (
+                $("#groupCount").textContent =
+                    groupsCache.length
+            );
     }
 
+
     function renderGroups(groups) {
+
         const list =
-            getListElement();
+            $("#groupsList");
 
         if (!list) return;
 
         list.innerHTML = "";
 
+
         if (!groups.length) {
+
             list.innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-users"></i>
@@ -2247,25 +2890,30 @@
                     <span>Create or join a group.</span>
                 </div>
             `;
+
             return;
         }
 
+
         groups.forEach(group => {
+
             const item =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             item.className =
                 "chat-item";
-
-            item.dataset.groupId =
-                group.id;
 
             item.innerHTML = `
                 <div class="avatar"></div>
 
                 <div class="chat-info">
+
                     <span class="chat-info-name">
-                        ${escapeHTML(group.name)}
+                        ${escapeHTML(
+                            group.name
+                        )}
                     </span>
 
                     <span class="chat-info-subtitle">
@@ -2278,24 +2926,37 @@
                                 : "Group"
                         }
                     </span>
+
                 </div>
             `;
 
-            setAvatar(
+
+            avatar(
                 item.querySelector(".avatar"),
                 group
             );
 
+
             item.addEventListener(
                 "click",
-                () => openGroupChat(group)
+                () =>
+                    openGroup(
+                        group
+                    )
             );
 
-            list.appendChild(item);
+
+            list.appendChild(
+                item
+            );
         });
     }
 
-    async function isGroupMember(groupId) {
+
+    async function isGroupMember(
+        groupId
+    ) {
+
         const {
             data
         } = await db
@@ -2311,67 +2972,83 @@
             )
             .maybeSingle();
 
-        return !!data;
+
+        if (data) return true;
+
+
+        return (
+            selectedGroup?.owner_id ===
+            currentUser.id
+        );
     }
 
-    async function openGroupChat(group) {
-        selectedGroup = group;
+
+    async function openGroup(
+        group
+    ) {
+
+        selectedGroup =
+            group;
+
         selectedUser = null;
         selectedChannel = null;
 
-        currentChatType = "group";
+        currentChatType =
+            "group";
 
-        $("#app")?.classList.add("chat-open");
 
-        if ($("#chatEmpty")) {
-            $("#chatEmpty").style.display = "none";
-        }
+        $("#app")
+            ?.classList.add(
+                "chat-open"
+            );
 
-        if ($("#activeChat")) {
-            $("#activeChat").style.display = "flex";
-        }
 
-        if ($("#chatName")) {
-            $("#chatName").textContent =
-                group.name;
-        }
+        $("#chatEmpty").style.display =
+            "none";
 
-        if ($("#chatVerified")) {
-            $("#chatVerified").style.display = "none";
-        }
+        $("#activeChat").style.display =
+            "flex";
 
-        setAvatar(
+
+        $("#chatName").textContent =
+            group.name;
+
+
+        $("#chatVerified").style.display =
+            "none";
+
+
+        avatar(
             $("#chatAvatar"),
             group
         );
 
-        if ($("#chatStatus")) {
-            $("#chatStatus").textContent =
-                group.username
-                    ? "@" + group.username
-                    : "Group";
-        }
 
-        await loadGroupMessages(group.id);
-        await updateMessageInputState();
+        $("#chatStatus").textContent =
+            group.username
+                ? "@" +
+                  group.username
+                : "Group";
+
+
+        await loadGroupMessages(
+            group.id
+        );
+
+        await updateInputState();
     }
 
-    async function loadGroupMessages(groupId) {
+
+    async function loadGroupMessages(
+        groupId
+    ) {
+
         const {
             data,
             error
         } = await db
             .from("group_messages")
-            .select(`
-                *,
-                sender:sender_id(
-                    id,
-                    username,
-                    full_name,
-                    avatar_url,
-                    is_verified
-                )
-            `)
+            .select("*")
             .eq(
                 "group_id",
                 groupId
@@ -2383,121 +3060,252 @@
                 }
             );
 
+
         if (error) {
+
             console.error(error);
+
             return;
         }
 
-        await renderGroupMessages(data || []);
+
+        const senderIds =
+            [
+                ...new Set(
+                    (data || [])
+                        .map(message =>
+                            message.sender_id
+                        )
+                )
+            ];
+
+
+        let profiles = [];
+
+
+        if (senderIds.length) {
+
+            const result =
+                await db
+                    .from("profiles")
+                    .select("*")
+                    .in(
+                        "id",
+                        senderIds
+                    );
+
+            profiles =
+                result.data || [];
+        }
+
+
+        const map =
+            new Map(
+                profiles.map(
+                    profile =>
+                        [
+                            profile.id,
+                            profile
+                        ]
+                )
+            );
+
+
+        renderGroupMessages(
+            (data || []).map(
+                message => ({
+                    ...message,
+                    sender:
+                        map.get(
+                            message.sender_id
+                        )
+                })
+            )
+        );
     }
 
-    async function renderGroupMessages(messages) {
-        const container = $("#messages");
+
+    async function renderGroupMessages(
+        messages
+    ) {
+
+        const container =
+            $("#messages");
 
         if (!container) return;
 
         container.innerHTML = "";
 
+
         if (!messages.length) {
+
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-users"></i>
-                    <strong>No group messages yet</strong>
+                    <strong>No messages yet</strong>
                 </div>
             `;
+
             return;
         }
 
-        for (const message of messages) {
-            const row =
-                document.createElement("div");
 
-            const mine =
-                message.sender_id === currentUser.id;
+        for (
+            const message of messages
+        ) {
+
+            const row =
+                document.createElement(
+                    "div"
+                );
 
             row.className =
                 `message-row ${
-                    mine ? "mine" : "theirs"
+                    message.sender_id ===
+                    currentUser.id
+                        ? "mine"
+                        : "theirs"
                 }`;
 
+
             const bubble =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             bubble.className =
-                "message-bubble group-message";
+                "message-bubble";
 
-            if (!mine) {
+
+            if (
+                message.sender_id !==
+                currentUser.id
+            ) {
+
                 const sender =
-                    document.createElement("div");
+                    document.createElement(
+                        "div"
+                    );
 
                 sender.className =
                     "message-sender";
 
                 sender.textContent =
-                    message.sender?.full_name ||
-                    message.sender?.username ||
+                    message.sender
+                        ?.full_name ||
+                    message.sender
+                        ?.username ||
                     "User";
 
-                bubble.appendChild(sender);
+                bubble.appendChild(
+                    sender
+                );
             }
 
+
             if (message.deleted_at) {
+
                 bubble.innerHTML += `
                     <span class="deleted-message">
                         Message deleted
                     </span>
                 `;
+
             } else if (
-                message.message_type === "image"
+                message.message_type ===
+                "image"
             ) {
+
                 const image =
-                    document.createElement("img");
+                    document.createElement(
+                        "img"
+                    );
 
                 image.className =
                     "message-image";
 
                 image.src =
-                    await getChatMediaUrl(
+                    await mediaUrl(
                         message.image_url
                     );
 
-                bubble.appendChild(image);
+                bubble.appendChild(
+                    image
+                );
+
             } else {
+
                 const text =
-                    document.createElement("div");
+                    document.createElement(
+                        "div"
+                    );
 
                 text.className =
                     "message-text";
 
                 text.textContent =
-                    message.content || "";
+                    message.content ||
+                    "";
 
-                bubble.appendChild(text);
+                bubble.appendChild(
+                    text
+                );
             }
 
+
             const footer =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             footer.className =
                 "message-footer";
 
             footer.textContent =
-                formatTime(
+                time(
                     message.created_at
                 );
 
-            bubble.appendChild(footer);
+            bubble.appendChild(
+                footer
+            );
 
-            row.appendChild(bubble);
-            container.appendChild(row);
+            row.appendChild(
+                bubble
+            );
+
+            container.appendChild(
+                row
+            );
         }
+
 
         container.scrollTop =
             container.scrollHeight;
     }
 
-    async function sendGroupMessage(content) {
+
+    async function sendGroupMessage(
+        content
+    ) {
+
         if (!selectedGroup) return;
+
+
+        if (
+            !(await isGroupMember(
+                selectedGroup.id
+            ))
+        ) {
+
+            toast(
+                "You are not a group member.",
+                "error"
+            );
+
+            return;
+        }
+
 
         const {
             error
@@ -2506,15 +3314,20 @@
             .insert({
                 group_id:
                     selectedGroup.id,
+
                 sender_id:
                     currentUser.id,
+
                 content,
+
                 message_type:
                     "text"
             });
 
+
         if (error) {
-            showToast(
+
+            toast(
                 error.message,
                 "error"
             );
@@ -2522,11 +3335,12 @@
     }
 
 
-    /* =========================================================
+    /* =====================================================
        CHANNELS
-       ========================================================= */
+       ===================================================== */
 
     async function loadChannels() {
+
         const {
             data: memberships,
             error
@@ -2538,21 +3352,61 @@
                 currentUser.id
             );
 
+
         if (error) {
+
             console.error(error);
-            renderChannels([]);
-            return;
         }
+
 
         const ids =
             (memberships || [])
-                .map(item => item.channel_id);
+                .map(
+                    item =>
+                        item.channel_id
+                );
 
-        if (!ids.length) {
+
+        const {
+            data: ownedChannels
+        } = await db
+            .from("channels")
+            .select("*")
+            .eq(
+                "owner_id",
+                currentUser.id
+            );
+
+
+        const allIds = [
+            ...ids,
+            ...(ownedChannels || [])
+                .map(
+                    channel =>
+                        channel.id
+                )
+        ];
+
+
+        const uniqueIds =
+            [...new Set(allIds)];
+
+
+        if (!uniqueIds.length) {
+
             channelsCache = [];
+
             renderChannels([]);
+
+            $("#channelCount")
+                && (
+                    $("#channelCount").textContent =
+                        "0"
+                );
+
             return;
         }
+
 
         const {
             data,
@@ -2560,7 +3414,10 @@
         } = await db
             .from("channels")
             .select("*")
-            .in("id", ids)
+            .in(
+                "id",
+                uniqueIds
+            )
             .order(
                 "created_at",
                 {
@@ -2568,33 +3425,48 @@
                 }
             );
 
+
         if (channelError) {
-            console.error(channelError);
+
+            console.error(
+                channelError
+            );
+
             return;
         }
 
-        channelsCache = data || [];
 
-        renderChannels(channelsCache);
+        channelsCache =
+            data || [];
 
-        const count =
-            $("#channelCount");
 
-        if (count) {
-            count.textContent =
-                channelsCache.length;
-        }
+        renderChannels(
+            channelsCache
+        );
+
+
+        $("#channelCount")
+            && (
+                $("#channelCount").textContent =
+                    channelsCache.length
+            );
     }
 
-    function renderChannels(channels) {
+
+    function renderChannels(
+        channels
+    ) {
+
         const list =
-            getListElement();
+            $("#channelsList");
 
         if (!list) return;
 
         list.innerHTML = "";
 
+
         if (!channels.length) {
+
             list.innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-bullhorn"></i>
@@ -2602,25 +3474,31 @@
                     <span>Create or join a channel.</span>
                 </div>
             `;
+
             return;
         }
 
+
         channels.forEach(channel => {
+
             const item =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             item.className =
                 "chat-item";
 
-            item.dataset.channelId =
-                channel.id;
 
             item.innerHTML = `
                 <div class="avatar"></div>
 
                 <div class="chat-info">
+
                     <span class="chat-info-name">
-                        ${escapeHTML(channel.name)}
+                        ${escapeHTML(
+                            channel.name
+                        )}
                     </span>
 
                     <span class="chat-info-subtitle">
@@ -2633,24 +3511,37 @@
                                 : "Channel"
                         }
                     </span>
+
                 </div>
             `;
 
-            setAvatar(
+
+            avatar(
                 item.querySelector(".avatar"),
                 channel
             );
 
+
             item.addEventListener(
                 "click",
-                () => openChannelChat(channel)
+                () =>
+                    openChannel(
+                        channel
+                    )
             );
 
-            list.appendChild(item);
+
+            list.appendChild(
+                item
+            );
         });
     }
 
-    async function isChannelWriter(channelId) {
+
+    async function isChannelWriter(
+        channelId
+    ) {
+
         const {
             data
         } = await db
@@ -2666,73 +3557,91 @@
             )
             .maybeSingle();
 
-        if (!data) return false;
 
-        return [
-            "owner",
-            "admin"
-        ].includes(data.role);
+        if (
+            data &&
+            (
+                data.role === "owner" ||
+                data.role === "admin"
+            )
+        ) {
+
+            return true;
+        }
+
+
+        return (
+            selectedChannel?.owner_id ===
+            currentUser.id
+        );
     }
 
-    async function openChannelChat(channel) {
-        selectedChannel = channel;
+
+    async function openChannel(
+        channel
+    ) {
+
+        selectedChannel =
+            channel;
+
         selectedUser = null;
         selectedGroup = null;
 
-        currentChatType = "channel";
+        currentChatType =
+            "channel";
 
-        $("#app")?.classList.add("chat-open");
 
-        if ($("#chatEmpty")) {
-            $("#chatEmpty").style.display = "none";
-        }
+        $("#app")
+            ?.classList.add(
+                "chat-open"
+            );
 
-        if ($("#activeChat")) {
-            $("#activeChat").style.display = "flex";
-        }
+        $("#chatEmpty").style.display =
+            "none";
 
-        if ($("#chatName")) {
-            $("#chatName").textContent =
-                channel.name;
-        }
+        $("#activeChat").style.display =
+            "flex";
 
-        if ($("#chatVerified")) {
-            $("#chatVerified").style.display = "none";
-        }
 
-        setAvatar(
+        $("#chatName").textContent =
+            channel.name;
+
+
+        $("#chatVerified").style.display =
+            "none";
+
+
+        avatar(
             $("#chatAvatar"),
             channel
         );
 
-        if ($("#chatStatus")) {
-            $("#chatStatus").textContent =
-                channel.username
-                    ? "@" + channel.username
-                    : "Channel";
-        }
+
+        $("#chatStatus").textContent =
+            channel.username
+                ? "@" +
+                  channel.username
+                : "Channel";
+
 
         await loadChannelMessages(
             channel.id
         );
 
-        await updateMessageInputState();
+        await updateInputState();
     }
 
-    async function loadChannelMessages(channelId) {
+
+    async function loadChannelMessages(
+        channelId
+    ) {
+
         const {
             data,
             error
         } = await db
             .from("channel_messages")
-            .select(`
-                *,
-                sender:sender_id(
-                    id,
-                    username,
-                    full_name
-                )
-            `)
+            .select("*")
             .eq(
                 "channel_id",
                 channelId
@@ -2744,114 +3653,227 @@
                 }
             );
 
+
         if (error) {
+
             console.error(error);
+
             return;
         }
 
-        await renderChannelMessages(data || []);
+
+        const ids =
+            [
+                ...new Set(
+                    (data || [])
+                        .map(
+                            message =>
+                                message.sender_id
+                        )
+                )
+            ];
+
+
+        let profiles = [];
+
+
+        if (ids.length) {
+
+            const result =
+                await db
+                    .from("profiles")
+                    .select("*")
+                    .in(
+                        "id",
+                        ids
+                    );
+
+            profiles =
+                result.data || [];
+        }
+
+
+        const map =
+            new Map(
+                profiles.map(
+                    profile =>
+                        [
+                            profile.id,
+                            profile
+                        ]
+                )
+            );
+
+
+        renderChannelMessages(
+            (data || []).map(
+                message => ({
+                    ...message,
+                    sender:
+                        map.get(
+                            message.sender_id
+                        )
+                })
+            )
+        );
     }
 
-    async function renderChannelMessages(messages) {
-        const container = $("#messages");
+
+    async function renderChannelMessages(
+        messages
+    ) {
+
+        const container =
+            $("#messages");
 
         if (!container) return;
 
         container.innerHTML = "";
 
+
         if (!messages.length) {
+
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-bullhorn"></i>
-                    <strong>No channel posts yet</strong>
+                    <strong>No posts yet</strong>
                 </div>
             `;
+
             return;
         }
 
-        for (const message of messages) {
+
+        for (
+            const message of messages
+        ) {
+
             const row =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             row.className =
                 `message-row ${
-                    message.sender_id === currentUser.id
+                    message.sender_id ===
+                    currentUser.id
                         ? "mine"
                         : "theirs"
                 }`;
 
+
             const bubble =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             bubble.className =
-                "message-bubble channel-message";
+                "message-bubble";
+
 
             if (message.deleted_at) {
-                bubble.textContent =
-                    "Message deleted";
-            } else if (
-                message.message_type === "image"
-            ) {
-                const img =
-                    document.createElement("img");
 
-                img.className =
+                bubble.innerHTML = `
+                    <span class="deleted-message">
+                        Message deleted
+                    </span>
+                `;
+
+            } else if (
+                message.message_type ===
+                "image"
+            ) {
+
+                const image =
+                    document.createElement(
+                        "img"
+                    );
+
+                image.className =
                     "message-image";
 
-                img.src =
-                    await getChatMediaUrl(
+                image.src =
+                    await mediaUrl(
                         message.image_url
                     );
 
-                bubble.appendChild(img);
+                bubble.appendChild(
+                    image
+                );
+
             } else {
+
                 const text =
-                    document.createElement("div");
+                    document.createElement(
+                        "div"
+                    );
 
                 text.className =
                     "message-text";
 
                 text.textContent =
-                    message.content || "";
+                    message.content ||
+                    "";
 
-                bubble.appendChild(text);
+                bubble.appendChild(
+                    text
+                );
             }
 
+
             const footer =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             footer.className =
                 "message-footer";
 
             footer.textContent =
-                formatTime(
+                time(
                     message.created_at
                 );
 
-            bubble.appendChild(footer);
+            bubble.appendChild(
+                footer
+            );
 
-            row.appendChild(bubble);
-            container.appendChild(row);
+            row.appendChild(
+                bubble
+            );
+
+            container.appendChild(
+                row
+            );
         }
+
 
         container.scrollTop =
             container.scrollHeight;
     }
 
-    async function sendChannelMessage(content) {
+
+    async function sendChannelMessage(
+        content
+    ) {
+
         if (!selectedChannel) return;
+
 
         if (
             !(await isChannelWriter(
                 selectedChannel.id
             ))
         ) {
-            showToast(
-                "Only channel admins can send messages.",
+
+            toast(
+                "Only channel admins can post.",
                 "error"
             );
+
             return;
         }
+
 
         const {
             error
@@ -2860,15 +3882,20 @@
             .insert({
                 channel_id:
                     selectedChannel.id,
+
                 sender_id:
                     currentUser.id,
+
                 content,
+
                 message_type:
                     "text"
             });
 
+
         if (error) {
-            showToast(
+
+            toast(
                 error.message,
                 "error"
             );
@@ -2876,11 +3903,12 @@
     }
 
 
-    /* =========================================================
+    /* =====================================================
        SAVED MESSAGES
-       ========================================================= */
+       ===================================================== */
 
-    async function openSavedMessagesChat() {
+    async function openSavedMessages() {
+
         selectedUser = null;
         selectedGroup = null;
         selectedChannel = null;
@@ -2888,65 +3916,42 @@
         currentChatType =
             "saved";
 
-        $("#app")?.classList.add("chat-open");
 
-        if ($("#chatEmpty")) {
-            $("#chatEmpty").style.display = "none";
-        }
+        $("#app")
+            ?.classList.add(
+                "chat-open"
+            );
 
-        if ($("#activeChat")) {
-            $("#activeChat").style.display = "flex";
-        }
+        $("#chatEmpty").style.display =
+            "none";
 
-        if ($("#chatName")) {
-            $("#chatName").textContent =
-                "Saved Messages";
-        }
+        $("#activeChat").style.display =
+            "flex";
 
-        if ($("#chatVerified")) {
-            $("#chatVerified").style.display = "none";
-        }
 
-        if ($("#chatStatus")) {
-            $("#chatStatus").textContent =
-                "Your personal messages";
-        }
+        $("#chatName").textContent =
+            "Saved Messages";
 
-        if ($("#chatAvatar")) {
-            $("#chatAvatar").innerHTML =
-                '<i class="fa-solid fa-bookmark"></i>';
-        }
 
-        await loadSavedMessagesIntoChat();
+        $("#chatVerified").style.display =
+            "none";
 
-        updateSavedInputState();
+
+        $("#chatStatus").textContent =
+            "Your personal messages";
+
+
+        $("#chatAvatar").innerHTML =
+            '<i class="fa-solid fa-bookmark"></i>';
+
+
+        await loadSavedMessages();
+
+        await updateInputState();
     }
 
-    function updateSavedInputState() {
-        const input = $("#messageInput");
-        const send = $("#sendButton");
-        const image = $("#imageBtn");
-        const emoji = $("#emojiBtn");
-        const sticker = $("#stickerBtn");
 
-        [input, send, image, emoji, sticker]
-            .forEach(element => {
-                if (element) {
-                    element.disabled = false;
-                }
-            });
-
-        if (input) {
-            input.placeholder =
-                "Write a saved message...";
-        }
-    }
-
-    async function loadSavedMessagesIntoChat() {
-        const container =
-            $("#messages");
-
-        if (!container) return;
+    async function loadSavedMessages() {
 
         const {
             data,
@@ -2965,130 +3970,929 @@
                 }
             );
 
+
         if (error) {
+
             console.error(error);
+
             return;
         }
 
+
+        const container =
+            $("#messages");
+
+        if (!container) return;
+
         container.innerHTML = "";
 
+
         if (!data?.length) {
+
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-bookmark"></i>
                     <strong>No saved messages</strong>
-                    <span>Send something here to save it.</span>
+                    <span>Save messages with swipe actions.</span>
                 </div>
             `;
+
             return;
         }
 
+
         data.forEach(message => {
+
             const row =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             row.className =
                 "message-row mine";
 
+
             const bubble =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             bubble.className =
                 "message-bubble";
 
+
             bubble.innerHTML = `
                 <div class="message-text">
-                    ${escapeHTML(message.content || "")}
+                    ${escapeHTML(
+                        message.content
+                    )}
                 </div>
 
                 <div class="message-footer">
-                    ${formatTime(message.created_at)}
+                    ${time(
+                        message.created_at
+                    )}
                 </div>
             `;
 
-            row.appendChild(bubble);
-            container.appendChild(row);
+
+            row.appendChild(
+                bubble
+            );
+
+            container.appendChild(
+                row
+            );
         });
+
 
         container.scrollTop =
             container.scrollHeight;
     }
 
-    async function loadSavedMessages() {
-        await loadSavedMessagesIntoChat();
-    }
 
-    async function saveMessage(message) {
-        const {
-            error
-        } = await db
-            .from("saved_messages")
-            .insert({
-                user_id:
-                    currentUser.id,
-                content:
-                    message.content || "",
-                message_type:
-                    message.message_type || "text",
-                image_url:
-                    message.image_url || null,
-                sticker_url:
-                    message.sticker_url || null
-            });
+    /* =====================================================
+       GROUP / CHANNEL CREATE
+       ===================================================== */
 
-        if (error) {
-            showToast(
-                error.message,
+    async function createGroup(
+        event
+    ) {
+
+        event.preventDefault();
+
+
+        const name =
+            $("#groupName")
+                .value.trim();
+
+        const username =
+            $("#groupUsername")
+                .value.trim()
+                .toLowerCase();
+
+        const bio =
+            $("#groupBio")
+                .value.trim();
+
+
+        if (!name || !username) {
+
+            toast(
+                "Group name and username are required.",
                 "error"
             );
+
             return;
         }
 
-        showToast(
-            "Message saved.",
+
+        const {
+            data,
+            error
+        } = await db
+            .from("groups")
+            .insert({
+                owner_id:
+                    currentUser.id,
+
+                name,
+
+                username,
+
+                bio:
+                    bio || ""
+            })
+            .select()
+            .single();
+
+
+        if (error) {
+
+            toast(
+                error.message,
+                "error"
+            );
+
+            return;
+        }
+
+
+        /*
+         * The SQL trigger below automatically creates
+         * the owner membership.
+         */
+
+
+        closeModal(
+            "createGroupModal"
+        );
+
+
+        $("#groupForm")
+            ?.reset();
+
+
+        toast(
+            "Group created.",
+            "success"
+        );
+
+
+        await loadGroups();
+
+
+        const created =
+            groupsCache.find(
+                group =>
+                    String(group.id) ===
+                    String(data.id)
+            );
+
+
+        if (created) {
+
+            await openGroup(
+                created
+            );
+        }
+    }
+
+
+    async function createChannel(
+        event
+    ) {
+
+        event.preventDefault();
+
+
+        const name =
+            $("#channelName")
+                .value.trim();
+
+        const username =
+            $("#channelUsername")
+                .value.trim()
+                .toLowerCase();
+
+        const bio =
+            $("#channelBio")
+                .value.trim();
+
+
+        if (!name || !username) {
+
+            toast(
+                "Channel name and username are required.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        const {
+            data,
+            error
+        } = await db
+            .from("channels")
+            .insert({
+                owner_id:
+                    currentUser.id,
+
+                name,
+
+                username,
+
+                bio:
+                    bio || ""
+            })
+            .select()
+            .single();
+
+
+        if (error) {
+
+            toast(
+                error.message,
+                "error"
+            );
+
+            return;
+        }
+
+
+        closeModal(
+            "createChannelModal"
+        );
+
+
+        $("#channelForm")
+            ?.reset();
+
+
+        toast(
+            "Channel created.",
+            "success"
+        );
+
+
+        await loadChannels();
+
+
+        const created =
+            channelsCache.find(
+                channel =>
+                    String(channel.id) ===
+                    String(data.id)
+            );
+
+
+        if (created) {
+
+            await openChannel(
+                created
+            );
+        }
+    }
+
+
+    /* =====================================================
+       INVITES
+       ===================================================== */
+
+    async function joinGroup() {
+
+        const code =
+            $("#groupInviteInput")
+                .value.trim();
+
+        if (!code) return;
+
+
+        const {
+            data,
+            error
+        } = await db.rpc(
+            "join_group_by_invite",
+            {
+                p_invite_code:
+                    code
+            }
+        );
+
+
+        if (error) {
+
+            toast(
+                error.message,
+                "error"
+            );
+
+            return;
+        }
+
+
+        closeModal(
+            "joinGroupModal"
+        );
+
+
+        toast(
+            "Joined group.",
+            "success"
+        );
+
+
+        await loadGroups();
+
+
+        const group =
+            groupsCache.find(
+                item =>
+                    String(item.id) ===
+                    String(data)
+            );
+
+
+        if (group) {
+
+            await openGroup(
+                group
+            );
+        }
+    }
+
+
+    async function joinChannel() {
+
+        const code =
+            $("#channelInviteInput")
+                .value.trim();
+
+        if (!code) return;
+
+
+        const {
+            data,
+            error
+        } = await db.rpc(
+            "join_channel_by_invite",
+            {
+                p_invite_code:
+                    code
+            }
+        );
+
+
+        if (error) {
+
+            toast(
+                error.message,
+                "error"
+            );
+
+            return;
+        }
+
+
+        closeModal(
+            "joinChannelModal"
+        );
+
+
+        toast(
+            "Joined channel.",
+            "success"
+        );
+
+
+        await loadChannels();
+
+
+        const channel =
+            channelsCache.find(
+                item =>
+                    String(item.id) ===
+                    String(data)
+            );
+
+
+        if (channel) {
+
+            await openChannel(
+                channel
+            );
+        }
+    }
+
+
+    /* =====================================================
+       GROUP / CHANNEL INFO
+       ===================================================== */
+
+    function openGroupInfo() {
+
+        if (!selectedGroup) return;
+
+
+        $("#groupInfoName")
+            .textContent =
+                selectedGroup.name;
+
+        $("#groupInfoUsername")
+            .textContent =
+                selectedGroup.username
+                    ? "@" +
+                      selectedGroup.username
+                    : "";
+
+        $("#groupInfoBio")
+            .textContent =
+                selectedGroup.bio ||
+                "No bio.";
+
+
+        openModal(
+            "groupInfoModal"
+        );
+    }
+
+
+    function openChannelInfo() {
+
+        if (!selectedChannel) return;
+
+
+        $("#channelInfoName")
+            .textContent =
+                selectedChannel.name;
+
+        $("#channelInfoUsername")
+            .textContent =
+                selectedChannel.username
+                    ? "@" +
+                      selectedChannel.username
+                    : "";
+
+        $("#channelInfoBio")
+            .textContent =
+                selectedChannel.bio ||
+                "No bio.";
+
+
+        openModal(
+            "channelInfoModal"
+        );
+    }
+
+
+    async function createGroupInvite() {
+
+        if (!selectedGroup) return;
+
+
+        const {
+            data,
+            error
+        } = await db.rpc(
+            "create_group_invite",
+            {
+                p_group_id:
+                    selectedGroup.id
+            }
+        );
+
+
+        if (error) {
+
+            toast(
+                error.message,
+                "error"
+            );
+
+            return;
+        }
+
+
+        await copyText(
+            data
+        );
+
+        toast(
+            "Group invite copied.",
             "success"
         );
     }
 
 
-    /* =========================================================
-       REFRESH
-       ========================================================= */
+    async function createChannelInvite() {
 
-    async function refreshCurrentChat() {
-        if (currentChatType === "direct") {
-            await loadMessages();
-        }
+        if (!selectedChannel) return;
 
-        if (
-            currentChatType === "group" &&
-            selectedGroup
-        ) {
-            await loadGroupMessages(
-                selectedGroup.id
+
+        const {
+            data,
+            error
+        } = await db.rpc(
+            "create_channel_invite",
+            {
+                p_channel_id:
+                    selectedChannel.id
+            }
+        );
+
+
+        if (error) {
+
+            toast(
+                error.message,
+                "error"
             );
+
+            return;
         }
 
-        if (
-            currentChatType === "channel" &&
-            selectedChannel
-        ) {
-            await loadChannelMessages(
-                selectedChannel.id
+
+        await copyText(
+            data
+        );
+
+        toast(
+            "Channel invite copied.",
+            "success"
+        );
+    }
+
+
+    async function copyText(
+        value
+    ) {
+
+        try {
+
+            await navigator.clipboard.writeText(
+                value
             );
-        }
 
-        if (currentChatType === "saved") {
-            await loadSavedMessagesIntoChat();
+        } catch {
+
+            const area =
+                document.createElement(
+                    "textarea"
+                );
+
+            area.value =
+                value;
+
+            document.body.appendChild(
+                area
+            );
+
+            area.select();
+
+            document.execCommand(
+                "copy"
+            );
+
+            area.remove();
         }
     }
 
 
-    /* =========================================================
-       NICKNAME
-       ========================================================= */
+    async function showMembers(
+        type
+    ) {
 
-    async function loadNickname(contactId) {
+        let rows = [];
+
+        let title = "";
+
+
+        if (
+            type ===
+            "group"
+        ) {
+
+            title =
+                "Group Members";
+
+
+            const {
+                data
+            } = await db
+                .from("group_members")
+                .select("*")
+                .eq(
+                    "group_id",
+                    selectedGroup.id
+                );
+
+            rows =
+                data || [];
+        }
+
+
+        if (
+            type ===
+            "channel"
+        ) {
+
+            title =
+                "Channel Members";
+
+
+            const {
+                data
+            } = await db
+                .from("channel_members")
+                .select("*")
+                .eq(
+                    "channel_id",
+                    selectedChannel.id
+                );
+
+            rows =
+                data || [];
+        }
+
+
+        const ids =
+            rows.map(
+                row =>
+                    row.user_id
+            );
+
+
+        let profiles = [];
+
+
+        if (ids.length) {
+
+            const {
+                data
+            } = await db
+                .from("profiles")
+                .select("*")
+                .in(
+                    "id",
+                    ids
+                );
+
+            profiles =
+                data || [];
+        }
+
+
+        const map =
+            new Map(
+                profiles.map(
+                    profile =>
+                        [
+                            profile.id,
+                            profile
+                        ]
+                )
+            );
+
+
+        $("#membersTitle")
+            .textContent =
+                `${title} (${profiles.length})`;
+
+
+        const list =
+            $("#membersList");
+
+        list.innerHTML = "";
+
+
+        profiles.forEach(profile => {
+
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+            item.className =
+                "chat-item";
+
+
+            item.innerHTML = `
+                <div class="avatar"></div>
+
+                <div class="chat-info">
+
+                    <span class="chat-info-name">
+                        ${escapeHTML(
+                            profile.full_name ||
+                            profile.username
+                        )}
+                    </span>
+
+                    <span class="chat-info-subtitle">
+                        @${escapeHTML(
+                            profile.username
+                        )}
+                    </span>
+
+                </div>
+            `;
+
+
+            avatar(
+                item.querySelector(".avatar"),
+                profile
+            );
+
+
+            list.appendChild(
+                item
+            );
+        });
+
+
+        openModal(
+            "membersModal"
+        );
+    }
+
+
+    async function leaveGroup() {
+
+        if (!selectedGroup) return;
+
+
+        const {
+            error
+        } = await db
+            .from("group_members")
+            .delete()
+            .eq(
+                "group_id",
+                selectedGroup.id
+            )
+            .eq(
+                "user_id",
+                currentUser.id
+            );
+
+
+        if (error) {
+
+            toast(
+                error.message,
+                "error"
+            );
+
+            return;
+        }
+
+
+        closeModal(
+            "groupInfoModal"
+        );
+
+
+        selectedGroup = null;
+
+        currentChatType = null;
+
+
+        $("#activeChat").style.display =
+            "none";
+
+        $("#chatEmpty").style.display =
+            "flex";
+
+
+        await loadGroups();
+    }
+
+
+    async function leaveChannel() {
+
+        if (!selectedChannel) return;
+
+
+        const {
+            error
+        } = await db
+            .from("channel_members")
+            .delete()
+            .eq(
+                "channel_id",
+                selectedChannel.id
+            )
+            .eq(
+                "user_id",
+                currentUser.id
+            );
+
+
+        if (error) {
+
+            toast(
+                error.message,
+                "error"
+            );
+
+            return;
+        }
+
+
+        closeModal(
+            "channelInfoModal"
+        );
+
+
+        selectedChannel = null;
+
+        currentChatType = null;
+
+
+        $("#activeChat").style.display =
+            "none";
+
+        $("#chatEmpty").style.display =
+            "flex";
+
+
+        await loadChannels();
+    }
+
+
+    /* =====================================================
+       PROFILE POPUP
+       ===================================================== */
+
+    async function openUserProfile(
+        user
+    ) {
+
+        selectedUser =
+            user;
+
+
+        avatar(
+            $("#userProfileAvatar"),
+            user
+        );
+
+
+        $("#userProfileName")
+            .textContent =
+                user.full_name ||
+                user.username;
+
+
+        $("#userProfileVerified")
+            .style.display =
+                user.is_verified
+                    ? "inline-flex"
+                    : "none";
+
+
+        $("#userProfileUsername")
+            .textContent =
+                "@" +
+                user.username;
+
+
+        $("#userProfileBio")
+            .textContent =
+                user.bio ||
+                "No bio yet.";
+
+
+        $("#userProfileStatus")
+            .textContent =
+                getStatus(user);
+
+
+        $("#userProfileMenu")
+            .classList.remove(
+                "show"
+            );
+
+
+        openModal(
+            "userProfileModal"
+        );
+
+
+        await updateContactActions();
+    }
+
+
+    /* =====================================================
+       NICKNAME
+       ===================================================== */
+
+    async function loadNickname(
+        contactId
+    ) {
+
         const {
             data
         } = await db
@@ -3104,25 +4908,32 @@
             )
             .maybeSingle();
 
-        return data?.nickname || null;
+
+        return data?.nickname ||
+            null;
     }
 
+
     async function saveNickname() {
+
         if (!selectedUser) return;
 
-        const input =
-            $("#nicknameInput");
 
         const nickname =
-            input?.value.trim();
+            $("#nicknameInput")
+                .value.trim();
+
 
         if (!nickname) {
-            showToast(
+
+            toast(
                 "Enter a nickname.",
                 "error"
             );
+
             return;
         }
+
 
         const {
             error
@@ -3131,33 +4942,44 @@
             .upsert({
                 user_id:
                     currentUser.id,
+
                 contact_id:
                     selectedUser.id,
+
                 nickname,
+
                 updated_at:
                     new Date().toISOString()
             });
 
+
         if (error) {
-            showToast(
+
+            toast(
                 error.message,
                 "error"
             );
+
             return;
         }
 
-        closeModal("nicknameModal");
 
-        showToast(
+        closeModal(
+            "nicknameModal"
+        );
+
+
+        toast(
             "Nickname saved.",
             "success"
         );
-
-        await loadContacts();
     }
 
+
     async function removeNickname() {
+
         if (!selectedUser) return;
+
 
         const {
             error
@@ -3173,112 +4995,281 @@
                 selectedUser.id
             );
 
+
         if (error) {
-            showToast(
+
+            toast(
                 error.message,
                 "error"
             );
+
             return;
         }
 
-        closeModal("nicknameModal");
 
-        showToast(
+        closeModal(
+            "nicknameModal"
+        );
+
+
+        toast(
             "Nickname removed.",
             "success"
         );
-
-        await loadContacts();
     }
 
 
-    /* =========================================================
-       PROFILE EDIT
-       ========================================================= */
+    /* =====================================================
+       BLOCK / REPORT
+       ===================================================== */
 
-    function openProfileModal() {
-        renderMyProfile();
-        openModal("profileModal");
+    async function blockUser() {
+
+        if (!selectedUser) return;
+
+
+        const {
+            error
+        } = await db
+            .from("user_blocks")
+            .insert({
+                user_id:
+                    selectedUser.id,
+
+                blocked_by:
+                    currentUser.id,
+
+                block_type:
+                    "messaging",
+
+                reason:
+                    "Blocked by user",
+
+                active:
+                    true
+            });
+
+
+        if (error) {
+
+            toast(
+                error.message,
+                "error"
+            );
+
+            return;
+        }
+
+
+        closeModal(
+            "userProfileModal"
+        );
+
+
+        toast(
+            "User blocked.",
+            "success"
+        );
     }
 
-    async function saveProfile(event) {
+
+    async function reportUser() {
+
+        if (!selectedUser) return;
+
+
+        const reason =
+            prompt(
+                "Reason: spam, harassment, fake_account or other"
+            );
+
+
+        if (!reason) return;
+
+
+        const allowed = [
+            "spam",
+            "harassment",
+            "fake_account",
+            "other"
+        ];
+
+
+        const value =
+            allowed.includes(
+                reason.toLowerCase()
+            )
+                ? reason.toLowerCase()
+                : "other";
+
+
+        const {
+            error
+        } = await db
+            .from("reports")
+            .insert({
+                reporter_id:
+                    currentUser.id,
+
+                reported_user_id:
+                    selectedUser.id,
+
+                reason:
+                    value,
+
+                description:
+                    "Reported from MegChatBox.",
+
+                status:
+                    "pending"
+            });
+
+
+        if (error) {
+
+            toast(
+                error.message,
+                "error"
+            );
+
+            return;
+        }
+
+
+        closeModal(
+            "userProfileModal"
+        );
+
+
+        toast(
+            "Report submitted.",
+            "success"
+        );
+    }
+
+
+    /* =====================================================
+       PROFILE SAVE
+       ===================================================== */
+
+    async function saveProfile(
+        event
+    ) {
+
         event.preventDefault();
 
+
         const fullName =
-            getProfileNameInput()
-                ?.value.trim();
+            $("#profileFullName")
+                .value.trim();
 
         const username =
-            getProfileUsernameInput()
-                ?.value.trim()
+            $("#profileUsername")
+                .value.trim()
                 .toLowerCase();
 
         const bio =
-            getProfileBioInput()
-                ?.value.trim();
+            $("#profileBio")
+                .value.trim();
+
 
         if (!fullName || !username) {
-            showToast(
+
+            toast(
                 "Name and username are required.",
                 "error"
             );
+
             return;
         }
 
+
         if (
-            !/^[a-z0-9_]{3,32}$/.test(username)
+            !/^[a-z0-9_]{3,32}$/.test(
+                username
+            )
         ) {
-            showToast(
-                "Username must use lowercase letters, numbers and underscores.",
+
+            toast(
+                "Invalid username.",
                 "error"
             );
+
             return;
         }
+
 
         const {
             error
         } = await db
             .from("profiles")
             .update({
-                full_name: fullName,
+                full_name:
+                    fullName,
+
                 username,
-                bio: bio || ""
+
+                bio:
+                    bio
             })
             .eq(
                 "id",
                 currentUser.id
             );
 
+
         if (error) {
-            showToast(
+
+            toast(
                 error.code === "23505"
-                    ? "Username is already taken."
+                    ? "Username already exists."
                     : error.message,
                 "error"
             );
+
             return;
         }
 
-        await loadMyProfile();
 
-        closeModal("profileModal");
+        await loadProfile();
 
-        showToast(
+        closeModal(
+            "profileModal"
+        );
+
+
+        toast(
             "Profile updated.",
             "success"
         );
     }
 
-    async function uploadProfileAvatar(file) {
+
+    /* =====================================================
+       AVATAR
+       ===================================================== */
+
+    async function uploadAvatar(
+        file
+    ) {
+
         if (!file) return;
 
-        if (!file.type.startsWith("image/")) {
-            showToast(
-                "Please select an image.",
+
+        if (
+            !file.type.startsWith(
+                "image/"
+            )
+        ) {
+
+            toast(
+                "Choose an image.",
                 "error"
             );
+
             return;
         }
+
 
         const extension =
             file.name
@@ -3286,8 +5277,10 @@
                 .pop()
                 .toLowerCase();
 
+
         const path =
             `${currentUser.id}/avatar.${extension}`;
+
 
         const {
             error
@@ -3298,74 +5291,88 @@
                 file,
                 {
                     upsert: true,
-                    contentType: file.type
+                    contentType:
+                        file.type
                 }
             );
 
+
         if (error) {
-            showToast(
+
+            toast(
                 error.message,
                 "error"
             );
+
             return;
         }
+
 
         const {
             data
         } = db.storage
             .from("avatars")
-            .getPublicUrl(path);
+            .getPublicUrl(
+                path
+            );
+
 
         await db
             .from("profiles")
             .update({
                 avatar_url:
-                    data?.publicUrl
+                    data.publicUrl
             })
             .eq(
                 "id",
                 currentUser.id
             );
 
-        await loadMyProfile();
 
-        showToast(
+        await loadProfile();
+
+
+        toast(
             "Avatar updated.",
             "success"
         );
     }
 
 
-    /* =========================================================
+    /* =====================================================
        PRIVACY
-       ========================================================= */
+       ===================================================== */
 
-    function openPrivacyModal() {
-        const online =
-            getOnlineToggle();
+    function openPrivacy() {
 
-        const lastSeen =
-            getLastSeenToggle();
+        $("#showOnlineToggle")
+            .checked =
+                currentProfile
+                    ?.show_online !== false;
 
-        if (online) {
-            online.checked =
-                currentProfile?.show_online !== false;
-        }
 
-        if (lastSeen) {
-            lastSeen.checked =
-                currentProfile?.show_last_seen !== false;
-        }
+        $("#showLastSeenToggle")
+            .checked =
+                currentProfile
+                    ?.show_last_seen !== false;
 
-        openModal("privacyModal");
+
+        openModal(
+            "privacyModal"
+        );
     }
 
-    async function savePrivacySettings() {
+
+    async function savePrivacy() {
+
         const showOnline =
-            getOnlineToggle()?.checked ?? true;
+            $("#showOnlineToggle")
+                .checked;
 
         const showLastSeen =
-            getLastSeenToggle()?.checked ?? true;
+            $("#showLastSeenToggle")
+                .checked;
+
 
         const {
             error
@@ -3374,6 +5381,7 @@
             .update({
                 show_online:
                     showOnline,
+
                 show_last_seen:
                     showLastSeen
             })
@@ -3382,13 +5390,17 @@
                 currentUser.id
             );
 
+
         if (error) {
-            showToast(
+
+            toast(
                 error.message,
                 "error"
             );
+
             return;
         }
+
 
         currentProfile.show_online =
             showOnline;
@@ -3396,176 +5408,30 @@
         currentProfile.show_last_seen =
             showLastSeen;
 
-        closeModal("privacyModal");
 
-        showToast(
-            "Privacy settings saved.",
+        closeModal(
+            "privacyModal"
+        );
+
+
+        toast(
+            "Privacy saved.",
             "success"
         );
     }
 
 
-    /* =========================================================
-       USER PROFILE
-       ========================================================= */
-
-    async function openUserProfilePopup(user) {
-        if (!user) return;
-
-        selectedUser = user;
-
-        setAvatar(
-            $("#userProfileAvatar"),
-            user
-        );
-
-        if ($("#userProfileName")) {
-            $("#userProfileName").textContent =
-                user.full_name ||
-                user.username;
-        }
-
-        if ($("#userProfileVerified")) {
-            $("#userProfileVerified").style.display =
-                user.is_verified
-                    ? "inline-flex"
-                    : "none";
-        }
-
-        if ($("#userProfileUsername")) {
-            $("#userProfileUsername").textContent =
-                "@" + user.username;
-        }
-
-        if ($("#userProfileBio")) {
-            $("#userProfileBio").textContent =
-                user.bio || "No bio yet.";
-        }
-
-        if ($("#userProfileStatus")) {
-            $("#userProfileStatus").textContent =
-                getUserStatus(user);
-        }
-
-        const nickname =
-            await loadNickname(user.id);
-
-        if ($("#nicknameInput")) {
-            $("#nicknameInput").value =
-                nickname || "";
-        }
-
-        openModal("userProfileModal");
-
-        await updateContactActions();
-    }
-
-
-    /* =========================================================
-       BLOCK / REPORT
-       ========================================================= */
-
-    async function blockUser() {
-        if (!selectedUser) return;
-
-        const {
-            error
-        } = await db
-            .from("user_blocks")
-            .insert({
-                user_id:
-                    selectedUser.id,
-                blocked_by:
-                    currentUser.id,
-                block_type:
-                    "messaging",
-                reason:
-                    "Blocked by user",
-                active:
-                    true
-            });
-
-        if (error) {
-            showToast(
-                error.message,
-                "error"
-            );
-            return;
-        }
-
-        closeModal("userProfileModal");
-
-        showToast(
-            "Messaging blocked.",
-            "success"
-        );
-    }
-
-    async function reportUser() {
-        if (!selectedUser) return;
-
-        const reason =
-            prompt(
-                "Reason: spam, harassment, fake_account or other"
-            );
-
-        if (!reason) return;
-
-        const allowed = [
-            "spam",
-            "harassment",
-            "fake_account",
-            "other"
-        ];
-
-        const normalized =
-            allowed.includes(
-                reason.toLowerCase()
-            )
-                ? reason.toLowerCase()
-                : "other";
-
-        const {
-            error
-        } = await db
-            .from("reports")
-            .insert({
-                reporter_id:
-                    currentUser.id,
-                reported_user_id:
-                    selectedUser.id,
-                reason:
-                    normalized,
-                description:
-                    "Reported from user profile",
-                status:
-                    "pending"
-            });
-
-        if (error) {
-            showToast(
-                error.message,
-                "error"
-            );
-            return;
-        }
-
-        showToast(
-            "Report submitted.",
-            "success"
-        );
-    }
-
-
-    /* =========================================================
+    /* =====================================================
        UPDATES
-       ========================================================= */
+       ===================================================== */
 
     async function loadUpdates() {
+
         const list =
             $("#updatesList");
 
         if (!list) return;
+
 
         const {
             data,
@@ -3580,7 +5446,9 @@
                 }
             );
 
+
         if (error) {
+
             console.error(error);
 
             list.innerHTML = `
@@ -3592,7 +5460,9 @@
             return;
         }
 
+
         if (!data?.length) {
+
             list.innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-bullhorn"></i>
@@ -3603,56 +5473,84 @@
             return;
         }
 
+
         list.innerHTML =
-            data.map(update => `
-                <article class="update-card">
-                    <div class="update-card-top">
-                        <span class="update-type">
-                            ${escapeHTML(update.update_type)}
-                        </span>
+            data.map(
+                update => `
+                    <article class="update-card">
 
-                        <span class="update-date">
-                            ${formatDate(update.created_at)}
-                        </span>
-                    </div>
+                        <div class="update-card-top">
 
-                    <h3>
-                        ${escapeHTML(update.title)}
-                    </h3>
+                            <span class="update-type">
+                                ${escapeHTML(
+                                    update.update_type
+                                )}
+                            </span>
 
-                    <p>
-                        ${escapeHTML(update.content)}
-                    </p>
-                </article>
-            `).join("");
+                            <span class="update-date">
+                                ${dateText(
+                                    update.created_at
+                                )}
+                            </span>
+
+                        </div>
+
+                        <h3>
+                            ${escapeHTML(
+                                update.title
+                            )}
+                        </h3>
+
+                        <p>
+                            ${escapeHTML(
+                                update.content
+                            )}
+                        </p>
+
+                    </article>
+                `
+            ).join("");
     }
 
+
     async function publishUpdate() {
-        if (!isAdmin()) {
-            showToast(
-                "Admin access only.",
-                "error"
-            );
+
+        if (
+            ![
+                "owner",
+                "admin"
+            ].includes(
+                currentProfile.role
+            )
+        ) {
+
             return;
         }
+
 
         const type =
-            $("#updateType")?.value ||
-            "features";
+            $("#updateType")
+                .value;
 
         const title =
-            $("#updateTitle")?.value.trim();
+            $("#updateTitle")
+                .value.trim();
 
         const content =
-            $("#updateContent")?.value.trim();
+            $("#updateContent")
+                .value.trim();
+
 
         if (!title || !content) {
-            showToast(
-                "Fill in all update fields.",
+
+            toast(
+                "Fill all fields.",
                 "error"
             );
+
             return;
         }
+
 
         const {
             error
@@ -3661,422 +5559,70 @@
             .insert({
                 author_id:
                     currentUser.id,
+
                 title,
+
                 content,
+
                 update_type:
                     type
             });
 
+
         if (error) {
-            showToast(
+
+            toast(
                 error.message,
                 "error"
             );
+
             return;
         }
 
-        if ($("#updateTitle")) {
-            $("#updateTitle").value = "";
-        }
 
-        if ($("#updateContent")) {
-            $("#updateContent").value = "";
-        }
+        $("#updateTitle").value =
+            "";
 
-        showToast(
+        $("#updateContent").value =
+            "";
+
+
+        toast(
             "Update published.",
             "success"
         );
+
 
         await loadUpdates();
     }
 
 
-    /* =========================================================
-       CREATE GROUP
-       ========================================================= */
-
-    async function createGroup(event) {
-        event.preventDefault();
-
-        const name =
-            $("#groupName")?.value.trim();
-
-        const username =
-            $("#groupUsername")
-                ?.value.trim()
-                .toLowerCase();
-
-        const bio =
-            $("#groupBio")?.value.trim();
-
-        if (!name || !username) {
-            showToast(
-                "Group name and username are required.",
-                "error"
-            );
-            return;
-        }
-
-        if (
-            !/^[a-z0-9_]{3,32}$/.test(username)
-        ) {
-            showToast(
-                "Invalid group username.",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            data,
-            error
-        } = await db
-            .from("groups")
-            .insert({
-                owner_id:
-                    currentUser.id,
-                name,
-                username,
-                bio:
-                    bio || ""
-            })
-            .select()
-            .single();
-
-        if (error) {
-            showToast(
-                error.message,
-                "error"
-            );
-            return;
-        }
-
-        /*
-         * Membership insert is performed after group creation.
-         * If RLS blocks it, the owner can still be added by
-         * the database policy/function.
-         */
-
-        const {
-            error: memberError
-        } = await db
-            .from("group_members")
-            .insert({
-                group_id:
-                    data.id,
-                user_id:
-                    currentUser.id,
-                role:
-                    "owner"
-            });
-
-        if (memberError) {
-            console.warn(
-                "Group membership:",
-                memberError
-            );
-        }
-
-        closeModal("createGroupModal");
-
-        showToast(
-            "Group created.",
-            "success"
-        );
-
-        await loadGroups();
-    }
-
-
-    /* =========================================================
-       CREATE CHANNEL
-       ========================================================= */
-
-    async function createChannel(event) {
-        event.preventDefault();
-
-        const name =
-            $("#channelName")?.value.trim();
-
-        const username =
-            $("#channelUsername")
-                ?.value.trim()
-                .toLowerCase();
-
-        const bio =
-            $("#channelBio")?.value.trim();
-
-        if (!name || !username) {
-            showToast(
-                "Channel name and username are required.",
-                "error"
-            );
-            return;
-        }
-
-        if (
-            !/^[a-z0-9_]{3,32}$/.test(username)
-        ) {
-            showToast(
-                "Invalid channel username.",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            data,
-            error
-        } = await db
-            .from("channels")
-            .insert({
-                owner_id:
-                    currentUser.id,
-                name,
-                username,
-                bio:
-                    bio || ""
-            })
-            .select()
-            .single();
-
-        if (error) {
-            showToast(
-                error.message,
-                "error"
-            );
-            return;
-        }
-
-        const {
-            error: memberError
-        } = await db
-            .from("channel_members")
-            .insert({
-                channel_id:
-                    data.id,
-                user_id:
-                    currentUser.id,
-                role:
-                    "owner"
-            });
-
-        if (memberError) {
-            console.warn(
-                "Channel membership:",
-                memberError
-            );
-        }
-
-        closeModal("createChannelModal");
-
-        showToast(
-            "Channel created.",
-            "success"
-        );
-
-        await loadChannels();
-    }
-
-
-    /* =========================================================
-       INVITES
-       ========================================================= */
-
-    async function joinGroupByInvite() {
-        const code =
-            $("#groupInviteInput")
-                ?.value.trim();
-
-        if (!code) return;
-
-        const {
-            data,
-            error
-        } = await db.rpc(
-            "join_group_by_invite",
-            {
-                p_invite_code:
-                    code
-            }
-        );
-
-        if (error) {
-            showToast(
-                error.message,
-                "error"
-            );
-            return;
-        }
-
-        closeModal("joinGroupModal");
-
-        showToast(
-            "Joined group.",
-            "success"
-        );
-
-        await loadGroups();
-
-        const group =
-            groupsCache.find(
-                item =>
-                    String(item.id) ===
-                    String(data)
-            );
-
-        if (group) {
-            await openGroupChat(group);
-        }
-    }
-
-    async function joinChannelByInvite() {
-        const code =
-            $("#channelInviteInput")
-                ?.value.trim();
-
-        if (!code) return;
-
-        const {
-            data,
-            error
-        } = await db.rpc(
-            "join_channel_by_invite",
-            {
-                p_invite_code:
-                    code
-            }
-        );
-
-        if (error) {
-            showToast(
-                error.message,
-                "error"
-            );
-            return;
-        }
-
-        closeModal("joinChannelModal");
-
-        showToast(
-            "Joined channel.",
-            "success"
-        );
-
-        await loadChannels();
-
-        const channel =
-            channelsCache.find(
-                item =>
-                    String(item.id) ===
-                    String(data)
-            );
-
-        if (channel) {
-            await openChannelChat(channel);
-        }
-    }
-
-
-    /* =========================================================
-       EMOJI
-       ========================================================= */
-
-    function setupEmoji() {
-        const button = $("#emojiBtn");
-        const panel = $("#emojiPanel");
-
-        if (!button || !panel) return;
-
-        const emojis = [
-            "😀","😂","🤣","😊","😍",
-            "🥰","😎","😭","😡","😱",
-            "👍","👎","❤️","🔥","✨",
-            "🎉","👏","🙏","💀","🤝"
-        ];
-
-        panel.innerHTML =
-            emojis
-                .map(
-                    emoji =>
-                        `<button type="button" class="emoji-item">${emoji}</button>`
-                )
-                .join("");
-
-        button.addEventListener(
-            "click",
-            event => {
-                event.stopPropagation();
-
-                panel.classList.toggle("show");
-            }
-        );
-
-        panel.addEventListener(
-            "click",
-            event => {
-                const target =
-                    event.target.closest(
-                        ".emoji-item"
-                    );
-
-                if (!target) return;
-
-                const input =
-                    $("#messageInput");
-
-                if (!input) return;
-
-                input.value +=
-                    target.textContent;
-
-                input.focus();
-            }
-        );
-    }
-
-
-    /* =========================================================
-       STICKERS
-       ========================================================= */
-
-    function setupStickers() {
-        const button =
-            $("#stickerBtn");
-
-        const panel =
-            $("#stickerPanel");
-
-        if (!button || !panel) return;
-
-        button.addEventListener(
-            "click",
-            () => {
-                panel.classList.toggle("show");
-            }
-        );
-    }
-
-
-    /* =========================================================
+    /* =====================================================
        OWNER
-       ========================================================= */
+       ===================================================== */
 
-    async function ownerSearchUser(username, result) {
-        const name =
-            String(username || "")
-                .trim()
+    async function ownerFind(
+        inputId,
+        resultId
+    ) {
+
+        const username =
+            $(inputId)
+                ?.value.trim()
                 .replace(/^@/, "")
                 .toLowerCase();
 
-        if (!name) {
-            showToast(
-                "Enter a username.",
+
+        if (!username) {
+
+            toast(
+                "Enter username.",
                 "error"
             );
+
             return null;
         }
+
 
         const {
             data,
@@ -4086,76 +5632,92 @@
             .select("*")
             .eq(
                 "username",
-                name
+                username
             )
             .maybeSingle();
 
+
         if (error || !data) {
-            if (result) {
-                result.innerHTML = `
-                    <div class="empty-state">
-                        User not found.
-                    </div>
-                `;
-            }
+
+            $(resultId).innerHTML = `
+                <div class="empty-state">
+                    User not found.
+                </div>
+            `;
 
             return null;
         }
 
+
         return data;
     }
 
-    async function ownerSearchVerified() {
-        const result =
-            $("#ownerVerifiedResult");
+
+    async function ownerVerified() {
 
         const user =
-            await ownerSearchUser(
-                $("#ownerVerifiedUsername")?.value,
-                result
+            await ownerFind(
+                "#ownerVerifiedUsername",
+                "#ownerVerifiedResult"
             );
 
+
         if (!user) return;
+
 
         const verified =
             user.is_verified === true;
 
-        result.innerHTML = `
-            <div class="chat-item active">
-                <div class="avatar avatar-medium">
-                    ${escapeHTML(
-                        getInitial(user.full_name)
-                    )}
+
+        $("#ownerVerifiedResult")
+            .innerHTML = `
+                <div class="chat-item">
+
+                    <div class="avatar"></div>
+
+                    <div class="chat-info">
+
+                        <span class="chat-info-name">
+                            ${escapeHTML(
+                                user.full_name
+                            )}
+                        </span>
+
+                        <span class="chat-info-subtitle">
+                            @${escapeHTML(
+                                user.username
+                            )}
+                        </span>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="primary-btn"
+                        id="verifiedActionBtn"
+                    >
+                        ${
+                            verified
+                                ? "Remove"
+                                : "Verify"
+                        }
+                    </button>
+
                 </div>
+            `;
 
-                <div class="chat-info">
-                    <span class="chat-info-name">
-                        ${escapeHTML(user.full_name)}
-                    </span>
 
-                    <span class="chat-info-subtitle">
-                        @${escapeHTML(user.username)}
-                    </span>
-                </div>
+        avatar(
+            $("#ownerVerifiedResult .avatar"),
+            user
+        );
 
-                <button
-                    type="button"
-                    class="primary-btn"
-                    id="ownerVerifiedAction"
-                >
-                    ${
-                        verified
-                            ? "Remove Verified"
-                            : "Verify"
-                    }
-                </button>
-            </div>
-        `;
 
-        $("#ownerVerifiedAction")
-            ?.addEventListener(
+        $("#verifiedActionBtn")
+            .addEventListener(
                 "click",
                 async () => {
+
                     const {
                         error
                     } = await db.rpc(
@@ -4163,6 +5725,7 @@
                         {
                             p_user_id:
                                 user.id,
+
                             p_action:
                                 verified
                                     ? "remove"
@@ -4170,96 +5733,120 @@
                         }
                     );
 
+
                     if (error) {
-                        showToast(
+
+                        toast(
                             error.message,
                             "error"
                         );
+
                         return;
                     }
 
-                    showToast(
+
+                    toast(
                         verified
-                            ? "Verification removed."
+                            ? "Verified removed."
                             : "User verified.",
                         "success"
                     );
 
-                    await ownerSearchVerified();
+
+                    await ownerVerified();
                 }
             );
     }
 
-    async function ownerSearchModeration() {
-        const result =
-            $("#ownerModerationResult");
+
+    async function ownerModeration() {
 
         const user =
-            await ownerSearchUser(
-                $("#ownerModerationUsername")?.value,
-                result
+            await ownerFind(
+                "#ownerModerationUsername",
+                "#ownerModerationResult"
             );
+
 
         if (!user) return;
 
-        result.innerHTML = `
-            <div class="chat-item active">
-                <div class="avatar avatar-medium">
-                    ${escapeHTML(
-                        getInitial(user.full_name)
-                    )}
+
+        $("#ownerModerationResult")
+            .innerHTML = `
+                <div class="chat-item">
+
+                    <div class="avatar"></div>
+
+                    <div class="chat-info">
+
+                        <span class="chat-info-name">
+                            ${escapeHTML(
+                                user.full_name
+                            )}
+                        </span>
+
+                        <span class="chat-info-subtitle">
+                            @${escapeHTML(
+                                user.username
+                            )}
+                        </span>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="secondary-btn"
+                        id="blockMessagingBtn"
+                    >
+                        Messaging Block
+                    </button>
+
+                    <button
+                        type="button"
+                        class="danger-btn"
+                        id="blockAccountBtn"
+                    >
+                        Account Block
+                    </button>
+
                 </div>
+            `;
 
-                <div class="chat-info">
-                    <span class="chat-info-name">
-                        ${escapeHTML(user.full_name)}
-                    </span>
 
-                    <span class="chat-info-subtitle">
-                        @${escapeHTML(user.username)}
-                    </span>
-                </div>
+        avatar(
+            $("#ownerModerationResult .avatar"),
+            user
+        );
 
-                <button
-                    type="button"
-                    class="secondary-btn"
-                    id="ownerMessagingBlock"
-                >
-                    Block Messaging
-                </button>
 
-                <button
-                    type="button"
-                    class="danger-btn"
-                    id="ownerAccountBlock"
-                >
-                    Block Account
-                </button>
-            </div>
-        `;
-
-        $("#ownerMessagingBlock")
-            ?.addEventListener(
+        $("#blockMessagingBtn")
+            .addEventListener(
                 "click",
                 () =>
-                    ownerBlockUser(
+                    ownerBlock(
                         user,
                         "messaging"
                     )
             );
 
-        $("#ownerAccountBlock")
-            ?.addEventListener(
+
+        $("#blockAccountBtn")
+            .addEventListener(
                 "click",
                 () =>
-                    ownerBlockUser(
+                    ownerBlock(
                         user,
                         "account"
                     )
             );
     }
 
-    async function ownerBlockUser(user, type) {
+
+    async function ownerBlock(
+        user,
+        type
+    ) {
+
         const {
             error
         } = await db.rpc(
@@ -4267,23 +5854,28 @@
             {
                 p_user_id:
                     user.id,
+
                 p_block_type:
                     type,
+
                 p_action:
                     "block"
             }
         );
 
+
         if (error) {
-            showToast(
-                error.message ||
-                "Could not block user.",
+
+            toast(
+                error.message,
                 "error"
             );
+
             return;
         }
 
-        showToast(
+
+        toast(
             type === "account"
                 ? "Account blocked."
                 : "Messaging blocked.",
@@ -4291,57 +5883,72 @@
         );
     }
 
-    async function ownerSearchAdmin() {
-        const result =
-            $("#ownerAdminResult");
+
+    async function ownerAdmin() {
 
         const user =
-            await ownerSearchUser(
-                $("#ownerAdminUsername")?.value,
-                result
+            await ownerFind(
+                "#ownerAdminUsername",
+                "#ownerAdminResult"
             );
 
+
         if (!user) return;
+
 
         const admin =
             user.role === "admin";
 
-        result.innerHTML = `
-            <div class="chat-item active">
-                <div class="avatar avatar-medium">
-                    ${escapeHTML(
-                        getInitial(user.full_name)
-                    )}
+
+        $("#ownerAdminResult")
+            .innerHTML = `
+                <div class="chat-item">
+
+                    <div class="avatar"></div>
+
+                    <div class="chat-info">
+
+                        <span class="chat-info-name">
+                            ${escapeHTML(
+                                user.full_name
+                            )}
+                        </span>
+
+                        <span class="chat-info-subtitle">
+                            @${escapeHTML(
+                                user.username
+                            )}
+                        </span>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="primary-btn"
+                        id="adminActionBtn"
+                    >
+                        ${
+                            admin
+                                ? "Remove Admin"
+                                : "Make Admin"
+                        }
+                    </button>
+
                 </div>
+            `;
 
-                <div class="chat-info">
-                    <span class="chat-info-name">
-                        ${escapeHTML(user.full_name)}
-                    </span>
 
-                    <span class="chat-info-subtitle">
-                        @${escapeHTML(user.username)}
-                    </span>
-                </div>
+        avatar(
+            $("#ownerAdminResult .avatar"),
+            user
+        );
 
-                <button
-                    type="button"
-                    class="primary-btn"
-                    id="ownerAdminAction"
-                >
-                    ${
-                        admin
-                            ? "Remove Admin"
-                            : "Make Admin"
-                    }
-                </button>
-            </div>
-        `;
 
-        $("#ownerAdminAction")
-            ?.addEventListener(
+        $("#adminActionBtn")
+            .addEventListener(
                 "click",
                 async () => {
+
                     const {
                         error
                     } = await db.rpc(
@@ -4349,6 +5956,7 @@
                         {
                             p_user_id:
                                 user.id,
+
                             p_action:
                                 admin
                                     ? "remove"
@@ -4356,31 +5964,39 @@
                         }
                     );
 
+
                     if (error) {
-                        showToast(
+
+                        toast(
                             error.message,
                             "error"
                         );
+
                         return;
                     }
 
-                    showToast(
+
+                    toast(
                         admin
                             ? "Admin removed."
                             : "Admin added.",
                         "success"
                     );
 
-                    await ownerSearchAdmin();
+
+                    await ownerAdmin();
                 }
             );
     }
 
-    async function loadOwnerReports() {
-        const container =
+
+    async function loadReports() {
+
+        const list =
             $("#ownerReportsList");
 
-        if (!container) return;
+        if (!list) return;
+
 
         const {
             data,
@@ -4393,13 +6009,14 @@
                 {
                     ascending: false
                 }
-            )
-            .limit(50);
+            );
+
 
         if (error) {
+
             console.error(error);
 
-            container.innerHTML = `
+            list.innerHTML = `
                 <div class="empty-state">
                     Could not load reports.
                 </div>
@@ -4408,8 +6025,10 @@
             return;
         }
 
+
         if (!data?.length) {
-            container.innerHTML = `
+
+            list.innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-check"></i>
                     <strong>No reports</strong>
@@ -4419,114 +6038,1160 @@
             return;
         }
 
-        container.innerHTML =
-            data.map(report => `
-                <div class="chat-item">
-                    <div class="chat-info">
-                        <span class="chat-info-name">
-                            Report #${report.id}
-                        </span>
 
-                        <span class="chat-info-subtitle">
-                            ${escapeHTML(report.reason)}
-                        </span>
+        list.innerHTML =
+            data.map(
+                report => `
+                    <div class="chat-item">
+
+                        <div class="chat-info">
+
+                            <span class="chat-info-name">
+                                Report #${report.id}
+                            </span>
+
+                            <span class="chat-info-subtitle">
+                                ${escapeHTML(
+                                    report.reason
+                                )}
+                                ·
+                                ${escapeHTML(
+                                    report.status
+                                )}
+                            </span>
+
+                        </div>
+
                     </div>
-
-                    <span class="request-badge">
-                        ${escapeHTML(report.status)}
-                    </span>
-                </div>
-            `).join("");
+                `
+            ).join("");
     }
 
 
-    /* =========================================================
-       MODALS
-       ========================================================= */
+    /* =====================================================
+       EMOJI
+       ===================================================== */
 
-    function setupModalEvents() {
-        $$(".modal-overlay").forEach(overlay => {
-            overlay.addEventListener(
-                "click",
-                event => {
-                    if (event.target === overlay) {
-                        closeModal(overlay);
-                    }
-                }
-            );
-        });
+    function setupEmoji() {
 
-        document.addEventListener(
-            "keydown",
+        const button =
+            $("#emojiBtn");
+
+        const panel =
+            $("#emojiPanel");
+
+        if (!button || !panel) return;
+
+
+        const emojis = [
+            "😀","😂","🤣","😊","😍",
+            "🥰","😎","😭","😡","😱",
+            "👍","👎","❤️","🔥","✨",
+            "🎉","👏","🙏","💀","🤝",
+            "😅","😉","🤔","😴","🥳"
+        ];
+
+
+        panel.innerHTML =
+            emojis.map(
+                emoji =>
+                    `
+                    <button
+                        type="button"
+                        class="emoji-item"
+                    >
+                        ${emoji}
+                    </button>
+                    `
+            ).join("");
+
+
+        button.addEventListener(
+            "click",
             event => {
-                if (event.key === "Escape") {
-                    closeAllModals();
 
-                    $$(".message-context-menu")
-                        .forEach(menu => menu.remove());
-                }
+                event.stopPropagation();
+
+                $("#stickerPanel")
+                    ?.classList.remove(
+                        "show"
+                    );
+
+                panel.classList.toggle(
+                    "show"
+                );
+            }
+        );
+
+
+        panel.addEventListener(
+            "click",
+            event => {
+
+                const button =
+                    event.target.closest(
+                        ".emoji-item"
+                    );
+
+                if (!button) return;
+
+
+                $("#messageInput").value +=
+                    button.textContent;
+
+                $("#messageInput").focus();
             }
         );
     }
 
 
-    /* =========================================================
-       MOBILE
-       ========================================================= */
+    function setupStickers() {
 
-    function setupMobile() {
-        $("#mobileBackBtn")
+        $("#stickerBtn")
             ?.addEventListener(
                 "click",
-                () => {
-                    $("#app")
+                event => {
+
+                    event.stopPropagation();
+
+                    $("#emojiPanel")
                         ?.classList.remove(
-                            "chat-open"
+                            "show"
                         );
 
-                    selectedUser = null;
-                    selectedGroup = null;
-                    selectedChannel = null;
-                    currentChatType = null;
-
-                    if ($("#messages")) {
-                        $("#messages").innerHTML = "";
-                    }
-
-                    if ($("#activeChat")) {
-                        $("#activeChat").style.display =
-                            "none";
-                    }
-
-                    if ($("#chatEmpty")) {
-                        $("#chatEmpty").style.display =
-                            "flex";
-                    }
-
-                    disableMessageControls();
+                    $("#stickerPanel")
+                        ?.classList.toggle(
+                            "show"
+                        );
                 }
             );
     }
 
 
-    /* =========================================================
+    /* =====================================================
+       MODALS / EVENTS
+       ===================================================== */
+
+    function setupEvents() {
+
+
+        /* CLOSE EVERY MODAL */
+
+        $$("[data-close]")
+            .forEach(button => {
+
+                button.addEventListener(
+                    "click",
+                    event => {
+
+                        event.preventDefault();
+
+                        closeModal(
+                            button.dataset.close
+                        );
+                    }
+                );
+            });
+
+
+        $$(".modal-overlay")
+            .forEach(overlay => {
+
+                overlay.addEventListener(
+                    "click",
+                    event => {
+
+                        if (
+                            event.target ===
+                            overlay
+                        ) {
+
+                            overlay.classList.remove(
+                                "show"
+                            );
+                        }
+                    }
+                );
+            });
+
+
+        document.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key ===
+                    "Escape"
+                ) {
+
+                    closeAllModals();
+                }
+            }
+        );
+
+
+        /* SETTINGS */
+
+        $("#settingsBtn")
+            ?.addEventListener(
+                "click",
+                () =>
+                    openModal(
+                        "settingsModal"
+                    )
+            );
+
+
+        /* PROFILE */
+
+        $("#myProfileBtn")
+            ?.addEventListener(
+                "click",
+                () => {
+
+                    renderMyProfile();
+
+                    openModal(
+                        "profileModal"
+                    );
+                }
+            );
+
+
+        $("#profileSettingsBtn")
+            ?.addEventListener(
+                "click",
+                () => {
+
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    renderMyProfile();
+
+                    openModal(
+                        "profileModal"
+                    );
+                }
+            );
+
+
+        $("#profileForm")
+            ?.addEventListener(
+                "submit",
+                saveProfile
+            );
+
+
+        $("#changeAvatarBtn")
+            ?.addEventListener(
+                "click",
+                () =>
+                    $("#profileAvatarInput")
+                        ?.click()
+            );
+
+
+        $("#profileAvatarInput")
+            ?.addEventListener(
+                "change",
+                event => {
+
+                    uploadAvatar(
+                        event.target.files?.[0]
+                    );
+
+                    event.target.value =
+                        "";
+                }
+            );
+
+
+        /* PRIVACY */
+
+        $("#privacySettingsBtn")
+            ?.addEventListener(
+                "click",
+                () => {
+
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    openPrivacy();
+                }
+            );
+
+
+        $("#savePrivacyBtn")
+            ?.addEventListener(
+                "click",
+                savePrivacy
+            );
+
+
+        /* APPEARANCE */
+
+        $("#appearanceSettingsBtn")
+            ?.addEventListener(
+                "click",
+                () => {
+
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    openModal(
+                        "appearanceModal"
+                    );
+
+                    applyTheme();
+                    applyDensity();
+                }
+            );
+
+
+        /* LANGUAGE */
+
+        $("#languageSettingsBtn")
+            ?.addEventListener(
+                "click",
+                () => {
+
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    openModal(
+                        "languageModal"
+                    );
+                }
+            );
+
+
+        /* UPDATES */
+
+        $("#updatesSettingsBtn")
+            ?.addEventListener(
+                "click",
+                async () => {
+
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    await loadUpdates();
+
+                    openModal(
+                        "updatesModal"
+                    );
+                }
+            );
+
+
+        $("#publishUpdateBtn")
+            ?.addEventListener(
+                "click",
+                publishUpdate
+            );
+
+
+        /* OWNER */
+
+        $("#ownerPanelButton")
+            ?.addEventListener(
+                "click",
+                async () => {
+
+                    if (
+                        currentProfile.role !==
+                        "owner"
+                    ) {
+
+                        toast(
+                            "Owner access only.",
+                            "error"
+                        );
+
+                        return;
+                    }
+
+
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    openModal(
+                        "ownerModal"
+                    );
+
+
+                    await loadReports();
+                }
+            );
+
+
+        $$(".owner-tab")
+            .forEach(button => {
+
+                button.addEventListener(
+                    "click",
+                    async () => {
+
+                        $$(".owner-tab")
+                            .forEach(
+                                item =>
+                                    item.classList.remove(
+                                        "active"
+                                    )
+                            );
+
+                        button.classList.add(
+                            "active"
+                        );
+
+
+                        const target =
+                            button.dataset.ownerTab;
+
+
+                        $$("[data-owner-panel]")
+                            .forEach(panel => {
+
+                                panel.style.display =
+                                    panel.dataset.ownerPanel ===
+                                    target
+                                        ? "block"
+                                        : "none";
+                            });
+
+
+                        if (
+                            target ===
+                            "reports"
+                        ) {
+
+                            await loadReports();
+                        }
+                    }
+                );
+            });
+
+
+        $("#ownerVerifiedSearchBtn")
+            ?.addEventListener(
+                "click",
+                ownerVerified
+            );
+
+
+        $("#ownerModerationSearchBtn")
+            ?.addEventListener(
+                "click",
+                ownerModeration
+            );
+
+
+        $("#ownerAdminSearchBtn")
+            ?.addEventListener(
+                "click",
+                ownerAdmin
+            );
+
+
+        /* ADMIN */
+
+        $("#adminPanelButton")
+            ?.addEventListener(
+                "click",
+                () => {
+
+                    const allowed = [
+                        "owner",
+                        "admin"
+                    ].includes(
+                        currentProfile.role
+                    );
+
+
+                    if (!allowed) {
+
+                        toast(
+                            "Admin access only.",
+                            "error"
+                        );
+
+                        return;
+                    }
+
+
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    openModal(
+                        "adminModal"
+                    );
+                }
+            );
+
+
+        $("#openAdminReportsBtn")
+            ?.addEventListener(
+                "click",
+                async () => {
+
+                    closeModal(
+                        "adminModal"
+                    );
+
+                    openModal(
+                        "ownerModal"
+                    );
+
+                    $$(".owner-tab")
+                        .forEach(
+                            item =>
+                                item.classList.remove(
+                                    "active"
+                                )
+                        );
+
+                    const reportsTab =
+                        document.querySelector(
+                            '[data-owner-tab="reports"]'
+                        );
+
+                    reportsTab
+                        ?.classList.add(
+                            "active"
+                        );
+
+
+                    $$("[data-owner-panel]")
+                        .forEach(
+                            panel =>
+                                panel.style.display =
+                                    panel.dataset.ownerPanel ===
+                                    "reports"
+                                        ? "block"
+                                        : "none"
+                        );
+
+
+                    await loadReports();
+                }
+            );
+
+
+        $("#openAdminGroupsBtn")
+            ?.addEventListener(
+                "click",
+                async () => {
+
+                    closeModal(
+                        "adminModal"
+                    );
+
+                    document.querySelector(
+                        '[data-tab="groups"]'
+                    )?.click();
+
+                    await loadGroups();
+                }
+            );
+
+
+        $("#openAdminChannelsBtn")
+            ?.addEventListener(
+                "click",
+                async () => {
+
+                    closeModal(
+                        "adminModal"
+                    );
+
+                    document.querySelector(
+                        '[data-tab="channels"]'
+                    )?.click();
+
+                    await loadChannels();
+                }
+            );
+
+
+        $("#openAdminUsersBtn")
+            ?.addEventListener(
+                "click",
+                () => {
+
+                    closeModal(
+                        "adminModal"
+                    );
+
+                    openModal(
+                        "ownerModal"
+                    );
+
+                    document.querySelector(
+                        '[data-owner-tab="moderation"]'
+                    )?.click();
+                }
+            );
+
+
+        /* GROUP */
+
+        $("#createGroupBtn")
+            ?.addEventListener(
+                "click",
+                () =>
+                    openModal(
+                        "createGroupModal"
+                    )
+            );
+
+
+        $("#groupForm")
+            ?.addEventListener(
+                "submit",
+                createGroup
+            );
+
+
+        $("#joinGroupModalBtn")
+            ?.addEventListener(
+                "click",
+                () =>
+                    openModal(
+                        "joinGroupModal"
+                    )
+            );
+
+
+        $("#joinGroupBtn")
+            ?.addEventListener(
+                "click",
+                joinGroup
+            );
+
+
+        /* CHANNEL */
+
+        $("#createChannelBtn")
+            ?.addEventListener(
+                "click",
+                () =>
+                    openModal(
+                        "createChannelModal"
+                    )
+            );
+
+
+        $("#channelForm")
+            ?.addEventListener(
+                "submit",
+                createChannel
+            );
+
+
+        $("#joinChannelModalBtn")
+            ?.addEventListener(
+                "click",
+                () =>
+                    openModal(
+                        "joinChannelModal"
+                    )
+            );
+
+
+        $("#joinChannelBtn")
+            ?.addEventListener(
+                "click",
+                joinChannel
+            );
+
+
+        /* GROUP INFO */
+
+        $("#chatAvatarButton")
+            ?.addEventListener(
+                "click",
+                () => {
+
+                    if (
+                        currentChatType ===
+                        "direct" &&
+                        selectedUser
+                    ) {
+
+                        openUserProfile(
+                            selectedUser
+                        );
+
+                    } else if (
+                        currentChatType ===
+                        "group"
+                    ) {
+
+                        openGroupInfo();
+
+                    } else if (
+                        currentChatType ===
+                        "channel"
+                    ) {
+
+                        openChannelInfo();
+                    }
+                }
+            );
+
+
+        $("#chatMoreBtn")
+            ?.addEventListener(
+                "click",
+                () => {
+
+                    if (
+                        currentChatType ===
+                        "group"
+                    ) {
+
+                        openGroupInfo();
+
+                    } else if (
+                        currentChatType ===
+                        "channel"
+                    ) {
+
+                        openChannelInfo();
+
+                    } else if (
+                        currentChatType ===
+                        "direct" &&
+                        selectedUser
+                    ) {
+
+                        openUserProfile(
+                            selectedUser
+                        );
+                    }
+                }
+            );
+
+
+        $("#groupInviteBtn")
+            ?.addEventListener(
+                "click",
+                createGroupInvite
+            );
+
+
+        $("#groupMembersBtn")
+            ?.addEventListener(
+                "click",
+                () =>
+                    showMembers(
+                        "group"
+                    )
+            );
+
+
+        $("#leaveGroupBtn")
+            ?.addEventListener(
+                "click",
+                leaveGroup
+            );
+
+
+        $("#channelInviteBtn")
+            ?.addEventListener(
+                "click",
+                createChannelInvite
+            );
+
+
+        $("#channelMembersBtn")
+            ?.addEventListener(
+                "click",
+                () =>
+                    showMembers(
+                        "channel"
+                    )
+            );
+
+
+        $("#leaveChannelBtn")
+            ?.addEventListener(
+                "click",
+                leaveChannel
+            );
+
+
+        /* CONTACT */
+
+        $("#addContactBtn")
+            ?.addEventListener(
+                "click",
+                addContact
+            );
+
+
+        $("#acceptContactBtn")
+            ?.addEventListener(
+                "click",
+                acceptContact
+            );
+
+
+        $("#declineContactBtn")
+            ?.addEventListener(
+                "click",
+                declineContact
+            );
+
+
+        /* MESSAGE */
+
+        $("#messageForm")
+            ?.addEventListener(
+                "submit",
+                sendMessage
+            );
+
+
+        $("#messageInput")
+            ?.addEventListener(
+                "keydown",
+                event => {
+
+                    if (
+                        event.key ===
+                            "Enter" &&
+                        !event.shiftKey
+                    ) {
+
+                        event.preventDefault();
+
+                        $("#messageForm")
+                            .requestSubmit();
+                    }
+                }
+            );
+
+
+        $("#imageBtn")
+            ?.addEventListener(
+                "click",
+                () =>
+                    $("#imageInput")
+                        ?.click()
+            );
+
+
+        $("#imageInput")
+            ?.addEventListener(
+                "change",
+                async event => {
+
+                    await sendImage(
+                        event.target.files?.[0]
+                    );
+
+                    event.target.value =
+                        "";
+                }
+            );
+
+
+        /* PROFILE MENU */
+
+        $("#userProfileMenuBtn")
+            ?.addEventListener(
+                "click",
+                event => {
+
+                    event.stopPropagation();
+
+                    $("#userProfileMenu")
+                        ?.classList.toggle(
+                            "show"
+                        );
+                }
+            );
+
+
+        $("#editNicknameBtn")
+            ?.addEventListener(
+                "click",
+                async () => {
+
+                    $("#userProfileMenu")
+                        ?.classList.remove(
+                            "show"
+                        );
+
+                    const nickname =
+                        await loadNickname(
+                            selectedUser.id
+                        );
+
+                    $("#nicknameInput")
+                        .value =
+                            nickname || "";
+
+                    closeModal(
+                        "userProfileModal"
+                    );
+
+                    openModal(
+                        "nicknameModal"
+                    );
+                }
+            );
+
+
+        $("#removeNicknameBtn")
+            ?.addEventListener(
+                "click",
+                async () => {
+
+                    $("#userProfileMenu")
+                        ?.classList.remove(
+                            "show"
+                        );
+
+                    await removeNickname();
+                }
+            );
+
+
+        $("#removeNicknameBtn2")
+            ?.addEventListener(
+                "click",
+                removeNickname
+            );
+
+
+        $("#saveNicknameBtn")
+            ?.addEventListener(
+                "click",
+                saveNickname
+            );
+
+
+        $("#blockUserBtn")
+            ?.addEventListener(
+                "click",
+                async () => {
+
+                    $("#userProfileMenu")
+                        ?.classList.remove(
+                            "show"
+                        );
+
+                    await blockUser();
+                }
+            );
+
+
+        $("#reportUserBtn")
+            ?.addEventListener(
+                "click",
+                async () => {
+
+                    $("#userProfileMenu")
+                        ?.classList.remove(
+                            "show"
+                        );
+
+                    await reportUser();
+                }
+            );
+
+
+        document.addEventListener(
+            "click",
+            event => {
+
+                if (
+                    !event.target.closest(
+                        ".profile-popup-menu"
+                    ) &&
+                    !event.target.closest(
+                        "#userProfileMenuBtn"
+                    )
+                ) {
+
+                    $("#userProfileMenu")
+                        ?.classList.remove(
+                            "show"
+                        );
+                }
+
+
+                if (
+                    !event.target.closest(
+                        "#emojiPanel"
+                    ) &&
+                    !event.target.closest(
+                        "#emojiBtn"
+                    )
+                ) {
+
+                    $("#emojiPanel")
+                        ?.classList.remove(
+                            "show"
+                        );
+                }
+
+
+                if (
+                    !event.target.closest(
+                        "#stickerPanel"
+                    ) &&
+                    !event.target.closest(
+                        "#stickerBtn"
+                    )
+                ) {
+
+                    $("#stickerPanel")
+                        ?.classList.remove(
+                            "show"
+                        );
+                }
+            }
+        );
+
+
+        /* DELETE ACCOUNT */
+
+        $("#deleteAccountBtn")
+            ?.addEventListener(
+                "click",
+                () => {
+
+                    closeModal(
+                        "settingsModal"
+                    );
+
+                    openModal(
+                        "deleteAccountModal"
+                    );
+                }
+            );
+
+
+        /* LOGOUT */
+
+        $("#logoutBtn")
+            ?.addEventListener(
+                "click",
+                logout
+            );
+    }
+
+
+    /* =====================================================
+       REFRESH
+       ===================================================== */
+
+    async function refreshChat() {
+
+        if (
+            currentChatType ===
+            "direct"
+        ) {
+
+            await loadMessages();
+
+            return;
+        }
+
+
+        if (
+            currentChatType ===
+            "group" &&
+            selectedGroup
+        ) {
+
+            await loadGroupMessages(
+                selectedGroup.id
+            );
+
+            return;
+        }
+
+
+        if (
+            currentChatType ===
+            "channel" &&
+            selectedChannel
+        ) {
+
+            await loadChannelMessages(
+                selectedChannel.id
+            );
+
+            return;
+        }
+
+
+        if (
+            currentChatType ===
+            "saved"
+        ) {
+
+            await loadSavedMessages();
+        }
+    }
+
+
+    /* =====================================================
+       MOBILE
+       ===================================================== */
+
+    $("#mobileBackBtn")
+        ?.addEventListener(
+            "click",
+            () => {
+
+                $("#app")
+                    ?.classList.remove(
+                        "chat-open"
+                    );
+
+                selectedUser = null;
+                selectedGroup = null;
+                selectedChannel = null;
+
+                currentChatType =
+                    null;
+
+
+                $("#activeChat").style.display =
+                    "none";
+
+                $("#chatEmpty").style.display =
+                    "flex";
+
+
+                disableInput();
+            }
+        );
+
+
+    /* =====================================================
        REALTIME
-       ========================================================= */
+       ===================================================== */
 
     function setupRealtime() {
-        if (!currentUser) return;
-
-        if (realtimeChannel) {
-            db.removeChannel(
-                realtimeChannel
-            );
-        }
 
         realtimeChannel =
             db.channel(
-                "MegChatBox-" +
-                currentUser.id
+                `megchatbox-${currentUser.id}`
             );
+
 
         realtimeChannel
             .on(
@@ -4537,39 +7202,38 @@
                     table: "messages"
                 },
                 async payload => {
+
+                    if (
+                        currentChatType !==
+                        "direct"
+                    ) return;
+
                     const message =
                         payload.new ||
                         payload.old;
 
-                    if (
-                        currentChatType !== "direct" ||
-                        !selectedUser ||
-                        !message
-                    ) {
-                        return;
-                    }
+                    if (!message) return;
+
 
                     const belongs =
                         (
-                            message.sender_id === currentUser.id &&
-                            message.receiver_id === selectedUser.id
+                            message.sender_id ===
+                            currentUser.id &&
+                            message.receiver_id ===
+                            selectedUser?.id
                         ) ||
                         (
-                            message.sender_id === selectedUser.id &&
-                            message.receiver_id === currentUser.id
+                            message.sender_id ===
+                            selectedUser?.id &&
+                            message.receiver_id ===
+                            currentUser.id
                         );
+
 
                     if (!belongs) return;
 
-                    await loadMessages();
 
-                    if (
-                        message.sender_id ===
-                        selectedUser.id
-                    ) {
-                        await markMessagesDelivered();
-                        await markChatSeen();
-                    }
+                    await loadMessages();
                 }
             )
             .on(
@@ -4580,11 +7244,14 @@
                     table: "contact_requests"
                 },
                 async () => {
+
                     await loadContacts();
 
                     if (selectedUser) {
+
                         await updateContactActions();
-                        await updateMessageInputState();
+
+                        await updateInputState();
                     }
                 }
             )
@@ -4596,11 +7263,17 @@
                     table: "group_messages"
                 },
                 async payload => {
+
                     if (
                         selectedGroup &&
-                        String(payload.new?.group_id) ===
-                        String(selectedGroup.id)
+                        String(
+                            payload.new?.group_id
+                        ) ===
+                        String(
+                            selectedGroup.id
+                        )
                     ) {
+
                         await loadGroupMessages(
                             selectedGroup.id
                         );
@@ -4615,11 +7288,17 @@
                     table: "channel_messages"
                 },
                 async payload => {
+
                     if (
                         selectedChannel &&
-                        String(payload.new?.channel_id) ===
-                        String(selectedChannel.id)
+                        String(
+                            payload.new?.channel_id
+                        ) ===
+                        String(
+                            selectedChannel.id
+                        )
                     ) {
+
                         await loadChannelMessages(
                             selectedChannel.id
                         );
@@ -4634,651 +7313,89 @@
                     table: "profiles"
                 },
                 async payload => {
+
                     if (
                         payload.new?.id ===
                         currentUser.id
                     ) {
+
                         currentProfile =
                             payload.new;
 
                         renderMyProfile();
                     }
 
+
                     if (
                         selectedUser &&
                         payload.new?.id ===
                         selectedUser.id
                     ) {
+
                         selectedUser =
                             payload.new;
 
-                        setAvatar(
+                        avatar(
                             $("#chatAvatar"),
                             selectedUser
                         );
 
-                        if ($("#chatName")) {
-                            $("#chatName").textContent =
+                        $("#chatName")
+                            .textContent =
                                 selectedUser.full_name ||
                                 selectedUser.username;
-                        }
 
-                        if ($("#chatVerified")) {
-                            $("#chatVerified").style.display =
+                        $("#chatStatus")
+                            .textContent =
+                                getStatus(
+                                    selectedUser
+                                );
+
+                        $("#chatVerified")
+                            .style.display =
                                 selectedUser.is_verified
                                     ? "inline-flex"
                                     : "none";
-                        }
-
-                        if ($("#chatStatus")) {
-                            $("#chatStatus").textContent =
-                                getUserStatus(
-                                    selectedUser
-                                );
-                        }
                     }
                 }
             )
-            .subscribe(status => {
-                console.log(
-                    "Realtime:",
-                    status
-                );
-            });
-    }
-
-
-    /* =========================================================
-       EVENTS
-       ========================================================= */
-
-    function setupEvents() {
-        setupTabs();
-        setupSearch();
-        setupEmoji();
-        setupStickers();
-        setupLanguage();
-        setupAppearance();
-        setupModalEvents();
-        setupMobile();
-
-
-        /* Settings */
-
-        $("#settingsBtn")
-            ?.addEventListener(
-                "click",
-                () => openModal("settingsModal")
-            );
-
-        $("#closeSettingsBtn")
-            ?.addEventListener(
-                "click",
-                () => closeModal("settingsModal")
-            );
-
-
-        /* Profile */
-
-        $("#myProfileBtn")
-            ?.addEventListener(
-                "click",
-                openProfileModal
-            );
-
-        $("#profileSettingsBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    closeModal("settingsModal");
-                    openProfileModal();
-                }
-            );
-
-        $("#closeProfileBtn")
-            ?.addEventListener(
-                "click",
-                () => closeModal("profileModal")
-            );
-
-        $("#profileForm")
-            ?.addEventListener(
-                "submit",
-                saveProfile
-            );
-
-        $("#changeAvatarBtn")
-            ?.addEventListener(
-                "click",
-                () =>
-                    $("#profileAvatarInput")?.click()
-            );
-
-        $("#profileAvatarInput")
-            ?.addEventListener(
-                "change",
-                event => {
-                    const file =
-                        event.target.files?.[0];
-
-                    uploadProfileAvatar(file);
-
-                    event.target.value = "";
-                }
-            );
-
-
-        /* Privacy */
-
-        $("#privacySettingsBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    closeModal("settingsModal");
-                    openPrivacyModal();
-                }
-            );
-
-        $("#closePrivacyBtn")
-            ?.addEventListener(
-                "click",
-                () => closeModal("privacyModal")
-            );
-
-        $("#savePrivacyBtn")
-            ?.addEventListener(
-                "click",
-                savePrivacySettings
-            );
-
-
-        /* Appearance */
-
-        $("#appearanceSettingsBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    closeModal("settingsModal");
-                    openModal("appearanceModal");
-                }
-            );
-
-        $("#closeAppearanceBtn")
-            ?.addEventListener(
-                "click",
-                () => closeModal("appearanceModal")
-            );
-
-
-        /* Language */
-
-        $("#languageSettingsBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    closeModal("settingsModal");
-                    openModal("languageModal");
-                }
-            );
-
-        $("#closeLanguageBtn")
-            ?.addEventListener(
-                "click",
-                () => closeModal("languageModal")
-            );
-
-
-        /* Saved Messages */
-
-        $("#savedMessagesBtn")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    closeModal("settingsModal");
-
-                    if (currentTab !== "chats") {
-                        const chatTab =
-                            document.querySelector(
-                                '[data-tab="chats"]'
-                            );
-
-                        chatTab?.click();
-                    }
-
-                    await loadContacts();
-
-                    await openSavedMessagesChat();
-                }
-            );
-
-        $("#closeSavedMessagesBtn")
-            ?.addEventListener(
-                "click",
-                () =>
-                    closeModal("savedMessagesModal")
-            );
-
-
-        /* Updates */
-
-        $("#updatesSettingsBtn")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    closeModal("settingsModal");
-
-                    await loadUpdates();
-
-                    setupRoleUI();
-
-                    openModal("updatesModal");
-                }
-            );
-
-        $("#publishUpdateBtn")
-            ?.addEventListener(
-                "click",
-                publishUpdate
-            );
-
-
-        /* Owner */
-
-        $("#ownerPanelButton")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    if (!isOwner()) {
-                        showToast(
-                            "Owner access only.",
-                            "error"
-                        );
-                        return;
-                    }
-
-                    closeModal("settingsModal");
-
-                    openModal("ownerModal");
-
-                    await loadOwnerReports();
-                }
-            );
-
-        $("#closeOwnerBtn")
-            ?.addEventListener(
-                "click",
-                () => closeModal("ownerModal")
-            );
-
-        $("#ownerVerifiedSearchBtn")
-            ?.addEventListener(
-                "click",
-                ownerSearchVerified
-            );
-
-        $("#ownerModerationSearchBtn")
-            ?.addEventListener(
-                "click",
-                ownerSearchModeration
-            );
-
-        $("#ownerAdminSearchBtn")
-            ?.addEventListener(
-                "click",
-                ownerSearchAdmin
-            );
-
-
-        /* Owner tabs */
-
-        $$("[data-owner-tab]").forEach(tab => {
-            tab.addEventListener(
-                "click",
-                () => {
-                    $$("[data-owner-tab]")
-                        .forEach(item =>
-                            item.classList.remove(
-                                "active"
-                            )
-                        );
-
-                    tab.classList.add("active");
-
-                    const target =
-                        tab.dataset.ownerTab;
-
-                    $$("[data-owner-panel]").forEach(
-                        panel => {
-                            panel.style.display =
-                                "none";
-                        }
-                    );
-
-                    const panel =
-                        document.querySelector(
-                            `[data-owner-panel="${target}"]`
-                        );
-
-                    if (panel) {
-                        panel.style.display = "block";
-                    }
-                }
-            );
-        });
-
-
-        /* Admin */
-
-        $("#adminPanelButton")
-            ?.addEventListener(
-                "click",
-                () => {
-                    if (!isAdmin()) {
-                        showToast(
-                            "Admin access only.",
-                            "error"
-                        );
-                        return;
-                    }
-
-                    closeModal("settingsModal");
-                    openModal("adminModal");
-                }
-            );
-
-        $("#closeAdminBtn")
-            ?.addEventListener(
-                "click",
-                () => closeModal("adminModal")
-            );
-
-        $("#openAdminReportsBtn")
-            ?.addEventListener(
-                "click",
-                loadOwnerReports
-            );
-
-        $("#openAdminUsersBtn")
-            ?.addEventListener(
-                "click",
-                () =>
-                    showToast(
-                        "User moderation is available in moderation tools.",
-                        "info"
+            .subscribe(
+                status =>
+                    console.log(
+                        "Realtime:",
+                        status
                     )
             );
-
-        $("#openAdminGroupsBtn")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    closeModal("adminModal");
-
-                    const button =
-                        document.querySelector(
-                            '[data-tab="groups"]'
-                        );
-
-                    button?.click();
-
-                    await loadGroups();
-                }
-            );
-
-        $("#openAdminChannelsBtn")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    closeModal("adminModal");
-
-                    const button =
-                        document.querySelector(
-                            '[data-tab="channels"]'
-                        );
-
-                    button?.click();
-
-                    await loadChannels();
-                }
-            );
-
-
-        /* Groups */
-
-        $("#createGroupBtn")
-            ?.addEventListener(
-                "click",
-                () => openModal("createGroupModal")
-            );
-
-        $("#closeGroupBtn")
-            ?.addEventListener(
-                "click",
-                () => closeModal("createGroupModal")
-            );
-
-        $("#groupForm")
-            ?.addEventListener(
-                "submit",
-                createGroup
-            );
-
-        $("#joinGroupBtn")
-            ?.addEventListener(
-                "click",
-                joinGroupByInvite
-            );
-
-
-        /* Channels */
-
-        $("#createChannelBtn")
-            ?.addEventListener(
-                "click",
-                () => openModal("createChannelModal")
-            );
-
-        $("#closeChannelBtn")
-            ?.addEventListener(
-                "click",
-                () => closeModal("createChannelModal")
-            );
-
-        $("#channelForm")
-            ?.addEventListener(
-                "submit",
-                createChannel
-            );
-
-        $("#joinChannelBtn")
-            ?.addEventListener(
-                "click",
-                joinChannelByInvite
-            );
-
-
-        /* Contact actions */
-
-        $("#addContactBtn")
-            ?.addEventListener(
-                "click",
-                addContact
-            );
-
-        $("#acceptContactBtn")
-            ?.addEventListener(
-                "click",
-                acceptContact
-            );
-
-        $("#declineContactBtn")
-            ?.addEventListener(
-                "click",
-                declineContact
-            );
-
-
-        /* Messages */
-
-        $("#messageForm")
-            ?.addEventListener(
-                "submit",
-                sendMessage
-            );
-
-        $("#imageBtn")
-            ?.addEventListener(
-                "click",
-                () =>
-                    $("#imageInput")?.click()
-            );
-
-        $("#imageInput")
-            ?.addEventListener(
-                "change",
-                async event => {
-                    const file =
-                        event.target.files?.[0];
-
-                    if (file) {
-                        await sendImage(file);
-                    }
-
-                    event.target.value = "";
-                }
-            );
-
-        $("#messageInput")
-            ?.addEventListener(
-                "keydown",
-                event => {
-                    if (
-                        event.key === "Enter" &&
-                        !event.shiftKey
-                    ) {
-                        event.preventDefault();
-
-                        $("#messageForm")
-                            ?.requestSubmit();
-                    }
-                }
-            );
-
-
-        /* User profile */
-
-        $("#chatAvatarButton")
-            ?.addEventListener(
-                "click",
-                () => {
-                    if (selectedUser) {
-                        openUserProfilePopup(
-                            selectedUser
-                        );
-                    }
-                }
-            );
-
-        $("#editNicknameBtn")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    if (!selectedUser) return;
-
-                    const nickname =
-                        await loadNickname(
-                            selectedUser.id
-                        );
-
-                    if ($("#nicknameInput")) {
-                        $("#nicknameInput").value =
-                            nickname || "";
-                    }
-
-                    openModal("nicknameModal");
-                }
-            );
-
-        $("#saveNicknameBtn")
-            ?.addEventListener(
-                "click",
-                saveNickname
-            );
-
-        $("#removeNicknameBtn")
-            ?.addEventListener(
-                "click",
-                removeNickname
-            );
-
-        $("#blockUserBtn")
-            ?.addEventListener(
-                "click",
-                blockUser
-            );
-
-        $("#reportUserBtn")
-            ?.addEventListener(
-                "click",
-                reportUser
-            );
-
-
-        /* Logout */
-
-        $("#logoutBtn")
-            ?.addEventListener(
-                "click",
-                logout
-            );
-
-        $("#settingsLogoutBtn")
-            ?.addEventListener(
-                "click",
-                logout
-            );
-
-
-        /* Join */
-
-        $("#joinGroupModalBtn")
-            ?.addEventListener(
-                "click",
-                () => openModal("joinGroupModal")
-            );
-
-        $("#joinChannelModalBtn")
-            ?.addEventListener(
-                "click",
-                () => openModal("joinChannelModal")
-            );
     }
 
 
-    /* =========================================================
+    /* =====================================================
        LOGOUT
-       ========================================================= */
+       ===================================================== */
 
     async function logout() {
+
         clearInterval(
-            lastSeenInterval
+            lastSeenTimer
         );
 
-        await updateMyLastSeen();
+
+        await updateLastSeen();
+
 
         if (realtimeChannel) {
-            try {
-                await db.removeChannel(
-                    realtimeChannel
-                );
-            } catch (error) {
-                console.warn(error);
-            }
 
-            realtimeChannel = null;
+            await db.removeChannel(
+                realtimeChannel
+            );
+
+            realtimeChannel =
+                null;
         }
 
+
         await db.auth.signOut();
+
 
         localStorage.removeItem(
             "messageAppLoggedIn"
@@ -5288,75 +7405,77 @@
             "messageAppUser"
         );
 
-        window.location.href =
+
+        location.href =
             "index.html";
     }
 
 
-    /* =========================================================
+    /* =====================================================
        INIT
-       ========================================================= */
+       ===================================================== */
 
     async function init() {
-        disableMessageControls();
+
+        disableInput();
 
         applyTheme();
         applyDensity();
 
-        const loggedIn =
+        setupLanguage();
+
+        setupAppearance();
+
+        setupTabs();
+
+        setupSearch();
+
+        setupEmoji();
+
+        setupStickers();
+
+        setupEvents();
+
+
+        const session =
             await loadSession();
 
-        if (!loggedIn) return;
+        if (!session) return;
 
-        const profileLoaded =
-            await loadMyProfile();
 
-        if (!profileLoaded) return;
+        const profile =
+            await loadProfile();
 
-        applyLanguage();
+        if (!profile) return;
 
-        setupRoleUI();
-        setupEvents();
+
+        startLastSeen();
+
         setupRealtime();
-        startLastSeenUpdater();
+
 
         await loadContacts();
 
-        currentTab = "chats";
-
-        localStorage.setItem(
-            "messageAppLoggedIn",
-            "true"
-        );
-
-        localStorage.setItem(
-            "messageAppUser",
-            JSON.stringify({
-                id:
-                    currentUser.id,
-                username:
-                    currentProfile.username,
-                full_name:
-                    currentProfile.full_name
-            })
-        );
 
         console.log(
-            "MegChatBox V2.1 FIXED ready."
+            "MegChatBox V2.1 ready 🚀"
         );
     }
 
 
     try {
+
         await init();
+
     } catch (error) {
+
         console.error(
-            "MegChatBox initialization error:",
+            "MegChatBox error:",
             error
         );
 
-        showToast(
-            "Something went wrong while loading MegChatBox.",
+        toast(
+            "MegChatBox could not load correctly.",
             "error"
         );
     }
