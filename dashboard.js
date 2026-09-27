@@ -4022,7 +4022,6 @@
                                 p_action: verified
                                     ? "remove"
                                     : "give",
-                                p_expires_at: null
                             }
                         );
 
