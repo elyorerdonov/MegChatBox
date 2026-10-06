@@ -1,141 +1,154 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <meta
-        name="description"
-        content="MegChatBox dashboard"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>MegChatBox</title>
 
-    <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css"
-    >
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css">
 
     <link rel="stylesheet" href="dashboard.css">
-
 </head>
 
 <body>
 
-<div id="app">
+<div class="app">
 
-    <!-- SIDEBAR -->
+    <!-- ================= SIDEBAR ================= -->
+
     <aside class="sidebar" id="sidebar">
 
-        <div class="sidebar-top">
+        <div class="sidebar-header">
 
-            <button class="icon-btn mobile-close" id="closeSidebar">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-            <div class="dashboard-brand">
-
-                <div class="mini-logo">
+            <div class="brand-mini">
+                <div class="brand-mini-icon">
                     <i class="fa-solid fa-comments"></i>
                 </div>
 
-                <strong>MegChatBox</strong>
-
+                <span>MegChatBox</span>
             </div>
-
-            <button
-                class="search-main"
-                id="globalSearchButton"
-            >
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <span>Search</span>
-            </button>
 
         </div>
 
 
-        <!-- MAIN NAV -->
-        <nav class="main-nav">
+        <!-- MY PROFILE -->
 
-            <button class="nav-item active" data-tab="chats">
-                <i class="fa-solid fa-message"></i>
+        <button class="my-profile" id="profileButton">
+
+            <div
+                class="avatar large"
+                data-my-avatar
+            >
+                U
+            </div>
+
+            <div class="my-profile-info">
+
+                <strong id="sidebarUserName">
+                    username
+                </strong>
+
+                <span id="sidebarUserUsername">
+                    @username
+                </span>
+
+            </div>
+
+            <span data-my-verified></span>
+
+        </button>
+
+
+        <!-- SEARCH -->
+
+        <button class="search-button" id="searchButton">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            <span>Search</span>
+
+            <kbd>Ctrl K</kbd>
+
+        </button>
+
+
+        <!-- NAVIGATION -->
+
+        <nav class="navigation">
+
+            <button
+                class="nav-item active"
+                data-section="chats"
+            >
+                <i class="fa-solid fa-comments"></i>
                 <span>Chats</span>
-                <b id="chatUnread" class="nav-badge hidden">0</b>
-            </button>
-
-            <button class="nav-item" data-tab="contacts">
-                <i class="fa-solid fa-users"></i>
-                <span>Contacts</span>
-            </button>
-
-            <button class="nav-item" data-tab="groups">
-                <i class="fa-solid fa-user-group"></i>
-                <span>Groups</span>
-            </button>
-
-            <button class="nav-item" data-tab="channels">
-                <i class="fa-solid fa-bullhorn"></i>
-                <span>Channels</span>
-            </button>
-
-            <button class="nav-item" data-tab="notifications">
-                <i class="fa-solid fa-bell"></i>
-                <span>Notifications</span>
-                <b id="notificationBadge" class="nav-badge hidden">0</b>
-            </button>
-
-            <button class="nav-item" data-tab="saved">
-                <i class="fa-solid fa-bookmark"></i>
-                <span>Saved Messages</span>
-            </button>
-
-        </nav>
-
-
-        <div class="sidebar-bottom">
-
-            <button class="profile-mini" id="openMyProfile">
-
-                <div
-                    class="avatar avatar-small"
-                    id="sidebarAvatar"
-                >
-                    ?
-                </div>
-
-                <div class="profile-mini-info">
-
-                    <strong id="sidebarName">
-                        Loading...
-                    </strong>
-
-                    <span id="sidebarUsername">
-                        @username
-                    </span>
-
-                </div>
-
-                <i class="fa-solid fa-chevron-right"></i>
-
             </button>
 
 
             <button
                 class="nav-item"
-                data-tab="settings"
+                data-section="contacts"
+            >
+                <i class="fa-solid fa-user-group"></i>
+                <span>Contacts</span>
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-section="groups"
+            >
+                <i class="fa-solid fa-users"></i>
+                <span>Groups</span>
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-section="channels"
+            >
+                <i class="fa-solid fa-bullhorn"></i>
+                <span>Channels</span>
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-section="notifications"
+            >
+                <i class="fa-solid fa-bell"></i>
+                <span>Notifications</span>
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-section="saved"
+            >
+                <i class="fa-solid fa-bookmark"></i>
+                <span>Saved Messages</span>
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-section="settings"
             >
                 <i class="fa-solid fa-gear"></i>
                 <span>Settings</span>
             </button>
 
+        </nav>
+
+
+        <!-- BOTTOM -->
+
+        <div class="sidebar-bottom">
+
             <button
-                class="logout-btn"
+                class="logout-button"
                 id="logoutButton"
             >
                 <i class="fa-solid fa-right-from-bracket"></i>
@@ -147,73 +160,41 @@
     </aside>
 
 
-    <!-- MAIN -->
+    <!-- ================= MAIN ================= -->
+
     <main class="main">
 
-        <header class="topbar">
 
-            <button
-                class="icon-btn menu-button"
-                id="openSidebar"
-            >
-                <i class="fa-solid fa-bars"></i>
-            </button>
+        <!-- ================= CHATS ================= -->
 
-            <div>
+        <section
+            class="dashboard-section active"
+            id="chatsSection"
+        >
 
-                <h2 id="pageTitle">Chats</h2>
+            <div class="section-header">
 
-                <span id="pageSubtitle">
-                    Your conversations
-                </span>
-
-            </div>
-
-            <div class="topbar-actions">
-
-                <button
-                    class="icon-btn"
-                    id="topSearch"
-                    title="Search"
-                >
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                </button>
-
-                <button
-                    class="icon-btn"
-                    id="topNotifications"
-                    title="Notifications"
-                >
-                    <i class="fa-solid fa-bell"></i>
-                </button>
-
-            </div>
-
-        </header>
-
-
-        <!-- CONTENT -->
-        <section class="content" id="content">
-
-            <!-- CHATS -->
-            <section
-                class="tab-page active"
-                id="tab-chats"
-            >
-
-                <div class="section-header">
-
-                    <div>
-                        <h3>Recent Chats</h3>
-                        <p>Your conversations</p>
-                    </div>
-
+                <div>
+                    <h1>Chats</h1>
+                    <p>Your conversations</p>
                 </div>
 
-                <div
-                    class="chat-list"
-                    id="chatList"
+                <button
+                    class="icon-button"
+                    id="mobileMenuButton"
                 >
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+            </div>
+
+
+            <div class="chat-layout">
+
+
+                <!-- CHAT LIST -->
+
+                <div class="chat-list" id="chatList">
 
                     <div class="empty-state">
 
@@ -224,12 +205,12 @@
                         <h3>No chats yet</h3>
 
                         <p>
-                            Search for someone and start a conversation.
+                            Search for a user to start chatting.
                         </p>
 
                         <button
-                            class="primary-btn"
-                            id="startSearchButton"
+                            class="primary-button small"
+                            onclick="document.getElementById('searchButton').click()"
                         >
                             <i class="fa-solid fa-magnifying-glass"></i>
                             Find people
@@ -239,524 +220,546 @@
 
                 </div>
 
-            </section>
 
-
-            <!-- CONTACTS -->
-            <section
-                class="tab-page"
-                id="tab-contacts"
-                hidden
-            >
-
-                <div class="section-header">
-
-                    <div>
-                        <h3>Contacts</h3>
-                        <p>People you can communicate with</p>
-                    </div>
-
-                    <div class="section-actions">
-
-                        <button
-                            class="primary-btn"
-                            id="createGroupButton"
-                        >
-                            <i class="fa-solid fa-user-group"></i>
-                            Create Group
-                        </button>
-
-                        <button
-                            class="primary-btn secondary-btn"
-                            id="createChannelButton"
-                        >
-                            <i class="fa-solid fa-bullhorn"></i>
-                            Create Channel
-                        </button>
-
-                    </div>
-
-                </div>
+                <!-- CHAT -->
 
                 <div
-                    class="contact-list"
-                    id="contactList"
+                    class="chat-panel"
+                    id="chatPanel"
                 >
 
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="fa-solid fa-users"></i>
+                    <div class="chat-empty">
+
+                        <div class="chat-empty-icon">
+                            <i class="fa-solid fa-message"></i>
                         </div>
-                        <h3>No contacts</h3>
-                        <p>Find users by their username.</p>
+
+                        <h2>Select a chat</h2>
+
+                        <p>
+                            Choose a conversation from the left.
+                        </p>
+
+                    </div>
+
+
+                    <div class="chat-content">
+
+                        <!-- CHAT HEADER -->
+
+                        <header class="chat-header">
+
+                            <div class="chat-user">
+
+                                <div
+                                    class="avatar"
+                                    id="chatAvatar"
+                                >
+                                    U
+                                </div>
+
+                                <div>
+
+                                    <strong id="chatName">
+                                        User
+                                    </strong>
+
+                                    <span id="chatUsername">
+                                        @username
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="chat-actions">
+
+                                <button
+                                    class="icon-button"
+                                    title="Search"
+                                >
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                </button>
+
+                                <button
+                                    class="icon-button"
+                                    title="More"
+                                >
+                                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                                </button>
+
+                                <button
+                                    class="icon-button close-chat"
+                                    id="closeChatButton"
+                                >
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+
+                            </div>
+
+                        </header>
+
+
+                        <!-- MESSAGES -->
+
+                        <div
+                            class="messages"
+                            id="messages"
+                        ></div>
+
+
+                        <!-- COMPOSER -->
+
+                        <div class="composer">
+
+                            <button
+                                class="composer-button"
+                                title="Emoji"
+                            >
+                                <i class="fa-regular fa-face-smile"></i>
+                            </button>
+
+
+                            <button
+                                class="composer-button"
+                                title="Attach"
+                            >
+                                <i class="fa-solid fa-paperclip"></i>
+                            </button>
+
+
+                            <textarea
+                                id="messageInput"
+                                placeholder="Write a message..."
+                                rows="1"
+                            ></textarea>
+
+
+                            <button
+                                class="send-button"
+                                id="sendMessageButton"
+                                title="Send"
+                            >
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+
+                        </div>
+
                     </div>
 
                 </div>
 
-            </section>
+            </div>
+
+        </section>
 
 
-            <!-- GROUPS -->
-            <section
-                class="tab-page"
-                id="tab-groups"
-                hidden
-            >
+        <!-- ================= CONTACTS ================= -->
 
-                <div class="section-header">
+        <section
+            class="dashboard-section"
+            id="contactsSection"
+        >
 
-                    <div>
-                        <h3>Groups</h3>
-                        <p>Communities and group chats</p>
-                    </div>
+            <div class="section-header">
 
-                    <button
-                        class="primary-btn"
-                        id="groupCreateTop"
-                    >
-                        <i class="fa-solid fa-plus"></i>
+                <div>
+                    <h1>Contacts</h1>
+                    <p>Your contacts</p>
+                </div>
+
+                <div class="header-actions">
+
+                    <button class="secondary-button">
+                        <i class="fa-solid fa-user-plus"></i>
+                        Add contact
+                    </button>
+
+                    <button class="secondary-button">
+                        <i class="fa-solid fa-users"></i>
                         Create Group
                     </button>
 
-                </div>
-
-                <div id="groupList" class="community-grid">
-
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="fa-solid fa-user-group"></i>
-                        </div>
-                        <h3>No groups</h3>
-                        <p>Create your first group.</p>
-                    </div>
-
-                </div>
-
-            </section>
-
-
-            <!-- CHANNELS -->
-            <section
-                class="tab-page"
-                id="tab-channels"
-                hidden
-            >
-
-                <div class="section-header">
-
-                    <div>
-                        <h3>Channels</h3>
-                        <p>Follow channels and announcements</p>
-                    </div>
-
-                    <button
-                        class="primary-btn"
-                        id="channelCreateTop"
-                    >
-                        <i class="fa-solid fa-plus"></i>
+                    <button class="secondary-button">
+                        <i class="fa-solid fa-bullhorn"></i>
                         Create Channel
                     </button>
 
                 </div>
 
-                <div
-                    id="channelList"
-                    class="community-grid"
-                >
+            </div>
 
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="fa-solid fa-bullhorn"></i>
-                        </div>
-                        <h3>No channels</h3>
-                        <p>Create your first channel.</p>
-                    </div>
 
+            <div
+                class="contacts-list"
+                id="contactsList"
+            ></div>
+
+        </section>
+
+
+        <!-- ================= GROUPS ================= -->
+
+        <section
+            class="dashboard-section"
+            id="groupsSection"
+        >
+
+            <div class="section-header">
+
+                <div>
+                    <h1>Groups</h1>
+                    <p>Groups you're part of</p>
                 </div>
 
-            </section>
+                <button class="primary-button small">
+                    <i class="fa-solid fa-plus"></i>
+                    Create Group
+                </button>
+
+            </div>
 
 
-            <!-- NOTIFICATIONS -->
-            <section
-                class="tab-page"
-                id="tab-notifications"
-                hidden
-            >
+            <div
+                class="community-grid"
+                id="groupsList"
+            ></div>
 
-                <div class="section-header">
+        </section>
 
-                    <div>
-                        <h3>Notifications</h3>
-                        <p>Everything that needs your attention</p>
-                    </div>
 
+        <!-- ================= CHANNELS ================= -->
+
+        <section
+            class="dashboard-section"
+            id="channelsSection"
+        >
+
+            <div class="section-header">
+
+                <div>
+                    <h1>Channels</h1>
+                    <p>Channels you're following</p>
                 </div>
 
-                <div id="notificationList">
+                <button class="primary-button small">
+                    <i class="fa-solid fa-plus"></i>
+                    Create Channel
+                </button>
 
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="fa-solid fa-bell"></i>
-                        </div>
-                        <h3>No notifications</h3>
-                        <p>You're all caught up.</p>
-                    </div>
+            </div>
 
+
+            <div
+                class="community-grid"
+                id="channelsList"
+            ></div>
+
+        </section>
+
+
+        <!-- ================= NOTIFICATIONS ================= -->
+
+        <section
+            class="dashboard-section"
+            id="notificationsSection"
+        >
+
+            <div class="section-header">
+
+                <div>
+                    <h1>Notifications</h1>
+                    <p>Your latest notifications</p>
                 </div>
 
-            </section>
+            </div>
 
 
-            <!-- SAVED -->
-            <section
-                class="tab-page"
-                id="tab-saved"
-                hidden
-            >
+            <div
+                class="notifications-list"
+                id="notificationsList"
+            ></div>
 
-                <div class="section-header">
+        </section>
 
-                    <div>
-                        <h3>Saved Messages</h3>
-                        <p>Your saved messages and media</p>
-                    </div>
 
+        <!-- ================= SAVED ================= -->
+
+        <section
+            class="dashboard-section"
+            id="savedSection"
+        >
+
+            <div class="section-header">
+
+                <div>
+                    <h1>Saved Messages</h1>
+                    <p>Your saved messages</p>
                 </div>
 
-                <div id="savedList">
+            </div>
 
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="fa-solid fa-bookmark"></i>
-                        </div>
-                        <h3>No saved messages</h3>
-                        <p>Saved messages will appear here.</p>
-                    </div>
 
+            <div
+                class="saved-messages-list"
+                id="savedMessagesList"
+            ></div>
+
+        </section>
+
+
+        <!-- ================= SETTINGS ================= -->
+
+        <section
+            class="dashboard-section"
+            id="settingsSection"
+        >
+
+            <div class="section-header">
+
+                <div>
+                    <h1>Settings</h1>
+                    <p>Manage your MegChatBox account</p>
                 </div>
 
-            </section>
+            </div>
 
 
-            <!-- SETTINGS -->
-            <section
-                class="tab-page"
-                id="tab-settings"
-                hidden
-            >
+            <div class="settings-grid">
 
-                <div class="section-header">
+                <div class="settings-card">
 
-                    <div>
-                        <h3>Settings</h3>
-                        <p>Manage your MegChatBox account</p>
-                    </div>
-
-                </div>
-
-                <div class="settings-grid">
-
-                    <button class="settings-card" data-setting="profile">
+                    <div class="settings-icon">
                         <i class="fa-solid fa-user"></i>
-                        <span>Profile</span>
-                        <small>Name, username, bio, avatar</small>
-                    </button>
+                    </div>
 
-                    <button class="settings-card" data-setting="security">
-                        <i class="fa-solid fa-shield-halved"></i>
-                        <span>Security</span>
-                        <small>Password, email, devices, privacy</small>
-                    </button>
+                    <div>
+                        <h3>Profile</h3>
+                        <p>
+                            Change your name, username and bio.
+                        </p>
+                    </div>
 
-                    <button class="settings-card" data-setting="appearance">
-                        <i class="fa-solid fa-palette"></i>
-                        <span>Appearance</span>
-                        <small>Theme, wallpaper, decoration</small>
-                    </button>
-
-                    <button class="settings-card" data-setting="notifications">
-                        <i class="fa-solid fa-bell"></i>
-                        <span>Notifications</span>
-                        <small>Notification preferences</small>
-                    </button>
-
-                    <button class="settings-card" data-setting="language">
-                        <i class="fa-solid fa-language"></i>
-                        <span>Language</span>
-                        <small>Choose your language</small>
-                    </button>
-
-                    <button
-                        class="settings-card owner-card"
-                        id="ownerPanelButton"
-                        hidden
-                    >
-                        <i class="fa-solid fa-crown"></i>
-                        <span>Owner Panel</span>
-                        <small>Platform administration</small>
-                    </button>
+                    <i class="fa-solid fa-chevron-right"></i>
 
                 </div>
 
-            </section>
+
+                <div class="settings-card">
+
+                    <div class="settings-icon">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+
+                    <div>
+                        <h3>Security</h3>
+                        <p>
+                            Password, privacy and connected devices.
+                        </p>
+                    </div>
+
+                    <i class="fa-solid fa-chevron-right"></i>
+
+                </div>
+
+
+                <div class="settings-card">
+
+                    <div class="settings-icon">
+                        <i class="fa-solid fa-palette"></i>
+                    </div>
+
+                    <div>
+                        <h3>Appearance</h3>
+                        <p>
+                            Theme, wallpaper and chat design.
+                        </p>
+                    </div>
+
+                    <i class="fa-solid fa-chevron-right"></i>
+
+                </div>
+
+
+                <div class="settings-card">
+
+                    <div class="settings-icon">
+                        <i class="fa-solid fa-language"></i>
+                    </div>
+
+                    <div>
+                        <h3>Language</h3>
+                        <p>
+                            Choose your preferred language.
+                        </p>
+                    </div>
+
+                    <i class="fa-solid fa-chevron-right"></i>
+
+                </div>
+
+            </div>
 
         </section>
 
     </main>
 
+</div>
 
-    <!-- CHAT PANEL -->
-    <section
-        class="chat-panel"
-        id="chatPanel"
-        hidden
-    >
 
-        <header class="chat-header">
+<!-- ================= PROFILE MODAL ================= -->
 
-            <button
-                class="icon-btn"
-                id="closeChat"
-            >
-                <i class="fa-solid fa-arrow-left"></i>
-            </button>
+<div
+    class="modal-overlay"
+    id="profileModal"
+    aria-hidden="true"
+>
+
+    <div class="profile-modal">
+
+        <button
+            class="modal-close"
+            id="closeProfileModal"
+        >
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+
+        <div class="profile-cover"></div>
+
+
+        <div class="profile-body">
 
             <div
-                class="avatar avatar-small"
-                id="chatAvatar"
+                class="profile-avatar"
+                data-my-avatar
             >
-                ?
+                U
             </div>
 
-            <div class="chat-user-info">
 
-                <strong id="chatName">
-                    Chat
-                </strong>
+            <div class="profile-main">
 
-                <span id="chatStatus">
-                    offline
-                </span>
+                <h2 id="profileName">
+                    username
+                </h2>
+
+                <div class="profile-username">
+
+                    <span id="profileUsername">
+                        @username
+                    </span>
+
+                    <span data-my-verified></span>
+
+                </div>
+
+
+                <div
+                    class="profile-role"
+                    id="profileRole"
+                >
+                    USER
+                </div>
+
+
+                <p id="profileBio">
+                    No bio yet.
+                </p>
 
             </div>
 
-            <div class="chat-header-actions">
 
-                <button class="icon-btn" id="chatSearch">
-                    <i class="fa-solid fa-magnifying-glass"></i>
+            <div class="profile-actions">
+
+                <button class="secondary-button">
+                    <i class="fa-solid fa-pen"></i>
+                    Edit Profile
                 </button>
 
-                <button class="icon-btn" id="chatMenu">
-                    <i class="fa-solid fa-ellipsis-vertical"></i>
-                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ================= GLOBAL SEARCH ================= -->
+
+<div
+    class="search-overlay"
+    id="globalSearch"
+>
+
+    <div class="search-window">
+
+        <div class="search-header">
+
+            <div class="search-input-wrapper">
+
+                <i class="fa-solid fa-magnifying-glass"></i>
+
+                <input
+                    type="text"
+                    id="globalSearchInput"
+                    placeholder="Search username..."
+                    autocomplete="off"
+                >
 
             </div>
 
-        </header>
+
+            <button
+                class="icon-button"
+                id="closeGlobalSearch"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
 
 
         <div
-            class="messages"
-            id="messages"
+            class="search-results"
+            id="searchResults"
         >
 
-            <div class="empty-chat">
+            <div class="empty-state">
 
-                <i class="fa-solid fa-message"></i>
+                <i class="fa-solid fa-magnifying-glass"></i>
+
+                <h3>Search MegChatBox</h3>
 
                 <p>
-                    Start your conversation.
+                    Find people by username.
                 </p>
 
             </div>
 
         </div>
 
-
-        <div
-            class="typing-indicator"
-            id="typingIndicator"
-            hidden
-        >
-            <span></span>
-            <span></span>
-            <span></span>
-            typing...
-        </div>
-
-
-        <form
-            class="message-composer"
-            id="messageForm"
-        >
-
-            <button
-                type="button"
-                class="composer-btn"
-                id="emojiButton"
-            >
-                <i class="fa-regular fa-face-smile"></i>
-            </button>
-
-            <button
-                type="button"
-                class="composer-btn"
-                id="attachButton"
-            >
-                <i class="fa-solid fa-paperclip"></i>
-            </button>
-
-            <input
-                type="text"
-                id="messageInput"
-                placeholder="Write a message..."
-                autocomplete="off"
-            >
-
-            <button
-                type="submit"
-                class="send-button"
-            >
-                <i class="fa-solid fa-paper-plane"></i>
-            </button>
-
-        </form>
-
-    </section>
-
-
-    <!-- GLOBAL SEARCH -->
-    <div
-        class="search-overlay"
-        id="searchOverlay"
-        hidden
-    >
-
-        <div class="search-window">
-
-            <header class="search-header">
-
-                <button
-                    class="icon-btn"
-                    id="closeGlobalSearch"
-                >
-                    <i class="fa-solid fa-arrow-left"></i>
-                </button>
-
-                <input
-                    id="globalSearchInput"
-                    placeholder="Search username, users, groups or channels..."
-                    autocomplete="off"
-                >
-
-                <button
-                    class="icon-btn"
-                    id="clearGlobalSearch"
-                >
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-
-            </header>
-
-            <div
-                class="search-results"
-                id="globalSearchResults"
-            >
-
-                <div class="search-empty">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <p>Search for people and communities</p>
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- PROFILE MODAL -->
-    <div
-        class="modal-overlay"
-        id="profileModal"
-        hidden
-    >
-
-        <div class="dashboard-modal">
-
-            <button
-                class="modal-close"
-                data-close="profileModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-            <div
-                class="profile-decoration"
-                id="profileDecoration"
-            >
-                ✨
-            </div>
-
-            <div
-                class="profile-big-avatar avatar"
-                id="profileAvatar"
-            >
-                ?
-            </div>
-
-            <h2 id="profileName">User</h2>
-
-            <div
-                class="profile-username"
-                id="profileUsername"
-            >
-                @username
-            </div>
-
-            <p
-                class="profile-bio"
-                id="profileBio"
-            >
-                No bio
-            </p>
-
-            <div
-                class="profile-status"
-                id="profileStatus"
-            >
-                Offline
-            </div>
-
-            <button
-                class="primary-btn full-btn"
-                id="editProfileButton"
-            >
-                <i class="fa-solid fa-pen"></i>
-                Edit Profile
-            </button>
-
-        </div>
-
-    </div>
-
-
-    <!-- TOAST -->
-    <div
-        class="toast"
-        id="toast"
-        hidden
-    >
-        <i class="fa-solid fa-circle-check"></i>
-        <span></span>
     </div>
 
 </div>
 
+
+<!-- ================= TOAST ================= -->
+
+<div
+    class="toast"
+    id="toast"
+></div>
+
+
+<!-- ================= SCRIPTS ================= -->
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script src="supabase.js"></script>
+
 <script src="dashboard.js"></script>
 
 </body>
