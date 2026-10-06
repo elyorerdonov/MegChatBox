@@ -1,1226 +1,1653 @@
-document.addEventListener("DOMContentLoaded", async () => {
+/* =========================================================
+   MEGCHATBOX - DASHBOARD
+   ========================================================= */
 
-    "use strict";
+const supabase = window.supabaseClient;
 
+/* =========================================================
+   STATE
+   ========================================================= */
 
-    // =========================================================
-    // STATE
-    // =========================================================
-
-    const state = {
-        user: null,
-        profile: null,
-        selectedUser: null,
-        selectedContact: null,
-        currentTab: "chats",
-        contacts: [],
-        chats: [],
-        searchTimer: null
-    };
+let currentUser = null;
+let currentProfile = null;
+let selectedUser = null;
+let currentChatUserId = null;
 
 
-    // =========================================================
-    // HELPERS
-    // =========================================================
+/* =========================================================
+   HELPERS
+   ========================================================= */
 
-    const $ = id => document.getElementById(id);
+function $(id) {
+    return document.getElementById(id);
+}
 
-    function escapeHtml(value = "") {
+function escapeHtml(value = "") {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
 
-        return String(value)
-            .replaceAll("&", "&amp;")
-            .replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;")
-            .replaceAll('"', "&quot;")
-            .replaceAll("'", "&#039;");
+function showToast(message, type = "info") {
+    const toast = $("toast");
+
+    if (!toast) {
+        console.log(message);
+        return;
     }
 
+    toast.textContent = message;
+    toast.className = `toast show ${type}`;
 
-    function initials(name = "?") {
+    clearTimeout(window.toastTimer);
 
-        const parts = name
-            .trim()
-            .split(/\s+/)
-            .filter(Boolean);
+    window.toastTimer = setTimeout(() => {
+        toast.className = "toast";
+    }, 3000);
+}
 
-        if (!parts.length) return "?";
+function getInitials(name = "User") {
+    return name
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map(word => word[0])
+        .join("")
+        .toUpperCase();
+}
 
-        return parts
-            .slice(0, 2)
-            .map(x => x[0].toUpperCase())
-            .join("");
+function avatarHTML(profile, size = "") {
+    if (!profile) {
+        return `<div class="avatar ${size}">U</div>`;
     }
 
+    const name =
+        profile.full_name ||
+        profile.username ||
+        "User";
 
-    function avatarHtml(profile, className = "avatar") {
-
-        if (profile?.avatar_url) {
-
-            return `
-                <div class="${className}">
-                    <img
-                        src="${escapeHtml(profile.avatar_url)}"
-                        alt=""
-                    >
-                </div>
-            `;
-
-        }
-
+    if (profile.avatar_url) {
         return `
-            <div class="${className}">
-                ${escapeHtml(
-                    initials(
-                        profile?.full_name ||
-                        profile?.username ||
-                        "?"
-                    )
-                )}
+            <div class="avatar ${size}">
+                <img
+                    src="${escapeHtml(profile.avatar_url)}"
+                    alt="${escapeHtml(name)}"
+                >
             </div>
         `;
     }
 
+    return `
+        <div class="avatar ${size}">
+            ${escapeHtml(getInitials(name))}
+        </div>
+    `;
+}
 
-    function showToast(message, type = "success") {
+function verifiedBadge(profile) {
+    if (!profile?.is_verified) {
+        return "";
+    }
 
-        const toast = $("toast");
+    if (
+        profile.verified_until &&
+        new Date(profile.verified_until) < new Date()
+    ) {
+        return "";
+    }
 
-        if (!toast) return;
+    return `<span class="verified-badge" title="Verified">✓</span>`;
+}
 
-        const icon = toast.querySelector("i");
-        const text = toast.querySelector("span");
 
-        if (text) {
-            text.textContent = message;
-        }
+/* =========================================================
+   SESSION
+   ========================================================= */
 
-        if (icon) {
-            icon.className =
-                type === "error"
-                    ? "fa-solid fa-circle-exclamation"
-                    : "fa-solid fa-circle-check";
-        }
+async function checkSession() {
 
-        toast.hidden = false;
+    const {
+        data: { session },
+        error
+    } = await supabase.auth.getSession();
 
-        clearTimeout(showToast.timer);
+    if (error) {
+        console.error("Session error:", error);
+        window.location.href = "index.html";
+        return false;
+    }
 
-        showToast.timer = setTimeout(() => {
-            toast.hidden = true;
-        }, 3000);
+    if (!session?.user) {
+        window.location.href = "index.html";
+        return false;
+    }
+
+    currentUser = session.user;
+
+    console.log("Logged in:", currentUser.id);
+
+    return true;
+}
+
+
+/* =========================================================
+   LOAD MY PROFILE
+   ========================================================= */
+
+async function loadMyProfile() {
+
+    if (!currentUser) {
+        return false;
+    }
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("profiles")
+        .select(`
+            id,
+            username,
+            full_name,
+            bio,
+            avatar_url,
+            role,
+            is_verified,
+            verified_until,
+            verified_given_at,
+            show_online,
+            show_last_seen,
+            last_seen,
+            account_blocked,
+            account_blocked_until,
+            messaging_blocked,
+            messaging_blocked_until
+        `)
+        .eq("id", currentUser.id)
+        .maybeSingle();
+
+    if (error) {
+
+        console.error("Profile loading error:", error);
+
+        showToast(
+            "Profile yuklanmadi: " + error.message,
+            "error"
+        );
+
+        return false;
+    }
+
+    if (!data) {
+
+        console.error(
+            "Profile topilmadi. Auth ID:",
+            currentUser.id
+        );
+
+        showToast(
+            "Profil topilmadi.",
+            "error"
+        );
+
+        return false;
+    }
+
+    currentProfile = data;
+
+    console.log("CURRENT PROFILE:", currentProfile);
+
+    return true;
+}
+
+
+/* =========================================================
+   RENDER PROFILE
+   ========================================================= */
+
+function renderMyProfile() {
+
+    if (!currentProfile) {
+        return;
+    }
+
+    const profile = currentProfile;
+
+    const username =
+        profile.username ||
+        "username";
+
+    const fullName =
+        profile.full_name ||
+        username;
+
+    const bio =
+        profile.bio ||
+        "";
+
+    /* Sidebar name */
+
+    const sidebarName =
+        $("sidebarUserName");
+
+    if (sidebarName) {
+        sidebarName.textContent = fullName;
     }
 
 
-    // =========================================================
-    // AUTH
-    // =========================================================
+    /* Sidebar username */
 
-    async function checkSession() {
+    const sidebarUsername =
+        $("sidebarUserUsername");
 
-        if (!window.supabaseClient) {
-
-            showToast(
-                "supabaseClient topilmadi. supabase.js ni tekshiring.",
-                "error"
-            );
-
-            return false;
-        }
-
-        const {
-            data: { session },
-            error
-        } = await window.supabaseClient.auth.getSession();
-
-        if (error || !session) {
-
-            window.location.href = "index.html";
-
-            return false;
-        }
-
-        state.user = session.user;
-
-        return true;
+    if (sidebarUsername) {
+        sidebarUsername.textContent =
+            "@" + username;
     }
 
 
-    // =========================================================
-    // PROFILE
-    // =========================================================
+    /* Profile name */
 
-    async function loadMyProfile() {
+    const profileName =
+        $("profileName");
 
-        const { data, error } =
-            await window.supabaseClient
-                .from("profiles")
-                .select("*")
-                .eq("id", state.user.id)
-                .maybeSingle();
-
-        if (error) {
-
-            console.error(error);
-
-            showToast(
-                "Profile yuklanmadi.",
-                "error"
-            );
-
-            return;
-        }
-
-        state.profile = data;
-
-        renderMyProfile();
-        checkOwnerAccess();
+    if (profileName) {
+        profileName.textContent = fullName;
     }
 
 
-    function renderMyProfile() {
+    /* Profile username */
 
-        if (!state.profile) return;
+    const profileUsername =
+        $("profileUsername");
 
-        const name =
-            state.profile.full_name ||
-            state.profile.username ||
-            "User";
-
-        const username =
-            state.profile.username
-                ? `@${state.profile.username}`
-                : "@username";
-
-        if ($("sidebarName")) {
-            $("sidebarName").textContent = name;
-        }
-
-        if ($("sidebarUsername")) {
-            $("sidebarUsername").textContent = username;
-        }
-
-        if ($("sidebarAvatar")) {
-
-            if (state.profile.avatar_url) {
-
-                $("sidebarAvatar").innerHTML = `
-                    <img
-                        src="${escapeHtml(
-                            state.profile.avatar_url
-                        )}"
-                        alt=""
-                    >
-                `;
-
-            } else {
-
-                $("sidebarAvatar").textContent =
-                    initials(name);
-            }
-        }
+    if (profileUsername) {
+        profileUsername.textContent =
+            "@" + username;
     }
 
 
-    function checkOwnerAccess() {
+    /* Profile bio */
 
-        if (!state.profile) return;
+    const profileBio =
+        $("profileBio");
 
-        const ownerButton = $("ownerPanelButton");
-
-        if (!ownerButton) return;
-
-        const isOwner =
-            state.profile.role === "owner";
-
-        const isAdmin =
-            state.profile.role === "admin";
-
-        ownerButton.hidden =
-            !(isOwner || isAdmin);
+    if (profileBio) {
+        profileBio.textContent =
+            bio || "No bio yet.";
     }
 
 
-    // =========================================================
-    // NAVIGATION
-    // =========================================================
+    /* Role */
 
-    const navItems =
-        document.querySelectorAll(".nav-item[data-tab]");
+    const profileRole =
+        $("profileRole");
 
-    navItems.forEach(item => {
+    if (profileRole) {
 
-        item.addEventListener("click", () => {
+        const role =
+            profile.role || "user";
 
-            const tab = item.dataset.tab;
-
-            switchTab(tab);
-
-            closeSidebarMobile();
-        });
-
-    });
-
-
-    const tabTitles = {
-
-        chats: [
-            "Chats",
-            "Your conversations"
-        ],
-
-        contacts: [
-            "Contacts",
-            "People you can communicate with"
-        ],
-
-        groups: [
-            "Groups",
-            "Communities and group chats"
-        ],
-
-        channels: [
-            "Channels",
-            "Follow channels and announcements"
-        ],
-
-        notifications: [
-            "Notifications",
-            "Everything that needs your attention"
-        ],
-
-        saved: [
-            "Saved Messages",
-            "Your saved messages and media"
-        ],
-
-        settings: [
-            "Settings",
-            "Manage your MegChatBox account"
-        ]
-
-    };
-
-
-    function switchTab(tab) {
-
-        state.currentTab = tab;
-
-        document
-            .querySelectorAll(".tab-page")
-            .forEach(page => {
-
-                const active =
-                    page.id === `tab-${tab}`;
-
-                page.hidden = !active;
-                page.classList.toggle(
-                    "active",
-                    active
-                );
-
-            });
-
-
-        navItems.forEach(item => {
-
-            item.classList.toggle(
-                "active",
-                item.dataset.tab === tab
-            );
-
-        });
-
-
-        const title =
-            tabTitles[tab] || ["MegChatBox", ""];
-
-        if ($("pageTitle")) {
-            $("pageTitle").textContent = title[0];
-        }
-
-        if ($("pageSubtitle")) {
-            $("pageSubtitle").textContent = title[1];
-        }
-
-        if (tab === "contacts") {
-            loadContacts();
-        }
-
-        if (tab === "chats") {
-            loadChats();
-        }
+        profileRole.textContent =
+            role.toUpperCase();
     }
 
 
-    // =========================================================
-    // SIDEBAR MOBILE
-    // =========================================================
+    /* Avatar */
 
-    $("openSidebar")?.addEventListener(
-        "click",
-        () => {
-            $("sidebar")?.classList.add("open");
-        }
-    );
+    const avatarElements =
+        document.querySelectorAll(
+            "[data-my-avatar]"
+        );
 
-    $("closeSidebar")?.addEventListener(
-        "click",
-        closeSidebarMobile
-    );
-
-
-    function closeSidebarMobile() {
-        $("sidebar")?.classList.remove("open");
-    }
-
-
-    // =========================================================
-    // LOGOUT
-    // =========================================================
-
-    $("logoutButton")?.addEventListener(
-        "click",
-        async () => {
-
-            try {
-
-                await window.supabaseClient.auth.signOut();
-
-            } catch (error) {
-
-                console.error(error);
-
-            }
-
-            window.location.href = "index.html";
-        }
-    );
-
-
-    // =========================================================
-    // PROFILE
-    // =========================================================
-
-    $("openMyProfile")?.addEventListener(
-        "click",
-        () => {
-
-            if (!state.profile) return;
-
-            openProfile(state.profile);
-
-        }
-    );
-
-
-    function openProfile(profile) {
-
-        $("profileModal").hidden = false;
-
-        const name =
-            profile.full_name ||
-            profile.username ||
-            "User";
-
-        $("profileName").textContent = name;
-
-        $("profileUsername").textContent =
-            profile.username
-                ? `@${profile.username}`
-                : "";
-
-        $("profileBio").textContent =
-            profile.bio ||
-            "No bio yet.";
-
-        $("profileDecoration").textContent =
-            profile.decoration ||
-            "✨";
+    avatarElements.forEach(element => {
 
         if (profile.avatar_url) {
 
-            $("profileAvatar").innerHTML = `
+            element.innerHTML = `
                 <img
                     src="${escapeHtml(profile.avatar_url)}"
-                    alt=""
+                    alt="${escapeHtml(fullName)}"
                 >
             `;
 
         } else {
 
-            $("profileAvatar").textContent =
-                initials(name);
+            element.textContent =
+                getInitials(fullName);
+
         }
 
-        $("profileStatus").textContent =
-            profile.last_seen
-                ? "Last seen recently"
-                : "Offline";
+    });
+
+
+    /* Verified badges */
+
+    document
+        .querySelectorAll("[data-my-verified]")
+        .forEach(element => {
+
+            element.innerHTML =
+                verifiedBadge(profile);
+
+        });
+
+
+    /* Owner panel */
+
+    const ownerButton =
+        $("ownerPanelButton");
+
+    if (ownerButton) {
+
+        const isOwner =
+            profile.role === "owner";
+
+        ownerButton.style.display =
+            isOwner ? "" : "none";
     }
 
 
+    /* Admin panel */
+
+    const adminButton =
+        $("adminPanelButton");
+
+    if (adminButton) {
+
+        const isAdmin =
+            profile.role === "admin" ||
+            profile.role === "owner";
+
+        adminButton.style.display =
+            isAdmin ? "" : "none";
+    }
+}
+
+
+/* =========================================================
+   PROFILE MODAL
+   ========================================================= */
+
+function openMyProfile() {
+
+    renderMyProfile();
+
+    const modal =
+        $("profileModal");
+
+    if (modal) {
+        modal.classList.add("show");
+        modal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+    }
+}
+
+function closeProfileModal() {
+
+    const modal =
+        $("profileModal");
+
+    if (modal) {
+        modal.classList.remove("show");
+        modal.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+    }
+}
+
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+
+function setupNavigation() {
+
     document
-        .querySelectorAll("[data-close]")
+        .querySelectorAll("[data-section]")
         .forEach(button => {
 
             button.addEventListener(
                 "click",
                 () => {
 
-                    const modal =
-                        $(button.dataset.close);
+                    const section =
+                        button.dataset.section;
 
-                    if (modal) {
-                        modal.hidden = true;
-                    }
-
+                    switchSection(section);
                 }
+            );
+
+        });
+}
+
+function switchSection(section) {
+
+    document
+        .querySelectorAll("[data-section]")
+        .forEach(item => {
+
+            item.classList.toggle(
+                "active",
+                item.dataset.section === section
             );
 
         });
 
 
-    $("profileModal")?.addEventListener(
-        "click",
-        event => {
+    document
+        .querySelectorAll(".dashboard-section")
+        .forEach(panel => {
 
-            if (event.target === $("profileModal")) {
-                $("profileModal").hidden = true;
-            }
+            panel.classList.toggle(
+                "active",
+                panel.id === `${section}Section`
+            );
 
-        }
-    );
+        });
 
 
-    // =========================================================
-    // GLOBAL SEARCH
-    // =========================================================
+    if (section === "contacts") {
+        loadContacts();
+    }
 
-    [
-        $("globalSearchButton"),
-        $("topSearch"),
-        $("startSearchButton")
-    ].forEach(button => {
+    if (section === "groups") {
+        loadGroups();
+    }
 
-        button?.addEventListener(
-            "click",
-            openGlobalSearch
+    if (section === "channels") {
+        loadChannels();
+    }
+
+    if (section === "saved") {
+        loadSavedMessages();
+    }
+
+    if (section === "notifications") {
+        loadNotifications();
+    }
+}
+
+
+/* =========================================================
+   CONTACTS
+   ========================================================= */
+
+async function loadContacts() {
+
+    if (!currentUser) return;
+
+    const list =
+        $("contactsList");
+
+    if (!list) return;
+
+    list.innerHTML =
+        `<div class="loading-state">Loading...</div>`;
+
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("contact_requests")
+        .select(`
+            id,
+            sender_id,
+            receiver_id,
+            status,
+            created_at
+        `)
+        .or(
+            `sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`
+        )
+        .eq("status", "accepted")
+        .order(
+            "created_at",
+            { ascending: false }
         );
 
-    });
 
+    if (error) {
 
-    function openGlobalSearch() {
+        console.error(error);
 
-        $("searchOverlay").hidden = false;
+        list.innerHTML =
+            `<div class="empty-state">
+                Could not load contacts.
+            </div>`;
 
-        setTimeout(() => {
-            $("globalSearchInput")?.focus();
-        }, 50);
+        return;
     }
 
 
-    $("closeGlobalSearch")?.addEventListener(
-        "click",
-        () => {
-            $("searchOverlay").hidden = true;
-        }
-    );
+    if (!data?.length) {
 
+        list.innerHTML =
+            `<div class="empty-state">
+                <i class="fa-solid fa-user-group"></i>
+                <h3>No contacts yet</h3>
+                <p>Search for users to add them.</p>
+            </div>`;
 
-    $("clearGlobalSearch")?.addEventListener(
-        "click",
-        () => {
-
-            $("globalSearchInput").value = "";
-
-            renderSearchEmpty();
-
-        }
-    );
-
-
-    function renderSearchEmpty() {
-
-        $("globalSearchResults").innerHTML = `
-            <div class="search-empty">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <p>
-                    Search for people and communities
-                </p>
-            </div>
-        `;
+        return;
     }
 
 
-    $("globalSearchInput")?.addEventListener(
-        "input",
-        event => {
-
-            const value =
-                event.target.value
-                    .trim()
-                    .toLowerCase();
-
-            clearTimeout(state.searchTimer);
-
-            if (!value) {
-
-                renderSearchEmpty();
-
-                return;
-            }
-
-            state.searchTimer =
-                setTimeout(
-                    () => searchUsers(value),
-                    300
-                );
-        }
-    );
+    const otherIds =
+        data.map(item =>
+            item.sender_id === currentUser.id
+                ? item.receiver_id
+                : item.sender_id
+        );
 
 
-    async function searchUsers(username) {
+    const {
+        data: profiles,
+        error: profileError
+    } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("id", otherIds);
 
-        const container =
-            $("globalSearchResults");
 
-        container.innerHTML = `
-            <div class="search-empty">
-                <i class="fa-solid fa-spinner fa-spin"></i>
-                <p>Searching...</p>
-            </div>
-        `;
+    if (profileError) {
 
-        const { data, error } =
-            await window.supabaseClient
-                .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    full_name,
-                    bio,
-                    avatar_url,
-                    role,
-                    is_verified,
-                    last_seen
-                `)
-                .ilike(
-                    "username",
-                    `${username}%`
-                )
-                .limit(10);
+        console.error(profileError);
 
-        if (error) {
-
-            console.error(error);
-
-            container.innerHTML = `
-                <div class="search-empty">
-                    <p>Search failed.</p>
-                </div>
-            `;
-
-            return;
-        }
-
-        if (!data?.length) {
-
-            container.innerHTML = `
-                <div class="search-empty">
-                    <p>No users found.</p>
-                </div>
-            `;
-
-            return;
-        }
-
-        container.innerHTML = data
-            .filter(user => user.id !== state.user.id)
-            .map(user => {
-
-                const name =
-                    user.full_name ||
-                    user.username ||
-                    "User";
-
-                return `
-                    <div
-                        class="search-result"
-                        data-user-id="${user.id}"
-                    >
-
-                        ${avatarHtml(
-                            user,
-                            "avatar avatar-small"
-                        )}
-
-                        <div class="search-result-info">
-
-                            <strong>
-                                ${escapeHtml(name)}
-                                ${
-                                    user.is_verified
-                                        ? " 🔵"
-                                        : ""
-                                }
-                            </strong>
-
-                            <span>
-                                @${escapeHtml(
-                                    user.username || ""
-                                )}
-                            </span>
-
-                        </div>
-
-                        <i class="fa-solid fa-chevron-right"></i>
-
-                    </div>
-                `;
-
-            })
-            .join("");
-
-        container
-            .querySelectorAll(".search-result")
-            .forEach(item => {
-
-                item.addEventListener(
-                    "click",
-                    () => {
-
-                        const user =
-                            data.find(
-                                x =>
-                                    x.id ===
-                                    item.dataset.userId
-                            );
-
-                        if (user) {
-
-                            openProfile(user);
-
-                            $("searchOverlay").hidden = true;
-                        }
-
-                    }
-                );
-
-            });
+        return;
     }
 
 
-    // =========================================================
-    // CONTACTS
-    // =========================================================
-
-    async function loadContacts() {
-
-        const container =
-            $("contactList");
-
-        if (!container) return;
-
-        /*
-         * Contact requests jadvali sening Supabase'da
-         * oldindan bor deb qabul qilinyapti.
-         *
-         * Keyingi bosqichda:
-         * pending / accepted / declined
-         * to'liq ulanadi.
-         */
-
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon">
-                    <i class="fa-solid fa-spinner fa-spin"></i>
-                </div>
-                <h3>Loading contacts...</h3>
-            </div>
-        `;
-
-        try {
-
-            const { data, error } =
-                await window.supabaseClient
-                    .from("contact_requests")
-                    .select("*")
-                    .or(
-                        `sender_id.eq.${state.user.id},receiver_id.eq.${state.user.id}`
-                    );
-
-            if (error) {
-                throw error;
-            }
-
-            if (!data?.length) {
-
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="fa-solid fa-users"></i>
-                        </div>
-                        <h3>No contacts</h3>
-                        <p>
-                            Find users by their username.
-                        </p>
-                    </div>
-                `;
-
-                return;
-            }
-
-            /*
-             * Profile ma'lumotlarini keyingi queryda
-             * yig'amiz.
-             */
-            container.innerHTML = "";
-
-            for (const request of data) {
-
-                const otherId =
-                    request.sender_id === state.user.id
-                        ? request.receiver_id
-                        : request.sender_id;
-
-                const { data: profile } =
-                    await window.supabaseClient
-                        .from("profiles")
-                        .select("*")
-                        .eq("id", otherId)
-                        .maybeSingle();
-
-                if (!profile) continue;
-
-                renderContact(
-                    profile,
-                    request.status
-                );
-            }
-
-        } catch (error) {
-
-            console.error(error);
-
-            container.innerHTML = `
-                <div class="empty-state">
-                    <h3>Contacts unavailable</h3>
-                    <p>
-                        Contact system will be connected
-                        completely in the next module.
-                    </p>
-                </div>
-            `;
-        }
-    }
+    list.innerHTML = "";
 
 
-    function renderContact(profile, status) {
+    profiles.forEach(profile => {
 
-        const container = $("contactList");
-
-        const element =
+        const item =
             document.createElement("div");
 
-        element.className = "contact-item";
+        item.className =
+            "contact-item";
 
-        element.innerHTML = `
-            ${avatarHtml(profile)}
+        item.innerHTML = `
+            ${avatarHTML(profile)}
 
             <div class="contact-info">
-
                 <strong>
                     ${escapeHtml(
                         profile.full_name ||
-                        profile.username ||
-                        "User"
+                        profile.username
                     )}
+
+                    ${verifiedBadge(profile)}
                 </strong>
 
                 <span>
                     @${escapeHtml(
-                        profile.username || ""
+                        profile.username
                     )}
-                    · ${escapeHtml(status || "contact")}
                 </span>
-
             </div>
-
-            <i class="fa-solid fa-chevron-right"></i>
         `;
 
-        element.addEventListener(
+        item.addEventListener(
             "click",
             () => openChat(profile)
         );
 
-        container.appendChild(element);
+        list.appendChild(item);
+    });
+}
+
+
+/* =========================================================
+   GLOBAL USER SEARCH
+   ========================================================= */
+
+async function searchUsers(query) {
+
+    const results =
+        $("searchResults");
+
+    if (!results) return;
+
+    query =
+        query.trim().replace(/^@/, "");
+
+    if (!query) {
+
+        results.innerHTML = `
+            <div class="empty-state">
+                Search for a username.
+            </div>
+        `;
+
+        return;
     }
 
 
-    // =========================================================
-    // CHAT
-    // =========================================================
+    const {
+        data,
+        error
+    } = await supabase
+        .from("profiles")
+        .select(`
+            id,
+            username,
+            full_name,
+            bio,
+            avatar_url,
+            role,
+            is_verified,
+            verified_until
+        `)
+        .ilike(
+            "username",
+            `%${query}%`
+        )
+        .limit(10);
 
-    async function openChat(profile) {
 
-        state.selectedUser = profile;
+    if (error) {
 
-        $("chatPanel").hidden = false;
+        console.error(error);
 
-        $("chatName").textContent =
-            profile.full_name ||
-            profile.username ||
-            "User";
+        results.innerHTML = `
+            <div class="empty-state">
+                Search failed.
+            </div>
+        `;
 
-        $("chatStatus").textContent =
-            profile.last_seen
-                ? "Last seen recently"
-                : "offline";
-
-        if (profile.avatar_url) {
-
-            $("chatAvatar").innerHTML = `
-                <img
-                    src="${escapeHtml(profile.avatar_url)}"
-                    alt=""
-                >
-            `;
-
-        } else {
-
-            $("chatAvatar").textContent =
-                initials(
-                    profile.full_name ||
-                    profile.username
-                );
-        }
-
-        await loadMessages();
+        return;
     }
 
 
-    $("closeChat")?.addEventListener(
-        "click",
-        () => {
+    if (!data?.length) {
 
-            $("chatPanel").hidden = true;
+        results.innerHTML = `
+            <div class="empty-state">
+                No users found.
+            </div>
+        `;
 
-            state.selectedUser = null;
-
-        }
-    );
+        return;
+    }
 
 
-    async function loadMessages() {
+    results.innerHTML = "";
 
-        const container = $("messages");
 
-        if (!state.selectedUser) return;
+    data.forEach(profile => {
 
-        container.innerHTML = "";
+        const item =
+            document.createElement("div");
 
-        try {
+        item.className =
+            "search-result-item";
 
-            const { data, error } =
-                await window.supabaseClient
-                    .from("messages")
-                    .select("*")
-                    .or(
-                        `and(sender_id.eq.${state.user.id},receiver_id.eq.${state.selectedUser.id}),and(sender_id.eq.${state.selectedUser.id},receiver_id.eq.${state.user.id})`
-                    )
-                    .order(
-                        "created_at",
-                        { ascending: true }
-                    );
+        item.innerHTML = `
+            ${avatarHTML(profile)}
 
-            if (error) throw error;
+            <div class="search-result-info">
 
-            if (!data?.length) {
+                <strong>
+                    ${escapeHtml(
+                        profile.full_name ||
+                        profile.username
+                    )}
 
-                container.innerHTML = `
-                    <div class="empty-chat">
-                        <div>
-                            <i class="fa-solid fa-message"></i>
-                            <p>
-                                Start your conversation.
-                            </p>
-                        </div>
-                    </div>
-                `;
+                    ${verifiedBadge(profile)}
+                </strong>
 
-                return;
+                <span>
+                    @${escapeHtml(
+                        profile.username
+                    )}
+                </span>
+
+                ${
+                    profile.bio
+                        ? `<small>
+                            ${escapeHtml(profile.bio)}
+                           </small>`
+                        : ""
+                }
+
+            </div>
+        `;
+
+
+        item.addEventListener(
+            "click",
+            () => {
+
+                closeGlobalSearch();
+
+                if (
+                    profile.id ===
+                    currentUser.id
+                ) {
+                    openMyProfile();
+                    return;
+                }
+
+                openChat(profile);
             }
+        );
 
-            data.forEach(renderMessage);
 
-            container.scrollTop =
-                container.scrollHeight;
+        results.appendChild(item);
+    });
+}
 
-        } catch (error) {
 
-            console.error(error);
+/* =========================================================
+   GLOBAL SEARCH UI
+   ========================================================= */
 
-            container.innerHTML = `
-                <div class="empty-chat">
-                    <p>Messages could not be loaded.</p>
-                </div>
-            `;
-        }
+function openGlobalSearch() {
+
+    const overlay =
+        $("globalSearch");
+
+    if (!overlay) return;
+
+    overlay.classList.add("show");
+
+    const input =
+        $("globalSearchInput");
+
+    if (input) {
+        input.value = "";
+        input.focus();
+    }
+}
+
+function closeGlobalSearch() {
+
+    const overlay =
+        $("globalSearch");
+
+    if (overlay) {
+        overlay.classList.remove("show");
+    }
+}
+
+
+/* =========================================================
+   CHAT
+   ========================================================= */
+
+async function openChat(profile) {
+
+    if (!profile) return;
+
+    selectedUser = profile;
+    currentChatUserId = profile.id;
+
+
+    const chatName =
+        $("chatName");
+
+    if (chatName) {
+
+        chatName.innerHTML = `
+            ${escapeHtml(
+                profile.full_name ||
+                profile.username
+            )}
+
+            ${verifiedBadge(profile)}
+        `;
+
     }
 
 
-    function renderMessage(message) {
+    const chatUsername =
+        $("chatUsername");
 
-        const container = $("messages");
+    if (chatUsername) {
 
-        const mine =
-            message.sender_id === state.user.id;
+        chatUsername.textContent =
+            "@" + profile.username;
+
+    }
+
+
+    const chatAvatar =
+        $("chatAvatar");
+
+    if (chatAvatar) {
+
+        chatAvatar.innerHTML =
+            avatarHTML(profile);
+
+    }
+
+
+    const chatPanel =
+        $("chatPanel");
+
+    if (chatPanel) {
+        chatPanel.classList.add("active");
+    }
+
+
+    await loadMessages(profile.id);
+}
+
+
+/* =========================================================
+   LOAD 1-ON-1 MESSAGES
+   ========================================================= */
+
+async function loadMessages(otherUserId) {
+
+    const container =
+        $("messages");
+
+    if (!container) return;
+
+
+    container.innerHTML =
+        `<div class="loading-state">
+            Loading messages...
+        </div>`;
+
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("messages")
+        .select("*")
+        .or(
+            `and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUser.id})`
+        )
+        .order(
+            "created_at",
+            { ascending: true }
+        );
+
+
+    if (error) {
+
+        console.error(
+            "Messages error:",
+            error
+        );
+
+        container.innerHTML =
+            `<div class="empty-state">
+                Could not load messages.
+            </div>`;
+
+        return;
+    }
+
+
+    if (!data?.length) {
+
+        container.innerHTML =
+            `<div class="empty-chat">
+                <div class="empty-chat-icon">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+
+                <h3>
+                    Start a conversation
+                </h3>
+
+                <p>
+                    Send your first message.
+                </p>
+            </div>`;
+
+        return;
+    }
+
+
+    container.innerHTML = "";
+
+
+    data.forEach(message => {
+
+        const own =
+            message.sender_id ===
+            currentUser.id;
 
         const element =
             document.createElement("div");
 
         element.className =
-            `message ${mine ? "mine" : ""}`;
+            `message ${own ? "own" : ""}`;
+
+
+        let content =
+            escapeHtml(
+                message.content || ""
+            );
+
+
+        if (message.deleted_at) {
+
+            content =
+                `<i>This message was deleted</i>`;
+
+        }
+
 
         element.innerHTML = `
-            <div>
-                ${escapeHtml(
-                    message.content || ""
-                )}
-            </div>
+            <div class="message-bubble">
 
-            <div class="message-meta">
-                ${formatTime(message.created_at)}
-                ${mine ? " · Sent" : ""}
+                <div class="message-content">
+                    ${content}
+                </div>
+
+                <div class="message-time">
+                    ${formatTime(
+                        message.created_at
+                    )}
+                </div>
+
             </div>
         `;
 
+
         container.appendChild(element);
+    });
+
+
+    container.scrollTop =
+        container.scrollHeight;
+}
+
+
+/* =========================================================
+   SEND MESSAGE
+   ========================================================= */
+
+async function sendMessage() {
+
+    if (
+        !currentUser ||
+        !currentChatUserId
+    ) {
+        return;
     }
 
 
-    function formatTime(date) {
+    const input =
+        $("messageInput");
 
-        if (!date) return "";
+    if (!input) return;
 
-        return new Date(date).toLocaleTimeString(
+
+    const content =
+        input.value.trim();
+
+    if (!content) return;
+
+
+    const button =
+        $("sendMessageButton");
+
+    if (button) {
+        button.disabled = true;
+    }
+
+
+    const {
+        error
+    } = await supabase
+        .from("messages")
+        .insert({
+            sender_id:
+                currentUser.id,
+
+            receiver_id:
+                currentChatUserId,
+
+            content,
+
+            message_type:
+                "text"
+        });
+
+
+    if (button) {
+        button.disabled = false;
+    }
+
+
+    if (error) {
+
+        console.error(error);
+
+        showToast(
+            "Message yuborilmadi.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    input.value = "";
+
+    await loadMessages(
+        currentChatUserId
+    );
+}
+
+
+/* =========================================================
+   TIME
+   ========================================================= */
+
+function formatTime(date) {
+
+    if (!date) return "";
+
+    return new Date(date)
+        .toLocaleTimeString(
             [],
             {
                 hour: "2-digit",
                 minute: "2-digit"
             }
         );
+}
+
+
+/* =========================================================
+   GROUPS
+   ========================================================= */
+
+async function loadGroups() {
+
+    const list =
+        $("groupsList");
+
+    if (!list || !currentUser) return;
+
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("group_members")
+        .select(`
+            group_id,
+            role,
+            groups (
+                id,
+                name,
+                username,
+                bio,
+                avatar_url,
+                is_public
+            )
+        `)
+        .eq(
+            "user_id",
+            currentUser.id
+        );
+
+
+    if (error) {
+
+        console.error(error);
+
+        list.innerHTML =
+            `<div class="empty-state">
+                Could not load groups.
+            </div>`;
+
+        return;
     }
 
 
-    // SEND MESSAGE
+    if (!data?.length) {
 
-    $("messageForm")?.addEventListener(
-        "submit",
-        async event => {
+        list.innerHTML =
+            `<div class="empty-state">
+                <i class="fa-solid fa-users"></i>
+                <h3>No groups</h3>
+            </div>`;
 
-            event.preventDefault();
-
-            const input =
-                $("messageInput");
-
-            const content =
-                input.value.trim();
-
-            if (!content) return;
-
-            if (!state.selectedUser) {
-
-                showToast(
-                    "Avval chat tanlang.",
-                    "error"
-                );
-
-                return;
-            }
-
-            input.disabled = true;
-
-            try {
-
-                const { data, error } =
-                    await window.supabaseClient
-                        .from("messages")
-                        .insert({
-                            sender_id:
-                                state.user.id,
-
-                            receiver_id:
-                                state.selectedUser.id,
-
-                            content
-                        })
-                        .select()
-                        .single();
-
-                if (error) throw error;
-
-                input.value = "";
-
-                renderMessage(data);
-
-                $("messages").scrollTop =
-                    $("messages").scrollHeight;
-
-            } catch (error) {
-
-                console.error(error);
-
-                showToast(
-                    error.message ||
-                    "Message yuborilmadi.",
-                    "error"
-                );
-
-            } finally {
-
-                input.disabled = false;
-
-                input.focus();
-            }
-        }
-    );
-
-
-    // =========================================================
-    // CHATS
-    // =========================================================
-
-    async function loadChats() {
-
-        const container =
-            $("chatList");
-
-        if (!container) return;
-
-        /*
-         * Accepted contacts + latest message
-         * keyingi realtime/chat moduleda to'liq ishlaydi.
-         */
+        return;
     }
 
 
-    // =========================================================
-    // CREATE GROUP / CHANNEL
-    // =========================================================
+    list.innerHTML = "";
 
-    [
-        $("createGroupButton"),
-        $("groupCreateTop")
-    ].forEach(button => {
 
-        button?.addEventListener(
+    data.forEach(item => {
+
+        const group =
+            item.groups;
+
+        if (!group) return;
+
+
+        const element =
+            document.createElement("div");
+
+        element.className =
+            "community-card";
+
+
+        element.innerHTML = `
+            ${avatarHTML({
+                full_name: group.name,
+                avatar_url: group.avatar_url
+            })}
+
+            <h3>
+                ${escapeHtml(group.name)}
+            </h3>
+
+            ${
+                group.username
+                    ? `<p>
+                        @${escapeHtml(
+                            group.username
+                        )}
+                       </p>`
+                    : ""
+            }
+        `;
+
+
+        list.appendChild(element);
+    });
+}
+
+
+/* =========================================================
+   CHANNELS
+   ========================================================= */
+
+async function loadChannels() {
+
+    const list =
+        $("channelsList");
+
+    if (!list || !currentUser) return;
+
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("channel_members")
+        .select(`
+            channel_id,
+            role,
+            channels (
+                id,
+                name,
+                username,
+                bio,
+                avatar_url,
+                is_public
+            )
+        `)
+        .eq(
+            "user_id",
+            currentUser.id
+        );
+
+
+    if (error) {
+
+        console.error(error);
+
+        list.innerHTML =
+            `<div class="empty-state">
+                Could not load channels.
+            </div>`;
+
+        return;
+    }
+
+
+    if (!data?.length) {
+
+        list.innerHTML =
+            `<div class="empty-state">
+                <i class="fa-solid fa-bullhorn"></i>
+                <h3>No channels</h3>
+            </div>`;
+
+        return;
+    }
+
+
+    list.innerHTML = "";
+
+
+    data.forEach(item => {
+
+        const channel =
+            item.channels;
+
+        if (!channel) return;
+
+
+        const element =
+            document.createElement("div");
+
+        element.className =
+            "community-card";
+
+
+        element.innerHTML = `
+            ${avatarHTML({
+                full_name: channel.name,
+                avatar_url: channel.avatar_url
+            })}
+
+            <h3>
+                ${escapeHtml(channel.name)}
+            </h3>
+
+            ${
+                channel.username
+                    ? `<p>
+                        @${escapeHtml(
+                            channel.username
+                        )}
+                       </p>`
+                    : ""
+            }
+        `;
+
+
+        list.appendChild(element);
+    });
+}
+
+
+/* =========================================================
+   SAVED MESSAGES
+   ========================================================= */
+
+async function loadSavedMessages() {
+
+    const list =
+        $("savedMessagesList");
+
+    if (!list || !currentUser) return;
+
+
+    const {
+        data,
+        error
+    } = await supabase
+        .from("saved_messages")
+        .select("*")
+        .eq(
+            "user_id",
+            currentUser.id
+        )
+        .order(
+            "created_at",
+            { ascending: false }
+        );
+
+
+    if (error) {
+
+        console.error(error);
+
+        list.innerHTML =
+            `<div class="empty-state">
+                Could not load saved messages.
+            </div>`;
+
+        return;
+    }
+
+
+    if (!data?.length) {
+
+        list.innerHTML =
+            `<div class="empty-state">
+                <i class="fa-solid fa-bookmark"></i>
+                <h3>No saved messages</h3>
+            </div>`;
+
+        return;
+    }
+
+
+    list.innerHTML = "";
+
+
+    data.forEach(message => {
+
+        const element =
+            document.createElement("div");
+
+        element.className =
+            "saved-message";
+
+        element.innerHTML = `
+            <p>
+                ${escapeHtml(
+                    message.content || ""
+                )}
+            </p>
+
+            <small>
+                ${formatTime(
+                    message.created_at
+                )}
+            </small>
+        `;
+
+        list.appendChild(element);
+    });
+}
+
+
+/* =========================================================
+   NOTIFICATIONS
+   ========================================================= */
+
+async function loadNotifications() {
+
+    const list =
+        $("notificationsList");
+
+    if (!list) return;
+
+    list.innerHTML = `
+        <div class="empty-state">
+            <i class="fa-solid fa-bell"></i>
+            <h3>No notifications</h3>
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   LOGOUT
+   ========================================================= */
+
+async function logout() {
+
+    const {
+        error
+    } = await supabase.auth.signOut();
+
+    if (error) {
+
+        console.error(error);
+
+        showToast(
+            "Logout failed.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    window.location.href =
+        "index.html";
+}
+
+
+/* =========================================================
+   EVENT LISTENERS
+   ========================================================= */
+
+function setupEvents() {
+
+    /* Profile */
+
+    const profileButton =
+        $("profileButton");
+
+    if (profileButton) {
+
+        profileButton.addEventListener(
             "click",
-            () => {
+            openMyProfile
+        );
 
-                showToast(
-                    "Group creation module ulanadi."
+    }
+
+
+    const closeProfile =
+        $("closeProfileModal");
+
+    if (closeProfile) {
+
+        closeProfile.addEventListener(
+            "click",
+            closeProfileModal
+        );
+
+    }
+
+
+    /* Logout */
+
+    const logoutButton =
+        $("logoutButton");
+
+    if (logoutButton) {
+
+        logoutButton.addEventListener(
+            "click",
+            logout
+        );
+
+    }
+
+
+    /* Search */
+
+    const searchButton =
+        $("searchButton");
+
+    if (searchButton) {
+
+        searchButton.addEventListener(
+            "click",
+            openGlobalSearch
+        );
+
+    }
+
+
+    const closeSearch =
+        $("closeGlobalSearch");
+
+    if (closeSearch) {
+
+        closeSearch.addEventListener(
+            "click",
+            closeGlobalSearch
+        );
+
+    }
+
+
+    const searchInput =
+        $("globalSearchInput");
+
+    if (searchInput) {
+
+        searchInput.addEventListener(
+            "input",
+            event => {
+
+                searchUsers(
+                    event.target.value
                 );
 
-                switchTab("groups");
             }
         );
 
-    });
+    }
 
 
-    [
-        $("createChannelButton"),
-        $("channelCreateTop")
-    ].forEach(button => {
+    /* Message */
 
-        button?.addEventListener(
+    const sendButton =
+        $("sendMessageButton");
+
+    if (sendButton) {
+
+        sendButton.addEventListener(
             "click",
-            () => {
+            sendMessage
+        );
 
-                showToast(
-                    "Channel creation module ulanadi."
-                );
+    }
 
-                switchTab("channels");
+
+    const messageInput =
+        $("messageInput");
+
+    if (messageInput) {
+
+        messageInput.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter" &&
+                    !event.shiftKey
+                ) {
+
+                    event.preventDefault();
+
+                    sendMessage();
+                }
+
             }
         );
 
-    });
+    }
 
 
-    // =========================================================
-    // SETTINGS
-    // =========================================================
+    /* Close chat */
 
-    document
-        .querySelectorAll(".settings-card[data-setting]")
-        .forEach(card => {
+    const closeChat =
+        $("closeChatButton");
 
-            card.addEventListener(
-                "click",
-                () => {
+    if (closeChat) {
 
-                    const setting =
-                        card.dataset.setting;
+        closeChat.addEventListener(
+            "click",
+            () => {
 
-                    showToast(
-                        `${setting} settings modulei keyingi bosqichda ochiladi.`
+                const panel =
+                    $("chatPanel");
+
+                if (panel) {
+                    panel.classList.remove(
+                        "active"
                     );
-
                 }
-            );
 
-        });
+            }
+        );
+
+    }
+}
 
 
-    // =========================================================
-    // TOP NOTIFICATIONS
-    // =========================================================
+/* =========================================================
+   AUTH STATE
+   ========================================================= */
 
-    $("topNotifications")?.addEventListener(
-        "click",
-        () => switchTab("notifications")
+supabase.auth.onAuthStateChange(
+    async (event, session) => {
+
+        console.log(
+            "Auth event:",
+            event
+        );
+
+        if (
+            !session &&
+            event !== "SIGNED_OUT"
+        ) {
+            return;
+        }
+
+        if (
+            event === "SIGNED_OUT"
+        ) {
+
+            window.location.href =
+                "index.html";
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   START DASHBOARD
+   ========================================================= */
+
+async function initDashboard() {
+
+    console.log(
+        "MegChatBox dashboard starting..."
     );
 
 
-    // =========================================================
-    // SUPABASE AUTH STATE
-    // =========================================================
-
-    if (window.supabaseClient) {
-
-        window.supabaseClient.auth
-            .onAuthStateChange(
-                (event, session) => {
-
-                    if (
-                        event === "SIGNED_OUT" ||
-                        !session
-                    ) {
-
-                        window.location.href =
-                            "index.html";
-                    }
-
-                }
-            );
-    }
-
-
-    // =========================================================
-    // START
-    // =========================================================
-
-    const authenticated =
+    const sessionExists =
         await checkSession();
 
-    if (!authenticated) return;
+    if (!sessionExists) {
+        return;
+    }
 
-    await loadMyProfile();
 
-    switchTab("chats");
+    const profileLoaded =
+        await loadMyProfile();
 
-});
+    if (!profileLoaded) {
+        return;
+    }
+
+
+    renderMyProfile();
+
+    setupNavigation();
+
+    setupEvents();
+
+    console.log(
+        "Dashboard ready:",
+        currentProfile
+    );
+}
+
+
+/* =========================================================
+   START
+   ========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    initDashboard
+);
