@@ -1,10 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="MegChatBox dashboard"
     >
 
     <title>MegChatBox</title>
@@ -15,2072 +23,739 @@
     >
 
     <link rel="stylesheet" href="dashboard.css">
+
 </head>
 
 <body>
 
-<!-- =========================================================
-     APP
-========================================================= -->
 <div id="app">
 
-    <!-- =====================================================
-         SIDEBAR
-    ====================================================== -->
+    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
 
-        <div class="sidebar-header">
+        <div class="sidebar-top">
 
-            <div class="brand">
-                <div class="brand-icon">
-                    <i class="fa-solid fa-comments"></i>
-                </div>
-
-                <div class="brand-text">
-                    <strong>MegChatBox</strong>
-                    <span>Messages</span>
-                </div>
-            </div>
-
-            <button
-                type="button"
-                class="icon-btn"
-                id="settingsBtn"
-                title="Settings"
-            >
-                <i class="fa-solid fa-gear"></i>
-            </button>
-
-        </div>
-
-
-        <!-- Search -->
-        <div class="search-container">
-
-            <i class="fa-solid fa-magnifying-glass"></i>
-
-            <input
-                type="text"
-                id="searchInput"
-                placeholder="Search"
-                autocomplete="off"
-            >
-
-            <button
-                type="button"
-                class="search-clear hidden"
-                id="clearSearchBtn"
-                title="Clear"
-            >
+            <button class="icon-btn mobile-close" id="closeSidebar">
                 <i class="fa-solid fa-xmark"></i>
             </button>
 
+            <div class="dashboard-brand">
+
+                <div class="mini-logo">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+
+                <strong>MegChatBox</strong>
+
+            </div>
+
+            <button
+                class="search-main"
+                id="globalSearchButton"
+            >
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <span>Search</span>
+            </button>
+
         </div>
 
 
-        <!-- Tabs -->
-        <div class="sidebar-tabs">
+        <!-- MAIN NAV -->
+        <nav class="main-nav">
 
-            <button
-                type="button"
-                class="sidebar-tab active"
-                data-tab="chats"
-            >
+            <button class="nav-item active" data-tab="chats">
                 <i class="fa-solid fa-message"></i>
                 <span>Chats</span>
+                <b id="chatUnread" class="nav-badge hidden">0</b>
             </button>
 
-            <button
-                type="button"
-                class="sidebar-tab"
-                data-tab="groups"
-            >
+            <button class="nav-item" data-tab="contacts">
                 <i class="fa-solid fa-users"></i>
+                <span>Contacts</span>
+            </button>
+
+            <button class="nav-item" data-tab="groups">
+                <i class="fa-solid fa-user-group"></i>
                 <span>Groups</span>
             </button>
 
-            <button
-                type="button"
-                class="sidebar-tab"
-                data-tab="channels"
-            >
+            <button class="nav-item" data-tab="channels">
                 <i class="fa-solid fa-bullhorn"></i>
                 <span>Channels</span>
             </button>
 
-        </div>
-
-
-        <!-- =================================================
-             CHATS
-        ================================================== -->
-        <div
-            class="sidebar-list"
-            id="userList"
-        ></div>
-
-
-        <!-- =================================================
-             GROUPS
-        ================================================== -->
-        <div
-            class="sidebar-list community-list"
-            id="groupsList"
-        >
-
-            <div class="list-topbar">
-
-                <div>
-                    <strong>Groups</strong>
-                    <span>Public and joined groups</span>
-                </div>
-
-                <button
-                    type="button"
-                    class="small-icon-btn"
-                    id="createGroupBtn"
-                    title="Create group"
-                >
-                    <i class="fa-solid fa-plus"></i>
-                </button>
-
-            </div>
-
-            <button
-                type="button"
-                class="community-action-btn"
-                id="joinGroupOpenBtn"
-            >
-                <i class="fa-solid fa-right-to-bracket"></i>
-                Join group
+            <button class="nav-item" data-tab="notifications">
+                <i class="fa-solid fa-bell"></i>
+                <span>Notifications</span>
+                <b id="notificationBadge" class="nav-badge hidden">0</b>
             </button>
 
-            <div id="groupsItems"></div>
-
-        </div>
-
-
-        <!-- =================================================
-             CHANNELS
-        ================================================== -->
-        <div
-            class="sidebar-list community-list"
-            id="channelsList"
-        >
-
-            <div class="list-topbar">
-
-                <div>
-                    <strong>Channels</strong>
-                    <span>Public and joined channels</span>
-                </div>
-
-                <button
-                    type="button"
-                    class="small-icon-btn"
-                    id="createChannelBtn"
-                    title="Create channel"
-                >
-                    <i class="fa-solid fa-plus"></i>
-                </button>
-
-            </div>
-
-            <button
-                type="button"
-                class="community-action-btn"
-                id="joinChannelOpenBtn"
-            >
-                <i class="fa-solid fa-right-to-bracket"></i>
-                Join channel
+            <button class="nav-item" data-tab="saved">
+                <i class="fa-solid fa-bookmark"></i>
+                <span>Saved Messages</span>
             </button>
 
-            <div id="channelsItems"></div>
+        </nav>
+
+
+        <div class="sidebar-bottom">
+
+            <button class="profile-mini" id="openMyProfile">
+
+                <div
+                    class="avatar avatar-small"
+                    id="sidebarAvatar"
+                >
+                    ?
+                </div>
+
+                <div class="profile-mini-info">
+
+                    <strong id="sidebarName">
+                        Loading...
+                    </strong>
+
+                    <span id="sidebarUsername">
+                        @username
+                    </span>
+
+                </div>
+
+                <i class="fa-solid fa-chevron-right"></i>
+
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-tab="settings"
+            >
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </button>
+
+            <button
+                class="logout-btn"
+                id="logoutButton"
+            >
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </button>
 
         </div>
 
     </aside>
 
 
-    <!-- =====================================================
-         MAIN
-    ====================================================== -->
+    <!-- MAIN -->
     <main class="main">
 
-        <!-- Empty state -->
-        <section
-            class="chat-empty"
-            id="chatEmpty"
-        >
-            <div class="empty-icon">
-                <i class="fa-solid fa-comments"></i>
+        <header class="topbar">
+
+            <button
+                class="icon-btn menu-button"
+                id="openSidebar"
+            >
+                <i class="fa-solid fa-bars"></i>
+            </button>
+
+            <div>
+
+                <h2 id="pageTitle">Chats</h2>
+
+                <span id="pageSubtitle">
+                    Your conversations
+                </span>
+
             </div>
 
-            <h2>MegChatBox</h2>
-
-            <p>
-                Select a chat to start messaging.
-            </p>
-        </section>
-
-
-        <!-- Active chat -->
-        <section
-            class="active-chat hidden"
-            id="activeChat"
-        >
-
-            <!-- =================================================
-                 CHAT HEADER
-            ================================================== -->
-            <header class="chat-header">
+            <div class="topbar-actions">
 
                 <button
-                    type="button"
-                    class="mobile-back-btn"
-                    id="mobileBackBtn"
-                    title="Back"
+                    class="icon-btn"
+                    id="topSearch"
+                    title="Search"
                 >
-                    <i class="fa-solid fa-arrow-left"></i>
+                    <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
-
 
                 <button
-                    type="button"
-                    class="chat-avatar-button"
-                    id="chatAvatarButton"
-                    title="Profile"
+                    class="icon-btn"
+                    id="topNotifications"
+                    title="Notifications"
                 >
-
-                    <div
-                        class="avatar chat-avatar"
-                        id="chatAvatar"
-                    >
-                        <span id="chatAvatarInitial"></span>
-                    </div>
-
+                    <i class="fa-solid fa-bell"></i>
                 </button>
 
+            </div>
 
-                <div class="chat-title">
+        </header>
 
-                    <div class="chat-title-row">
 
-                        <strong id="chatName">
-                            Chat
-                        </strong>
+        <!-- CONTENT -->
+        <section class="content" id="content">
 
-                        <span
-                            id="chatVerified"
-                            class="verified-badge hidden"
-                        >
-                            ✓
-                        </span>
+            <!-- CHATS -->
+            <section
+                class="tab-page active"
+                id="tab-chats"
+            >
 
+                <div class="section-header">
+
+                    <div>
+                        <h3>Recent Chats</h3>
+                        <p>Your conversations</p>
                     </div>
-
-                    <span id="chatStatus">
-                        offline
-                    </span>
 
                 </div>
 
+                <div
+                    class="chat-list"
+                    id="chatList"
+                >
 
-                <div class="chat-header-actions">
+                    <div class="empty-state">
+
+                        <div class="empty-icon">
+                            <i class="fa-solid fa-comments"></i>
+                        </div>
+
+                        <h3>No chats yet</h3>
+
+                        <p>
+                            Search for someone and start a conversation.
+                        </p>
+
+                        <button
+                            class="primary-btn"
+                            id="startSearchButton"
+                        >
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            Find people
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- CONTACTS -->
+            <section
+                class="tab-page"
+                id="tab-contacts"
+                hidden
+            >
+
+                <div class="section-header">
+
+                    <div>
+                        <h3>Contacts</h3>
+                        <p>People you can communicate with</p>
+                    </div>
+
+                    <div class="section-actions">
+
+                        <button
+                            class="primary-btn"
+                            id="createGroupButton"
+                        >
+                            <i class="fa-solid fa-user-group"></i>
+                            Create Group
+                        </button>
+
+                        <button
+                            class="primary-btn secondary-btn"
+                            id="createChannelButton"
+                        >
+                            <i class="fa-solid fa-bullhorn"></i>
+                            Create Channel
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <div
+                    class="contact-list"
+                    id="contactList"
+                >
+
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                        <h3>No contacts</h3>
+                        <p>Find users by their username.</p>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- GROUPS -->
+            <section
+                class="tab-page"
+                id="tab-groups"
+                hidden
+            >
+
+                <div class="section-header">
+
+                    <div>
+                        <h3>Groups</h3>
+                        <p>Communities and group chats</p>
+                    </div>
 
                     <button
-                        type="button"
-                        class="icon-btn"
-                        id="chatMoreBtn"
-                        title="More"
+                        class="primary-btn"
+                        id="groupCreateTop"
                     >
-                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                        <i class="fa-solid fa-plus"></i>
+                        Create Group
                     </button>
 
                 </div>
 
-            </header>
+                <div id="groupList" class="community-grid">
+
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fa-solid fa-user-group"></i>
+                        </div>
+                        <h3>No groups</h3>
+                        <p>Create your first group.</p>
+                    </div>
+
+                </div>
+
+            </section>
 
 
-            <!-- Contact actions -->
-            <div
-                class="contact-actions hidden"
-                id="contactActions"
+            <!-- CHANNELS -->
+            <section
+                class="tab-page"
+                id="tab-channels"
+                hidden
             >
 
-                <button
-                    type="button"
-                    class="primary-btn hidden"
-                    id="addContactBtn"
+                <div class="section-header">
+
+                    <div>
+                        <h3>Channels</h3>
+                        <p>Follow channels and announcements</p>
+                    </div>
+
+                    <button
+                        class="primary-btn"
+                        id="channelCreateTop"
+                    >
+                        <i class="fa-solid fa-plus"></i>
+                        Create Channel
+                    </button>
+
+                </div>
+
+                <div
+                    id="channelList"
+                    class="community-grid"
                 >
-                    <i class="fa-solid fa-user-plus"></i>
-                    Add contact
-                </button>
 
-                <button
-                    type="button"
-                    class="primary-btn hidden"
-                    id="acceptContactBtn"
-                >
-                    <i class="fa-solid fa-check"></i>
-                    Accept
-                </button>
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fa-solid fa-bullhorn"></i>
+                        </div>
+                        <h3>No channels</h3>
+                        <p>Create your first channel.</p>
+                    </div>
 
-                <button
-                    type="button"
-                    class="danger-btn hidden"
-                    id="declineContactBtn"
-                >
-                    <i class="fa-solid fa-xmark"></i>
-                    Decline
-                </button>
+                </div>
 
-            </div>
+            </section>
 
 
-            <!-- =================================================
-                 MESSAGES
-            ================================================== -->
-            <div
-                class="messages"
-                id="messages"
-            ></div>
-
-
-            <!-- =================================================
-                 MESSAGE COMPOSER
-            ================================================== -->
-            <form
-                class="message-form"
-                id="messageForm"
+            <!-- NOTIFICATIONS -->
+            <section
+                class="tab-page"
+                id="tab-notifications"
+                hidden
             >
 
-                <button
-                    type="button"
-                    class="composer-btn"
-                    id="imageBtn"
-                    title="Image"
-                >
-                    <i class="fa-solid fa-image"></i>
-                </button>
+                <div class="section-header">
 
-                <input
-                    type="file"
-                    id="imageInput"
-                    accept="image/*"
-                    hidden
-                >
+                    <div>
+                        <h3>Notifications</h3>
+                        <p>Everything that needs your attention</p>
+                    </div>
 
+                </div>
 
-                <button
-                    type="button"
-                    class="composer-btn"
-                    id="emojiBtn"
-                    title="Emoji"
-                >
-                    <i class="fa-regular fa-face-smile"></i>
-                </button>
+                <div id="notificationList">
+
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fa-solid fa-bell"></i>
+                        </div>
+                        <h3>No notifications</h3>
+                        <p>You're all caught up.</p>
+                    </div>
+
+                </div>
+
+            </section>
 
 
-                <button
-                    type="button"
-                    class="composer-btn"
-                    id="stickerBtn"
-                    title="Sticker"
-                >
-                    <i class="fa-regular fa-note-sticky"></i>
-                </button>
+            <!-- SAVED -->
+            <section
+                class="tab-page"
+                id="tab-saved"
+                hidden
+            >
+
+                <div class="section-header">
+
+                    <div>
+                        <h3>Saved Messages</h3>
+                        <p>Your saved messages and media</p>
+                    </div>
+
+                </div>
+
+                <div id="savedList">
+
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fa-solid fa-bookmark"></i>
+                        </div>
+                        <h3>No saved messages</h3>
+                        <p>Saved messages will appear here.</p>
+                    </div>
+
+                </div>
+
+            </section>
 
 
-                <textarea
-                    id="messageInput"
-                    rows="1"
-                    maxlength="4000"
-                    placeholder="Write a message..."
-                    autocomplete="off"
-                ></textarea>
+            <!-- SETTINGS -->
+            <section
+                class="tab-page"
+                id="tab-settings"
+                hidden
+            >
 
+                <div class="section-header">
 
-                <button
-                    type="submit"
-                    class="send-btn"
-                    id="sendButton"
-                    title="Send"
-                >
-                    <i class="fa-solid fa-paper-plane"></i>
-                </button>
+                    <div>
+                        <h3>Settings</h3>
+                        <p>Manage your MegChatBox account</p>
+                    </div>
 
-            </form>
+                </div>
+
+                <div class="settings-grid">
+
+                    <button class="settings-card" data-setting="profile">
+                        <i class="fa-solid fa-user"></i>
+                        <span>Profile</span>
+                        <small>Name, username, bio, avatar</small>
+                    </button>
+
+                    <button class="settings-card" data-setting="security">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>Security</span>
+                        <small>Password, email, devices, privacy</small>
+                    </button>
+
+                    <button class="settings-card" data-setting="appearance">
+                        <i class="fa-solid fa-palette"></i>
+                        <span>Appearance</span>
+                        <small>Theme, wallpaper, decoration</small>
+                    </button>
+
+                    <button class="settings-card" data-setting="notifications">
+                        <i class="fa-solid fa-bell"></i>
+                        <span>Notifications</span>
+                        <small>Notification preferences</small>
+                    </button>
+
+                    <button class="settings-card" data-setting="language">
+                        <i class="fa-solid fa-language"></i>
+                        <span>Language</span>
+                        <small>Choose your language</small>
+                    </button>
+
+                    <button
+                        class="settings-card owner-card"
+                        id="ownerPanelButton"
+                        hidden
+                    >
+                        <i class="fa-solid fa-crown"></i>
+                        <span>Owner Panel</span>
+                        <small>Platform administration</small>
+                    </button>
+
+                </div>
+
+            </section>
 
         </section>
 
     </main>
 
-</div>
 
+    <!-- CHAT PANEL -->
+    <section
+        class="chat-panel"
+        id="chatPanel"
+        hidden
+    >
 
-<!-- =========================================================
-     SETTINGS MODAL
-========================================================= -->
-<div
-    class="modal"
-    id="settingsModal"
-    aria-hidden="true"
->
-    <div class="modal-content settings-modal">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Settings</h2>
-                <p>Manage your MegChatBox account</p>
-            </div>
+        <header class="chat-header">
 
             <button
-                type="button"
-                class="modal-close"
-                data-close-modal="settingsModal"
+                class="icon-btn"
+                id="closeChat"
             >
-                <i class="fa-solid fa-xmark"></i>
+                <i class="fa-solid fa-arrow-left"></i>
             </button>
-
-        </div>
-
-
-        <div class="settings-list">
-
-            <button
-                type="button"
-                class="settings-item"
-                id="profileSettingsBtn"
-            >
-                <i class="fa-solid fa-user"></i>
-                <span>
-                    <strong>Profile</strong>
-                    <small>Name, username, bio and avatar</small>
-                </span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </button>
-
-
-            <button
-                type="button"
-                class="settings-item"
-                id="privacySettingsBtn"
-            >
-                <i class="fa-solid fa-shield-halved"></i>
-                <span>
-                    <strong>Privacy</strong>
-                    <small>Online and last seen visibility</small>
-                </span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </button>
-
-
-            <button
-                type="button"
-                class="settings-item"
-                id="appearanceSettingsBtn"
-            >
-                <i class="fa-solid fa-palette"></i>
-                <span>
-                    <strong>Appearance</strong>
-                    <small>Theme and chat appearance</small>
-                </span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </button>
-
-
-            <button
-                type="button"
-                class="settings-item"
-                id="languageSettingsBtn"
-            >
-                <i class="fa-solid fa-language"></i>
-                <span>
-                    <strong>Language</strong>
-                    <small>Change application language</small>
-                </span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </button>
-
-
-            <button
-                type="button"
-                class="settings-item"
-                id="savedMessagesBtn"
-            >
-                <i class="fa-solid fa-bookmark"></i>
-                <span>
-                    <strong>Saved Messages</strong>
-                    <small>Your saved messages</small>
-                </span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </button>
-
-
-            <button
-                type="button"
-                class="settings-item"
-                id="updatesSettingsBtn"
-            >
-                <i class="fa-solid fa-bell"></i>
-                <span>
-                    <strong>Updates</strong>
-                    <small>MegChatBox announcements</small>
-                </span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </button>
-
-
-            <button
-                type="button"
-                class="settings-item hidden"
-                id="ownerPanelButton"
-            >
-                <i class="fa-solid fa-crown"></i>
-                <span>
-                    <strong>Owner Panel</strong>
-                    <small>Platform owner controls</small>
-                </span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </button>
-
-
-            <button
-                type="button"
-                class="settings-item hidden"
-                id="adminPanelButton"
-            >
-                <i class="fa-solid fa-user-shield"></i>
-                <span>
-                    <strong>Admin Panel</strong>
-                    <small>Administration tools</small>
-                </span>
-                <i class="fa-solid fa-chevron-right"></i>
-            </button>
-
-        </div>
-
-
-        <div class="settings-bottom">
-
-            <button
-                type="button"
-                class="secondary-btn"
-                id="settingsLogoutBtn"
-            >
-                <i class="fa-solid fa-right-from-bracket"></i>
-                Log out
-            </button>
-
-            <button
-                type="button"
-                class="danger-btn"
-                id="deleteAccountBtn"
-            >
-                <i class="fa-solid fa-trash"></i>
-                Delete account
-            </button>
-
-        </div>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     PROFILE MODAL
-========================================================= -->
-<div class="modal" id="profileModal" aria-hidden="true">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Edit profile</h2>
-                <p>Update your public profile</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="profileModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <form id="profileForm">
-
-            <div class="profile-preview">
-
-                <div
-                    class="avatar profile-avatar-preview"
-                    id="profileAvatarPreview"
-                >
-                    <span id="profileAvatarInitial"></span>
-                </div>
-
-                <label
-                    class="secondary-btn file-btn"
-                    for="profileAvatarInput"
-                >
-                    <i class="fa-solid fa-camera"></i>
-                    Change photo
-                </label>
-
-                <input
-                    type="file"
-                    id="profileAvatarInput"
-                    accept="image/*"
-                    hidden
-                >
-
-            </div>
-
-
-            <label>
-                Full name
-                <input
-                    type="text"
-                    id="profileFullName"
-                    maxlength="80"
-                >
-            </label>
-
-
-            <label>
-                Username
-                <input
-                    type="text"
-                    id="profileUsername"
-                    maxlength="32"
-                >
-            </label>
-
-
-            <label>
-                Bio
-                <textarea
-                    id="profileBio"
-                    maxlength="300"
-                    rows="4"
-                ></textarea>
-            </label>
-
-
-            <button
-                type="submit"
-                class="primary-btn"
-            >
-                Save changes
-            </button>
-
-        </form>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     PRIVACY MODAL
-========================================================= -->
-<div class="modal" id="privacyModal" aria-hidden="true">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Privacy</h2>
-                <p>Control what others can see</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="privacyModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <div class="settings-list">
-
-            <label class="toggle-row">
-
-                <span>
-                    <strong>Show online status</strong>
-                    <small>Allow others to see when you are online</small>
-                </span>
-
-                <input
-                    type="checkbox"
-                    class="toggle"
-                    id="showOnlineToggle"
-                >
-
-            </label>
-
-
-            <label class="toggle-row">
-
-                <span>
-                    <strong>Show last seen</strong>
-                    <small>Allow others to see your last activity</small>
-                </span>
-
-                <input
-                    type="checkbox"
-                    class="toggle"
-                    id="showLastSeenToggle"
-                >
-
-            </label>
-
-        </div>
-
-
-        <button
-            type="button"
-            class="primary-btn"
-            id="savePrivacyBtn"
-        >
-            Save privacy
-        </button>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     APPEARANCE
-========================================================= -->
-<div class="modal" id="appearanceModal" aria-hidden="true">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Appearance</h2>
-                <p>Customize MegChatBox</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="appearanceModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <h3>Theme</h3>
-
-        <div class="appearance-options">
-
-            <button
-                type="button"
-                class="appearance-option active"
-                data-theme="dark"
-            >
-                <i class="fa-solid fa-moon"></i>
-                <span>Dark</span>
-            </button>
-
-            <button
-                type="button"
-                class="appearance-option"
-                data-theme="light"
-            >
-                <i class="fa-solid fa-sun"></i>
-                <span>Light</span>
-            </button>
-
-        </div>
-
-
-        <h3>Density</h3>
-
-        <div class="appearance-options">
-
-            <button
-                type="button"
-                class="appearance-option active"
-                data-density="normal"
-            >
-                Normal
-            </button>
-
-            <button
-                type="button"
-                class="appearance-option"
-                data-density="compact"
-            >
-                Compact
-            </button>
-
-        </div>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     LANGUAGE
-========================================================= -->
-<div class="modal" id="languageModal" aria-hidden="true">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Language</h2>
-                <p>Select application language</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="languageModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <div class="language-list">
-
-            <button
-                type="button"
-                class="language-option"
-                data-language="en"
-            >
-                English
-            </button>
-
-            <button
-                type="button"
-                class="language-option"
-                data-language="uz"
-            >
-                O‘zbekcha
-            </button>
-
-            <button
-                type="button"
-                class="language-option"
-                data-language="ru"
-            >
-                Русский
-            </button>
-
-        </div>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     CREATE GROUP
-========================================================= -->
-<div class="modal" id="createGroupModal" aria-hidden="true">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Create group</h2>
-                <p>Create a new community</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="createGroupModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <form id="groupForm">
-
-            <label>
-                Group name
-                <input
-                    type="text"
-                    id="groupName"
-                    maxlength="80"
-                    required
-                >
-            </label>
-
-
-            <label>
-                Username
-                <input
-                    type="text"
-                    id="groupUsername"
-                    maxlength="32"
-                    placeholder="mygroup"
-                    required
-                >
-            </label>
-
-
-            <label>
-                Bio
-                <textarea
-                    id="groupBio"
-                    maxlength="500"
-                    rows="4"
-                ></textarea>
-            </label>
-
-
-            <label>
-                Group photo
-                <input
-                    type="file"
-                    id="groupAvatarInput"
-                    accept="image/*"
-                >
-            </label>
-
-
-            <div class="privacy-choice">
-
-                <label>
-                    <input
-                        type="radio"
-                        name="groupPrivacy"
-                        value="public"
-                        checked
-                    >
-                    Public
-                </label>
-
-                <label>
-                    <input
-                        type="radio"
-                        name="groupPrivacy"
-                        value="private"
-                    >
-                    Private
-                </label>
-
-            </div>
-
-
-            <div class="modal-actions">
-
-                <button
-                    type="button"
-                    class="secondary-btn"
-                    data-close-modal="createGroupModal"
-                >
-                    Cancel
-                </button>
-
-                <button
-                    type="submit"
-                    class="primary-btn"
-                >
-                    Create group
-                </button>
-
-            </div>
-
-        </form>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     CREATE CHANNEL
-========================================================= -->
-<div class="modal" id="createChannelModal" aria-hidden="true">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Create channel</h2>
-                <p>Create a new broadcast channel</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="createChannelModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <form id="channelForm">
-
-            <label>
-                Channel name
-                <input
-                    type="text"
-                    id="channelName"
-                    maxlength="80"
-                    required
-                >
-            </label>
-
-
-            <label>
-                Username
-                <input
-                    type="text"
-                    id="channelUsername"
-                    maxlength="32"
-                    placeholder="mychannel"
-                    required
-                >
-            </label>
-
-
-            <label>
-                Bio
-                <textarea
-                    id="channelBio"
-                    maxlength="500"
-                    rows="4"
-                ></textarea>
-            </label>
-
-
-            <label>
-                Channel photo
-                <input
-                    type="file"
-                    id="channelAvatarInput"
-                    accept="image/*"
-                >
-            </label>
-
-
-            <div class="privacy-choice">
-
-                <label>
-                    <input
-                        type="radio"
-                        name="channelPrivacy"
-                        value="public"
-                        checked
-                    >
-                    Public
-                </label>
-
-                <label>
-                    <input
-                        type="radio"
-                        name="channelPrivacy"
-                        value="private"
-                    >
-                    Private
-                </label>
-
-            </div>
-
-
-            <div class="modal-actions">
-
-                <button
-                    type="button"
-                    class="secondary-btn"
-                    data-close-modal="createChannelModal"
-                >
-                    Cancel
-                </button>
-
-                <button
-                    type="submit"
-                    class="primary-btn"
-                >
-                    Create channel
-                </button>
-
-            </div>
-
-        </form>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     JOIN GROUP
-========================================================= -->
-<div class="modal" id="joinGroupModal" aria-hidden="true">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Join group</h2>
-                <p>Enter a private invitation code</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="joinGroupModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <input
-            type="text"
-            id="groupInviteInput"
-            placeholder="Invite code"
-            autocomplete="off"
-        >
-
-
-        <button
-            type="button"
-            class="primary-btn"
-            id="joinGroupBtn"
-        >
-            Join group
-        </button>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     JOIN CHANNEL
-========================================================= -->
-<div class="modal" id="joinChannelModal" aria-hidden="true">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Join channel</h2>
-                <p>Enter a private invitation code</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="joinChannelModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <input
-            type="text"
-            id="channelInviteInput"
-            placeholder="Invite code"
-            autocomplete="off"
-        >
-
-
-        <button
-            type="button"
-            class="primary-btn"
-            id="joinChannelBtn"
-        >
-            Join channel
-        </button>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     USER PROFILE
-========================================================= -->
-<div class="modal" id="userProfileModal" aria-hidden="true">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Profile</h2>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                id="closeUserProfileBtn"
-                data-close-modal="userProfileModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <div class="user-profile-card">
 
             <div
-                class="avatar user-profile-avatar"
-                id="userProfileAvatar"
-            ></div>
+                class="avatar avatar-small"
+                id="chatAvatar"
+            >
+                ?
+            </div>
 
-            <div class="user-profile-name-row">
+            <div class="chat-user-info">
 
-                <strong id="userProfileName">
-                    User
+                <strong id="chatName">
+                    Chat
                 </strong>
 
-                <span
-                    id="userProfileVerified"
-                    class="verified-badge hidden"
-                >
-                    ✓
+                <span id="chatStatus">
+                    offline
                 </span>
 
             </div>
 
-            <span id="userProfileUsername">
-                @username
-            </span>
+            <div class="chat-header-actions">
 
-            <p id="userProfileBio"></p>
-
-        </div>
-
-
-        <div class="profile-actions">
-
-            <button
-                type="button"
-                class="secondary-btn"
-                id="userProfileMenuBtn"
-            >
-                <i class="fa-solid fa-ellipsis"></i>
-                More
-            </button>
-
-            <div
-                class="profile-menu hidden"
-                id="userProfileMenu"
-            >
-
-                <button
-                    type="button"
-                    id="editNicknameBtn"
-                >
-                    <i class="fa-solid fa-pen"></i>
-                    Edit nickname
+                <button class="icon-btn" id="chatSearch">
+                    <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
 
-                <button
-                    type="button"
-                    id="removeNicknameBtn"
-                >
-                    <i class="fa-solid fa-user-tag"></i>
-                    Remove nickname
-                </button>
-
-                <button
-                    type="button"
-                    id="blockUserBtn"
-                >
-                    <i class="fa-solid fa-ban"></i>
-                    Block
-                </button>
-
-                <button
-                    type="button"
-                    id="reportUserBtn"
-                >
-                    <i class="fa-solid fa-flag"></i>
-                    Report
+                <button class="icon-btn" id="chatMenu">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
                 </button>
 
             </div>
 
-        </div>
-
-    </div>
-</div>
+        </header>
 
 
-<!-- =========================================================
-     NICKNAME
-========================================================= -->
-<div class="modal" id="nicknameModal" aria-hidden="true">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <h2>Nickname</h2>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="nicknameModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-        <input
-            type="text"
-            id="nicknameInput"
-            maxlength="50"
-            placeholder="Enter nickname"
+        <div
+            class="messages"
+            id="messages"
         >
 
-        <div class="modal-actions">
+            <div class="empty-chat">
 
-            <button
-                type="button"
-                class="secondary-btn"
-                id="removeNicknameBtnModal"
-            >
-                Remove
-            </button>
+                <i class="fa-solid fa-message"></i>
 
-            <button
-                type="button"
-                class="primary-btn"
-                id="saveNicknameBtn"
-            >
-                Save
-            </button>
+                <p>
+                    Start your conversation.
+                </p>
 
-        </div>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     REPORT
-========================================================= -->
-<div class="modal" id="reportModal" aria-hidden="true">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Report</h2>
-                <p>Report this user</p>
             </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="reportModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <div class="report-options">
-
-            <label>
-                <input
-                    type="radio"
-                    name="reportReason"
-                    value="spam"
-                    checked
-                >
-                Spam
-            </label>
-
-            <label>
-                <input
-                    type="radio"
-                    name="reportReason"
-                    value="harassment"
-                >
-                Harassment
-            </label>
-
-            <label>
-                <input
-                    type="radio"
-                    name="reportReason"
-                    value="other"
-                >
-                Other
-            </label>
-
-        </div>
-
-
-        <textarea
-            id="reportDescription"
-            rows="5"
-            maxlength="1000"
-            placeholder="Additional details..."
-        ></textarea>
-
-
-        <button
-            type="button"
-            class="danger-btn"
-            id="submitReportBtn"
-        >
-            Submit report
-        </button>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     SAVED MESSAGES
-========================================================= -->
-<div class="modal" id="savedMessagesModal" aria-hidden="true">
-
-    <div class="modal-content large-modal">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Saved Messages</h2>
-                <p>Your saved messages</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="savedMessagesModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-        <div id="savedMessagesList"></div>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     UPDATES
-========================================================= -->
-<div class="modal" id="updatesModal" aria-hidden="true">
-
-    <div class="modal-content large-modal">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Updates</h2>
-                <p>MegChatBox announcements</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="updatesModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
 
         </div>
 
 
         <div
-            id="updateCreateSection"
-            class="hidden"
+            class="typing-indicator"
+            id="typingIndicator"
+            hidden
+        >
+            <span></span>
+            <span></span>
+            <span></span>
+            typing...
+        </div>
+
+
+        <form
+            class="message-composer"
+            id="messageForm"
         >
 
-            <h3>Create update</h3>
+            <button
+                type="button"
+                class="composer-btn"
+                id="emojiButton"
+            >
+                <i class="fa-regular fa-face-smile"></i>
+            </button>
 
-            <select id="updateType">
-                <option value="announcement">Announcement</option>
-                <option value="update">Update</option>
-                <option value="maintenance">Maintenance</option>
-            </select>
+            <button
+                type="button"
+                class="composer-btn"
+                id="attachButton"
+            >
+                <i class="fa-solid fa-paperclip"></i>
+            </button>
 
             <input
                 type="text"
-                id="updateTitle"
-                maxlength="150"
-                placeholder="Title"
+                id="messageInput"
+                placeholder="Write a message..."
+                autocomplete="off"
             >
-
-            <textarea
-                id="updateContent"
-                rows="5"
-                maxlength="5000"
-                placeholder="Content"
-            ></textarea>
 
             <button
-                type="button"
-                class="primary-btn"
-                id="publishUpdateBtn"
+                type="submit"
+                class="send-button"
             >
-                Publish
+                <i class="fa-solid fa-paper-plane"></i>
             </button>
 
-        </div>
+        </form>
+
+    </section>
 
 
-        <div id="updatesList"></div>
+    <!-- GLOBAL SEARCH -->
+    <div
+        class="search-overlay"
+        id="searchOverlay"
+        hidden
+    >
 
-    </div>
-</div>
+        <div class="search-window">
 
+            <header class="search-header">
 
-<!-- =========================================================
-     GROUP INFO
-========================================================= -->
-<div class="modal" id="groupInfoModal" aria-hidden="true">
+                <button
+                    class="icon-btn"
+                    id="closeGlobalSearch"
+                >
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
 
-    <div class="modal-content">
+                <input
+                    id="globalSearchInput"
+                    placeholder="Search username, users, groups or channels..."
+                    autocomplete="off"
+                >
 
-        <div class="modal-header">
+                <button
+                    class="icon-btn"
+                    id="clearGlobalSearch"
+                >
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
 
-            <div>
-                <h2>Group</h2>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="groupInfoModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <div class="community-info">
+            </header>
 
             <div
-                class="avatar community-info-avatar"
-                id="groupInfoAvatar"
-            ></div>
-
-            <h2 id="groupInfoName"></h2>
-
-            <span id="groupInfoUsername"></span>
-
-            <span id="groupInfoPrivacy"></span>
-
-            <p id="groupInfoBio"></p>
-
-        </div>
-
-
-        <div class="modal-actions">
-
-            <button
-                type="button"
-                class="secondary-btn"
-                id="groupInviteBtn"
+                class="search-results"
+                id="globalSearchResults"
             >
-                <i class="fa-solid fa-link"></i>
-                Invite
-            </button>
 
-            <button
-                type="button"
-                class="secondary-btn"
-                id="groupMembersBtn"
-            >
-                <i class="fa-solid fa-users"></i>
-                Members
-            </button>
+                <div class="search-empty">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <p>Search for people and communities</p>
+                </div>
 
-            <button
-                type="button"
-                class="danger-btn"
-                id="leaveGroupBtn"
-            >
-                Leave
-            </button>
+            </div>
 
         </div>
 
     </div>
-</div>
 
 
-<!-- =========================================================
-     CHANNEL INFO
-========================================================= -->
-<div class="modal" id="channelInfoModal" aria-hidden="true">
+    <!-- PROFILE MODAL -->
+    <div
+        class="modal-overlay"
+        id="profileModal"
+        hidden
+    >
 
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Channel</h2>
-            </div>
+        <div class="dashboard-modal">
 
             <button
-                type="button"
                 class="modal-close"
-                data-close-modal="channelInfoModal"
+                data-close="profileModal"
             >
                 <i class="fa-solid fa-xmark"></i>
             </button>
-
-        </div>
-
-
-        <div class="community-info">
 
             <div
-                class="avatar community-info-avatar"
-                id="channelInfoAvatar"
-            ></div>
+                class="profile-decoration"
+                id="profileDecoration"
+            >
+                ✨
+            </div>
 
-            <h2 id="channelInfoName"></h2>
+            <div
+                class="profile-big-avatar avatar"
+                id="profileAvatar"
+            >
+                ?
+            </div>
 
-            <span id="channelInfoUsername"></span>
+            <h2 id="profileName">User</h2>
 
-            <span id="channelInfoPrivacy"></span>
+            <div
+                class="profile-username"
+                id="profileUsername"
+            >
+                @username
+            </div>
 
-            <p id="channelInfoBio"></p>
+            <p
+                class="profile-bio"
+                id="profileBio"
+            >
+                No bio
+            </p>
 
-        </div>
-
-
-        <div class="modal-actions">
+            <div
+                class="profile-status"
+                id="profileStatus"
+            >
+                Offline
+            </div>
 
             <button
-                type="button"
-                class="secondary-btn"
-                id="channelInviteBtn"
+                class="primary-btn full-btn"
+                id="editProfileButton"
             >
-                <i class="fa-solid fa-link"></i>
-                Invite
-            </button>
-
-            <button
-                type="button"
-                class="secondary-btn"
-                id="channelMembersBtn"
-            >
-                <i class="fa-solid fa-users"></i>
-                Members
-            </button>
-
-            <button
-                type="button"
-                class="danger-btn"
-                id="leaveChannelBtn"
-            >
-                Leave
+                <i class="fa-solid fa-pen"></i>
+                Edit Profile
             </button>
 
         </div>
 
     </div>
-</div>
 
 
-<!-- =========================================================
-     MEMBERS
-========================================================= -->
-<div class="modal" id="membersModal" aria-hidden="true">
-
-    <div class="modal-content large-modal">
-
-        <div class="modal-header">
-
-            <div>
-                <h2 id="membersTitle">Members</h2>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="membersModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-        <div id="membersList"></div>
-
+    <!-- TOAST -->
+    <div
+        class="toast"
+        id="toast"
+        hidden
+    >
+        <i class="fa-solid fa-circle-check"></i>
+        <span></span>
     </div>
+
 </div>
 
-
-<!-- =========================================================
-     DELETE ACCOUNT
-========================================================= -->
-<div class="modal" id="deleteAccountModal" aria-hidden="true">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>Delete account</h2>
-                <p>This action cannot be easily undone.</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="deleteAccountModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <p>
-            Are you sure you want to continue?
-        </p>
-
-
-        <button
-            type="button"
-            class="danger-btn"
-            id="confirmDeleteAccountBtn"
-        >
-            Delete account
-        </button>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     OWNER PANEL
-========================================================= -->
-<div class="modal" id="ownerModal" aria-hidden="true">
-
-    <div class="modal-content owner-modal">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>
-                    <i class="fa-solid fa-crown"></i>
-                    Owner Panel
-                </h2>
-
-                <p>MegChatBox platform controls</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="ownerModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <div class="owner-tabs">
-
-            <button
-                type="button"
-                class="owner-tab active"
-                data-owner-tab="verified"
-            >
-                Verified
-            </button>
-
-            <button
-                type="button"
-                class="owner-tab"
-                data-owner-tab="moderation"
-            >
-                Moderation
-            </button>
-
-            <button
-                type="button"
-                class="owner-tab"
-                data-owner-tab="admins"
-            >
-                Admins
-            </button>
-
-            <button
-                type="button"
-                class="owner-tab"
-                data-owner-tab="reports"
-            >
-                Reports
-            </button>
-
-        </div>
-
-
-        <!-- Verified -->
-        <section
-            class="owner-panel-section"
-            id="ownerVerifiedPanel"
-        >
-
-            <h3>Verified badge</h3>
-
-            <div class="owner-search-row">
-
-                <input
-                    type="text"
-                    id="ownerVerifiedUsername"
-                    placeholder="Search username"
-                >
-
-                <button
-                    type="button"
-                    class="primary-btn"
-                    id="ownerVerifiedSearchBtn"
-                >
-                    Search
-                </button>
-
-            </div>
-
-
-            <div id="ownerVerifiedResult"></div>
-
-
-            <label>
-                Duration
-                <select id="verifiedDuration">
-                    <option value="7">7 days</option>
-                    <option value="30" selected>30 days</option>
-                    <option value="90">90 days</option>
-                    <option value="365">1 year</option>
-                    <option value="0">Permanent</option>
-                </select>
-            </label>
-
-        </section>
-
-
-        <!-- Moderation -->
-        <section
-            class="owner-panel-section hidden"
-            id="ownerModerationPanel"
-        >
-
-            <h3>Moderation</h3>
-
-            <div class="owner-search-row">
-
-                <input
-                    type="text"
-                    id="ownerModerationUsername"
-                    placeholder="Search username"
-                >
-
-                <button
-                    type="button"
-                    class="primary-btn"
-                    id="ownerModerationSearchBtn"
-                >
-                    Search
-                </button>
-
-            </div>
-
-
-            <div id="ownerModerationResult"></div>
-
-        </section>
-
-
-        <!-- Admins -->
-        <section
-            class="owner-panel-section hidden"
-            id="ownerAdminsPanel"
-        >
-
-            <h3>Administrators</h3>
-
-            <div class="owner-search-row">
-
-                <input
-                    type="text"
-                    id="ownerAdminUsername"
-                    placeholder="Search username"
-                >
-
-                <button
-                    type="button"
-                    class="primary-btn"
-                    id="ownerAdminSearchBtn"
-                >
-                    Search
-                </button>
-
-            </div>
-
-
-            <div id="ownerAdminResult"></div>
-
-            <div id="ownerAdminList"></div>
-
-        </section>
-
-
-        <!-- Reports -->
-        <section
-            class="owner-panel-section hidden"
-            id="ownerReportsPanel"
-        >
-
-            <h3>Reports</h3>
-
-            <div id="ownerReportsList"></div>
-
-        </section>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     ADMIN PANEL
-========================================================= -->
-<div class="modal" id="adminModal" aria-hidden="true">
-
-    <div class="modal-content admin-modal">
-
-        <div class="modal-header">
-
-            <div>
-                <h2>
-                    <i class="fa-solid fa-user-shield"></i>
-                    Admin Panel
-                </h2>
-
-                <p>Administration tools</p>
-            </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                data-close-modal="adminModal"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-        </div>
-
-
-        <div class="admin-tools">
-
-            <button
-                type="button"
-                class="admin-tool"
-                id="openAdminReportsBtn"
-            >
-                <i class="fa-solid fa-flag"></i>
-                <span>
-                    <strong>Reports</strong>
-                    <small>Review reports</small>
-                </span>
-            </button>
-
-
-            <button
-                type="button"
-                class="admin-tool"
-                id="openAdminUsersBtn"
-            >
-                <i class="fa-solid fa-users"></i>
-                <span>
-                    <strong>Users</strong>
-                    <small>User moderation</small>
-                </span>
-            </button>
-
-
-            <button
-                type="button"
-                class="admin-tool"
-                id="openAdminGroupsBtn"
-            >
-                <i class="fa-solid fa-user-group"></i>
-                <span>
-                    <strong>Groups</strong>
-                    <small>Manage groups</small>
-                </span>
-            </button>
-
-
-            <button
-                type="button"
-                class="admin-tool"
-                id="openAdminChannelsBtn"
-            >
-                <i class="fa-solid fa-bullhorn"></i>
-                <span>
-                    <strong>Channels</strong>
-                    <small>Manage channels</small>
-                </span>
-            </button>
-
-        </div>
-
-    </div>
-</div>
-
-
-<!-- =========================================================
-     TOAST
-========================================================= -->
-<div
-    class="toast"
-    id="toast"
-    role="status"
-    aria-live="polite"
->
-    <span id="toastMessage"></span>
-</div>
-
-
-<!-- =========================================================
-     SCRIPTS
-========================================================= -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script src="supabase.js"></script>
 <script src="dashboard.js"></script>
 
