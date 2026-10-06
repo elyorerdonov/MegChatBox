@@ -2,116 +2,64 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <meta
-        name="description"
-        content="MegChatBox — connect, chat and communicate with real people."
-    >
-
-    <meta
-        name="theme-color"
-        content="#0b0f14"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>MegChatBox</title>
+    <meta name="description" content="MegChatBox - Connect, chat and communicate with real people.">
 
-    <!-- Font Awesome -->
-    <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css"
-    >
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css">
 
-    <!-- Main CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-    <!-- =========================================================
-         APP
-    ========================================================== -->
+    <div class="auth-wrapper">
 
-    <main class="auth-page">
+        <div class="auth-card">
 
-        <!-- Background decoration -->
-        <div class="bg-orb orb-1"></div>
-        <div class="bg-orb orb-2"></div>
-        <div class="bg-orb orb-3"></div>
-
-        <!-- =====================================================
-             AUTH CARD
-        ====================================================== -->
-
-        <section class="auth-card">
-
-            <!-- Logo -->
+            <!-- LOGO -->
             <div class="brand">
-
-                <div class="brand-logo">
+                <div class="brand-icon">
                     <i class="fa-solid fa-comments"></i>
                 </div>
 
-                <div class="brand-text">
-                    <h1>MegChatBox</h1>
-                    <p>Connect. Chat. Communicate.</p>
-                </div>
-
+                <h1>MegChatBox</h1>
+                <p>Connect. Chat. Communicate.</p>
             </div>
 
 
-            <!-- =================================================
-                 LOGIN
-            ================================================== -->
+            <!-- ================= LOGIN ================= -->
 
-            <div
-                class="auth-form-container active"
-                id="loginContainer"
-            >
+            <div class="auth-panel active" id="loginPanel">
 
-                <div class="auth-heading">
-
-                    <h2>Welcome back 👋</h2>
-
-                    <p>
-                        Sign in to continue to MegChatBox
-                    </p>
-
-                </div>
-
+                <h2>Welcome back</h2>
+                <p class="panel-description">
+                    Login to your MegChatBox account
+                </p>
 
                 <form id="loginForm">
 
-                    <!-- Email -->
                     <div class="input-group">
-
                         <label for="loginEmail">
                             Email
                         </label>
 
                         <div class="input-wrapper">
-
                             <i class="fa-solid fa-envelope"></i>
 
                             <input
                                 type="email"
                                 id="loginEmail"
-                                name="email"
                                 placeholder="Enter your email"
                                 autocomplete="email"
                                 required
                             >
-
                         </div>
-
                     </div>
 
 
-                    <!-- Password -->
                     <div class="input-group">
 
                         <label for="loginPassword">
@@ -119,13 +67,11 @@
                         </label>
 
                         <div class="input-wrapper">
-
                             <i class="fa-solid fa-lock"></i>
 
                             <input
                                 type="password"
                                 id="loginPassword"
-                                name="password"
                                 placeholder="Enter your password"
                                 autocomplete="current-password"
                                 required
@@ -134,38 +80,31 @@
                             <button
                                 type="button"
                                 class="password-toggle"
-                                id="loginPasswordToggle"
+                                data-target="loginPassword"
                                 aria-label="Show password"
                             >
                                 <i class="fa-solid fa-eye"></i>
                             </button>
-
                         </div>
 
                     </div>
 
 
-                    <!-- Login options -->
                     <div class="form-options">
 
                         <label class="remember-me">
-
                             <input
                                 type="checkbox"
                                 id="rememberMe"
+                                checked
                             >
 
-                            <span class="custom-checkbox"></span>
-
-                            <span>
-                                Remember me
-                            </span>
-
+                            <span>Remember me</span>
                         </label>
 
                         <button
                             type="button"
-                            class="forgot-password"
+                            class="text-button"
                             id="forgotPasswordBtn"
                         >
                             Forgot password?
@@ -174,32 +113,9 @@
                     </div>
 
 
-                    <!-- Error -->
-                    <div
-                        class="auth-message error"
-                        id="loginError"
-                        hidden
-                    >
-                        <i class="fa-solid fa-circle-exclamation"></i>
-                        <span></span>
-                    </div>
-
-
-                    <!-- Loading -->
-                    <div
-                        class="auth-loading"
-                        id="loginLoading"
-                        hidden
-                    >
-                        <i class="fa-solid fa-spinner fa-spin"></i>
-                        <span>Signing in...</span>
-                    </div>
-
-
-                    <!-- Submit -->
                     <button
                         type="submit"
-                        class="auth-button"
+                        class="primary-button"
                         id="loginButton"
                     >
                         <span>Login</span>
@@ -209,49 +125,39 @@
                 </form>
 
 
-                <!-- Switch to signup -->
-                <div class="auth-switch">
+                <div class="divider">
+                    <span>OR</span>
+                </div>
 
-                    <span>
-                        Don't have an account?
-                    </span>
+
+                <p class="switch-text">
+                    Don't have an account?
 
                     <button
                         type="button"
+                        class="text-button switch-button"
                         id="showSignupBtn"
                     >
                         Create account
                     </button>
-
-                </div>
+                </p>
 
             </div>
 
 
-            <!-- =================================================
-                 SIGN UP
-            ================================================== -->
+            <!-- ================= SIGN UP ================= -->
 
-            <div
-                class="auth-form-container"
-                id="signupContainer"
-                hidden
-            >
+            <div class="auth-panel" id="signupPanel">
 
-                <div class="auth-heading">
+                <h2>Create account</h2>
 
-                    <h2>Create your account 🚀</h2>
-
-                    <p>
-                        Join MegChatBox and start chatting
-                    </p>
-
-                </div>
+                <p class="panel-description">
+                    Join MegChatBox today
+                </p>
 
 
                 <form id="signupForm">
 
-                    <!-- Full name -->
                     <div class="input-group">
 
                         <label for="signupName">
@@ -259,25 +165,21 @@
                         </label>
 
                         <div class="input-wrapper">
-
                             <i class="fa-solid fa-user"></i>
 
                             <input
                                 type="text"
                                 id="signupName"
-                                name="full_name"
-                                placeholder="Enter your full name"
+                                placeholder="Your full name"
                                 autocomplete="name"
                                 maxlength="80"
                                 required
                             >
-
                         </div>
 
                     </div>
 
 
-                    <!-- Username -->
                     <div class="input-group">
 
                         <label for="signupUsername">
@@ -285,31 +187,27 @@
                         </label>
 
                         <div class="input-wrapper">
-
                             <span class="username-symbol">@</span>
 
                             <input
                                 type="text"
                                 id="signupUsername"
-                                name="username"
-                                placeholder="Choose a username"
+                                placeholder="username"
                                 autocomplete="username"
                                 minlength="5"
                                 maxlength="30"
                                 pattern="[A-Za-z0-9_]+"
                                 required
                             >
-
                         </div>
 
-                        <small class="input-hint">
+                        <small class="input-help">
                             5–30 characters: letters, numbers and _
                         </small>
 
                     </div>
 
 
-                    <!-- Email -->
                     <div class="input-group">
 
                         <label for="signupEmail">
@@ -323,7 +221,6 @@
                             <input
                                 type="email"
                                 id="signupEmail"
-                                name="email"
                                 placeholder="Enter your email"
                                 autocomplete="email"
                                 required
@@ -334,7 +231,6 @@
                     </div>
 
 
-                    <!-- Password -->
                     <div class="input-group">
 
                         <label for="signupPassword">
@@ -348,17 +244,15 @@
                             <input
                                 type="password"
                                 id="signupPassword"
-                                name="password"
                                 placeholder="Create a password"
                                 autocomplete="new-password"
-                                minlength="6"
                                 required
                             >
 
                             <button
                                 type="button"
                                 class="password-toggle"
-                                id="signupPasswordToggle"
+                                data-target="signupPassword"
                                 aria-label="Show password"
                             >
                                 <i class="fa-solid fa-eye"></i>
@@ -370,7 +264,6 @@
                             class="password-strength"
                             id="passwordStrength"
                         >
-
                             <div class="strength-bar">
                                 <span></span>
                             </div>
@@ -378,16 +271,14 @@
                             <span class="strength-text">
                                 Password strength
                             </span>
-
                         </div>
 
                     </div>
 
 
-                    <!-- Confirm password -->
                     <div class="input-group">
 
-                        <label for="signupPasswordConfirm">
+                        <label for="signupConfirmPassword">
                             Confirm password
                         </label>
 
@@ -397,18 +288,16 @@
 
                             <input
                                 type="password"
-                                id="signupPasswordConfirm"
-                                name="password_confirm"
+                                id="signupConfirmPassword"
                                 placeholder="Repeat your password"
                                 autocomplete="new-password"
-                                minlength="6"
                                 required
                             >
 
                             <button
                                 type="button"
                                 class="password-toggle"
-                                id="signupConfirmPasswordToggle"
+                                data-target="signupConfirmPassword"
                                 aria-label="Show password"
                             >
                                 <i class="fa-solid fa-eye"></i>
@@ -419,30 +308,27 @@
                     </div>
 
 
-                    <!-- Terms -->
                     <label class="terms-check">
 
                         <input
                             type="checkbox"
-                            id="acceptTerms"
+                            id="termsCheck"
                             required
                         >
-
-                        <span class="custom-checkbox"></span>
 
                         <span>
                             I agree to the
                             <button
                                 type="button"
-                                class="inline-link"
+                                class="inline-button"
                                 id="termsBtn"
                             >
-                                Terms of Service
+                                Terms
                             </button>
                             and
                             <button
                                 type="button"
-                                class="inline-link"
+                                class="inline-button"
                                 id="privacyBtn"
                             >
                                 Privacy Policy
@@ -452,43 +338,9 @@
                     </label>
 
 
-                    <!-- Error -->
-                    <div
-                        class="auth-message error"
-                        id="signupError"
-                        hidden
-                    >
-                        <i class="fa-solid fa-circle-exclamation"></i>
-                        <span></span>
-                    </div>
-
-
-                    <!-- Success -->
-                    <div
-                        class="auth-message success"
-                        id="signupSuccess"
-                        hidden
-                    >
-                        <i class="fa-solid fa-circle-check"></i>
-                        <span></span>
-                    </div>
-
-
-                    <!-- Loading -->
-                    <div
-                        class="auth-loading"
-                        id="signupLoading"
-                        hidden
-                    >
-                        <i class="fa-solid fa-spinner fa-spin"></i>
-                        <span>Creating account...</span>
-                    </div>
-
-
-                    <!-- Submit -->
                     <button
                         type="submit"
-                        class="auth-button"
+                        class="primary-button"
                         id="signupButton"
                     >
                         <span>Create account</span>
@@ -498,49 +350,46 @@
                 </form>
 
 
-                <!-- Switch to login -->
-                <div class="auth-switch">
+                <div class="divider">
+                    <span>OR</span>
+                </div>
 
-                    <span>
-                        Already have an account?
-                    </span>
+
+                <p class="switch-text">
+
+                    Already have an account?
 
                     <button
                         type="button"
+                        class="text-button switch-button"
                         id="showLoginBtn"
                     >
                         Login
                     </button>
 
-                </div>
+                </p>
 
             </div>
 
 
-            <!-- =================================================
-                 FORGOT PASSWORD
-            ================================================== -->
+            <!-- ================= FORGOT PASSWORD ================= -->
 
-            <div
-                class="auth-form-container"
-                id="forgotContainer"
-                hidden
-            >
+            <div class="auth-panel" id="forgotPanel">
 
-                <div class="auth-heading">
+                <button
+                    type="button"
+                    class="back-button"
+                    id="backToLoginBtn"
+                >
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Back
+                </button>
 
-                    <div class="small-auth-icon">
-                        <i class="fa-solid fa-key"></i>
-                    </div>
+                <h2>Reset password</h2>
 
-                    <h2>Reset your password</h2>
-
-                    <p>
-                        Enter your email and we'll send you a
-                        password reset link.
-                    </p>
-
-                </div>
+                <p class="panel-description">
+                    Enter your email and we'll send you a password reset link.
+                </p>
 
 
                 <form id="forgotForm">
@@ -568,29 +417,9 @@
                     </div>
 
 
-                    <div
-                        class="auth-message error"
-                        id="forgotError"
-                        hidden
-                    >
-                        <i class="fa-solid fa-circle-exclamation"></i>
-                        <span></span>
-                    </div>
-
-
-                    <div
-                        class="auth-message success"
-                        id="forgotSuccess"
-                        hidden
-                    >
-                        <i class="fa-solid fa-circle-check"></i>
-                        <span></span>
-                    </div>
-
-
                     <button
                         type="submit"
-                        class="auth-button"
+                        class="primary-button"
                         id="forgotButton"
                     >
                         <span>Send reset link</span>
@@ -599,61 +428,64 @@
 
                 </form>
 
+            </div>
 
-                <div class="auth-switch">
+
+            <!-- STATUS MESSAGE -->
+
+            <div
+                class="auth-message"
+                id="authMessage"
+                role="alert"
+                aria-live="polite"
+            ></div>
+
+
+            <!-- FOOTER -->
+
+            <div class="auth-footer">
+
+                <span>© 2026 MegChatBox</span>
+
+                <div class="footer-links">
 
                     <button
                         type="button"
-                        id="backToLoginBtn"
+                        id="footerTermsBtn"
                     >
-                        <i class="fa-solid fa-arrow-left"></i>
-                        Back to login
+                        Terms
+                    </button>
+
+                    <button
+                        type="button"
+                        id="footerPrivacyBtn"
+                    >
+                        Privacy
                     </button>
 
                 </div>
 
             </div>
 
+        </div>
 
-            <!-- =================================================
-                 FOOTER
-            ================================================== -->
-
-            <footer class="auth-footer">
-
-                <span>
-                    © <span id="currentYear"></span>
-                    MegChatBox
-                </span>
-
-                <span class="footer-dot">•</span>
-
-                <span>
-                    Made for real connections
-                </span>
-
-            </footer>
-
-        </section>
-
-    </main>
+    </div>
 
 
-    <!-- =========================================================
-         TERMS MODAL
-    ========================================================== -->
+    <!-- ================= TERMS MODAL ================= -->
 
     <div
         class="modal-overlay"
         id="termsModal"
-        hidden
+        aria-hidden="true"
     >
 
-        <div class="info-modal">
+        <div class="modal">
 
             <button
+                type="button"
                 class="modal-close"
-                id="closeTermsBtn"
+                data-close="termsModal"
                 aria-label="Close"
             >
                 <i class="fa-solid fa-xmark"></i>
@@ -663,38 +495,54 @@
                 <i class="fa-solid fa-file-contract"></i>
             </div>
 
-            <h2>Terms of Service</h2>
+            <h3>Terms of Service</h3>
 
-            <p>
-                By using MegChatBox, you agree to use the
-                platform responsibly and respect other users.
-            </p>
+            <div class="modal-content">
 
-            <p>
-                More detailed terms will be available when
-                the platform is fully launched.
-            </p>
+                <p>
+                    By using MegChatBox, you agree to use the service
+                    responsibly and respectfully.
+                </p>
+
+                <p>
+                    Do not use MegChatBox for spam, harassment,
+                    impersonation, abuse or other harmful activity.
+                </p>
+
+                <p>
+                    MegChatBox may restrict accounts that violate
+                    the platform rules.
+                </p>
+
+            </div>
+
+            <button
+                type="button"
+                class="primary-button modal-ok"
+                data-close="termsModal"
+            >
+                Got it
+            </button>
 
         </div>
 
     </div>
 
 
-    <!-- =========================================================
-         PRIVACY MODAL
-    ========================================================== -->
+    <!-- ================= PRIVACY MODAL ================= -->
 
     <div
         class="modal-overlay"
         id="privacyModal"
-        hidden
+        aria-hidden="true"
     >
 
-        <div class="info-modal">
+        <div class="modal">
 
             <button
+                type="button"
                 class="modal-close"
-                id="closePrivacyBtn"
+                data-close="privacyModal"
                 aria-label="Close"
             >
                 <i class="fa-solid fa-xmark"></i>
@@ -704,34 +552,50 @@
                 <i class="fa-solid fa-shield-halved"></i>
             </div>
 
-            <h2>Privacy Policy</h2>
+            <h3>Privacy Policy</h3>
 
-            <p>
-                MegChatBox is designed to protect user accounts
-                and private communication.
-            </p>
+            <div class="modal-content">
 
-            <p>
-                The complete privacy policy will be added
-                before the public launch.
-            </p>
+                <p>
+                    MegChatBox stores account information required
+                    to provide messaging and account features.
+                </p>
+
+                <p>
+                    Your password is handled by Supabase Authentication
+                    and is not stored directly in the MegChatBox profile.
+                </p>
+
+                <p>
+                    We aim to keep your account and messages protected
+                    using authentication and database security rules.
+                </p>
+
+            </div>
+
+            <button
+                type="button"
+                class="primary-button modal-ok"
+                data-close="privacyModal"
+            >
+                Got it
+            </button>
 
         </div>
 
     </div>
 
 
-    <!-- =========================================================
-         SUPABASE
-    ========================================================== -->
+    <!-- ================= SCRIPTS ================= -->
 
+    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- Your Supabase configuration -->
     <script src="supabase.js"></script>
 
-    <!-- Auth logic -->
-    <script src="auth.js"></script>
+    <!-- MegChatBox authentication -->
+    <script src="script.js"></script>
 
 </body>
 </html>
