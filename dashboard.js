@@ -1,23 +1,10 @@
+```javascript
 (() => {
     "use strict";
 
     /* =========================================================
-       MEGCHATBOX - DASHBOARD.JS V4
-       Stable dashboard.html compatible version
-
-       Main fixes:
-       - Working modal close buttons
-       - Dynamic contact request buttons
-       - Better hold / swipe message actions
-       - Owner tabs
-       - Admin panel foundation
-       - Public community join
-       - Private community invite join
-       - Public communities in lists
-       - Community info
-       - Current-chat message search
-       - Safer community messaging
-       - Better realtime handling
+       MEGCHATBOX
+       DASHBOARD.JS V4 - CLEAN / STABLE BASE
     ========================================================= */
 
     const db =
@@ -26,7 +13,7 @@
             : window.supabaseClient;
 
     if (!db) {
-        console.error("Supabase client not found.");
+        console.error("MegChatBox: Supabase client not found.");
         return;
     }
 
@@ -38,69 +25,68 @@
     let currentProfile = null;
 
     let activeChatUser = null;
-
     let activeCommunity = null;
     let activeCommunityType = null;
 
     let activeUserProfile = null;
-
-    let currentRequests = [];
     let currentRole = "user";
 
     let currentMessages = [];
+    let currentRequests = [];
 
     let realtimeChannel = null;
     let searchTimer = null;
-    let chatSearchTimer = null;
 
-    let currentChatSearch = "";
+    let currentTab = "chats";
+
+    /* =========================================================
+       DOM
+    ========================================================= */
 
     const $ = (id) => document.getElementById(id);
+
+    const $$ = (selector, root = document) =>
+        Array.from(root.querySelectorAll(selector));
 
     /* =========================================================
        HELPERS
     ========================================================= */
 
-    function escapeHTML(value) {
-        return String(value ?? "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+    function escapeHTML(value = "") {
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
     }
 
-    function escapeAttr(value) {
+    function escapeAttr(value = "") {
         return escapeHTML(value);
     }
 
-    function initials(name) {
-        const text = String(name || "?").trim();
-
-        if (!text) return "?";
-
-        return text
+    function initials(name = "") {
+        const parts = String(name)
+            .trim()
             .split(/\s+/)
+            .filter(Boolean);
+
+        if (!parts.length) return "?";
+
+        return parts
             .slice(0, 2)
-            .map((x) => x[0])
-            .join("")
-            .toUpperCase();
-    }
-
-    function isVerifiedActive(profile) {
-        if (!profile?.is_verified) return false;
-
-        if (!profile.verified_until) {
-            return true;
-        }
-
-        return new Date(profile.verified_until) > new Date();
+            .map((part) => part.charAt(0).toUpperCase())
+            .join("");
     }
 
     function formatTime(date) {
         if (!date) return "";
 
-        return new Date(date).toLocaleTimeString([], {
+        const d = new Date(date);
+
+        if (Number.isNaN(d.getTime())) return "";
+
+        return d.toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit"
         });
@@ -109,64 +95,52 @@
     function formatDate(date) {
         if (!date) return "";
 
-        return new Date(date).toLocaleDateString([], {
-            day: "2-digit",
+        const d = new Date(date);
+
+        if (Number.isNaN(d.getTime())) return "";
+
+        return d.toLocaleDateString([], {
+            year: "numeric",
             month: "short",
-            year: "numeric"
+            day: "numeric"
         });
     }
 
-    function verifiedHTML(profile) {
-        return isVerifiedActive(profile)
-            ? `<span class="verified-badge" title="Verified">✓</span>`
-            : "";
+    function isVerifiedActive(profile) {
+        if (!profile?.is_verified) return false;
+
+        if (!profile.verified_until) return true;
+
+        return new Date(profile.verified_until).getTime() > Date.now();
     }
 
-    function avatarHTML(profile, className = "avatar") {
+    function verifiedHTML(profile) {
+        if (!isVerifiedActive(profile)) return "";
+
+        return `<span class="verified-badge">✓</span>`;
+    }
+
+    function avatarHTML(profile, extraClass = "") {
         const name =
             profile?.full_name ||
             profile?.username ||
-            "?";
+            "User";
 
-        if (profile?.avatar_url) {
+        const avatar = profile?.avatar_url;
+
+        if (avatar) {
             return `
-                <div class="${className}">
+                <div class="avatar ${extraClass}">
                     <img
-                        src="${escapeAttr(profile.avatar_url)}"
+                        src="${escapeAttr(avatar)}"
                         alt=""
-                        loading="lazy"
                     >
                 </div>
             `;
         }
 
         return `
-            <div class="${className}">
-                <span>${escapeHTML(initials(name))}</span>
-            </div>
-        `;
-    }
-
-    function communityAvatarHTML(
-        community,
-        className = "list-avatar community-avatar"
-    ) {
-        const name = community?.name || "?";
-
-        if (community?.avatar_url) {
-            return `
-                <div class="${className}">
-                    <img
-                        src="${escapeAttr(community.avatar_url)}"
-                        alt=""
-                        loading="lazy"
-                    >
-                </div>
-            `;
-        }
-
-        return `
-            <div class="${className}">
+            <div class="avatar ${extraClass}">
                 <span>${escapeHTML(initials(name))}</span>
             </div>
         `;
@@ -184,42 +158,45 @@
             "success",
             "error",
             "warning",
-            "info"
+            "show"
         );
 
         box.classList.add(type);
-        box.classList.add("show");
 
-        clearTimeout(toast.timer);
+        requestAnimationFrame(() => {
+            box.classList.add("show");
+        });
 
-        toast.timer = setTimeout(() => {
+        clearTimeout(box._timer);
+
+        box._timer = setTimeout(() => {
             box.classList.remove("show");
         }, 3000);
     }
 
-    function showError(
-        error,
-        fallback = "Something went wrong."
-    ) {
+    function showError(error, fallback = "Something went wrong.") {
         console.error(error);
 
-        const message =
-            error?.message ||
-            error?.error_description ||
-            fallback;
+        let message = fallback;
+
+        if (error?.message) {
+            message = error.message;
+        }
 
         toast(message, "error");
     }
+
+    /* =========================================================
+       MODALS
+    ========================================================= */
 
     function openModal(id) {
         const modal = $(id);
 
         if (!modal) return;
 
-        modal.style.display = "flex";
         modal.classList.add("open");
-
-        document.body.classList.add("modal-open");
+        modal.setAttribute("aria-hidden", "false");
     }
 
     function closeModal(id) {
@@ -228,103 +205,14 @@
         if (!modal) return;
 
         modal.classList.remove("open");
-        modal.style.display = "none";
-
-        if (!document.querySelector(".modal.open")) {
-            document.body.classList.remove("modal-open");
-        }
+        modal.setAttribute("aria-hidden", "true");
     }
 
     function closeAllModals() {
-        document.querySelectorAll(".modal").forEach(
-            (modal) => {
-                modal.classList.remove("open");
-                modal.style.display = "none";
-            }
-        );
-
-        document.body.classList.remove("modal-open");
-    }
-
-    function isUniqueError(error) {
-        return error?.code === "23505";
-    }
-
-    function isNotFoundError(error) {
-        return error?.code === "PGRST116";
-    }
-
-    function isOwner() {
-        return currentRole === "owner";
-    }
-
-    function isAdminOrOwner() {
-        return (
-            currentRole === "owner" ||
-            currentRole === "admin"
-        );
-    }
-
-    function canManageCommunity() {
-        if (!activeCommunity) return false;
-
-        return (
-            activeCommunity.owner_id ===
-                currentUser?.id ||
-            isAdminOrOwner()
-        );
-    }
-
-    function canDeleteCommunity() {
-        return (
-            activeCommunity &&
-            activeCommunity.owner_id ===
-                currentUser?.id
-        );
-    }
-
-    async function getProfile(userId) {
-        const { data, error } = await db
-            .from("profiles")
-            .select("*")
-            .eq("id", userId)
-            .maybeSingle();
-
-        if (error) throw error;
-
-        return data;
-    }
-
-    async function getProfiles(ids) {
-        const cleanIds = [
-            ...new Set(
-                (ids || []).filter(Boolean)
-            )
-        ];
-
-        if (!cleanIds.length) return [];
-
-        const { data, error } = await db
-            .from("profiles")
-            .select(`
-                id,
-                username,
-                full_name,
-                avatar_url,
-                bio,
-                is_verified,
-                verified_until,
-                last_seen,
-                show_online,
-                show_last_seen,
-                account_blocked,
-                messaging_blocked
-            `)
-            .in("id", cleanIds);
-
-        if (error) throw error;
-
-        return data || [];
+        $$(".modal.open").forEach((modal) => {
+            modal.classList.remove("open");
+            modal.setAttribute("aria-hidden", "true");
+        });
     }
 
     /* =========================================================
@@ -338,145 +226,129 @@
         } = await db.auth.getSession();
 
         if (error) {
-            console.error(error);
+            showError(error);
+            return false;
         }
 
         if (!session?.user) {
-            location.href = "index.html";
+            window.location.href = "index.html";
             return false;
         }
 
         currentUser = session.user;
 
-        try {
-            currentProfile =
-                await getProfile(currentUser.id);
-        } catch (error) {
-            showError(
-                error,
-                "Could not load your profile."
-            );
+        return true;
+    }
+
+    async function loadMyProfile() {
+        const { data, error } = await db
+            .from("profiles")
+            .select("*")
+            .eq("id", currentUser.id)
+            .maybeSingle();
+
+        if (error) {
+            showError(error);
             return false;
         }
 
-        if (!currentProfile) {
-            toast(
-                "Profile not found.",
-                "error"
-            );
+        if (!data) {
+            toast("Profile not found.", "error");
             return false;
         }
 
-        if (currentProfile.account_blocked) {
-            toast(
-                "Your account is blocked.",
-                "error"
-            );
+        currentProfile = data;
+        currentRole = data.role || "user";
 
+        if (
+            data.account_blocked &&
+            (
+                !data.account_blocked_until ||
+                new Date(data.account_blocked_until).getTime() > Date.now()
+            )
+        ) {
             await db.auth.signOut();
-
-            location.href = "index.html";
-
+            alert("Your account is blocked.");
+            window.location.href = "index.html";
             return false;
         }
+
+        renderMyProfile();
 
         return true;
+    }
+
+    function renderMyProfile() {
+        if (!currentProfile) return;
+
+        const name = currentProfile.full_name ||
+            currentProfile.username ||
+            "User";
+
+        const username = currentProfile.username || "";
+
+        const nameElement = $("profileFullName");
+        const usernameElement = $("profileUsername");
+        const bioElement = $("profileBio");
+
+        if (nameElement) {
+            nameElement.value = name;
+        }
+
+        if (usernameElement) {
+            usernameElement.value = username;
+        }
+
+        if (bioElement) {
+            bioElement.value = currentProfile.bio || "";
+        }
+
+        const preview = $("profileAvatarPreview");
+        const initial = $("profileAvatarInitial");
+
+        if (preview) {
+            preview.innerHTML = currentProfile.avatar_url
+                ? `<img src="${escapeAttr(currentProfile.avatar_url)}" alt="">`
+                : `<span>${escapeHTML(initials(name))}</span>`;
+        }
+
+        if (initial) {
+            initial.textContent = currentProfile.avatar_url
+                ? ""
+                : initials(name);
+        }
     }
 
     /* =========================================================
        PROFILE
     ========================================================= */
 
-    function renderMyProfile() {
-        if (!currentProfile) return;
+    async function saveProfile(event) {
+        event?.preventDefault();
 
-        const name =
-            currentProfile.full_name ||
-            currentProfile.username;
-
-        const myName = $("myName");
-        const myUsername = $("myUsername");
-        const myAvatar = $("myAvatar");
-        const myAvatarInitial =
-            $("myAvatarInitial");
-        const myVerified = $("myVerified");
-
-        if (myName) {
-            myName.textContent = name;
-        }
-
-        if (myUsername) {
-            myUsername.textContent =
-                `@${currentProfile.username}`;
-        }
-
-        if (myAvatar) {
-            if (currentProfile.avatar_url) {
-                myAvatar.innerHTML = `
-                    <img
-                        src="${escapeAttr(
-                            currentProfile.avatar_url
-                        )}"
-                        alt=""
-                    >
-                `;
-            } else {
-                myAvatar.innerHTML = "";
-
-                if (myAvatarInitial) {
-                    myAvatarInitial.textContent =
-                        initials(name);
-                }
-            }
-        }
-
-        if (myVerified) {
-            myVerified.style.display =
-                isVerifiedActive(currentProfile)
-                    ? "inline-flex"
-                    : "none";
-        }
-    }
-
-    async function saveProfile() {
         if (!currentUser) return;
 
-        const fullName =
-            $("profileFullName")?.value.trim();
+        const fullName = $("profileFullName")?.value.trim() || "";
+        const username = $("profileUsername")?.value
+            .trim()
+            .toLowerCase() || "";
 
-        const username =
-            $("profileUsername")
-                ?.value
-                .trim()
-                .toLowerCase();
-
-        const bio =
-            $("profileBio")?.value.trim();
+        const bio = $("profileBio")?.value.trim() || "";
 
         if (!fullName) {
-            toast(
-                "Full name is required.",
-                "error"
-            );
+            toast("Enter your name.", "warning");
             return;
         }
 
-        if (
-            !/^[a-z0-9_]{3,32}$/.test(
-                username
-            )
-        ) {
+        if (!/^[a-z0-9_]{3,32}$/.test(username)) {
             toast(
                 "Username must contain 3-32 lowercase letters, numbers or _.",
-                "error"
+                "warning"
             );
             return;
         }
 
-        const {
-            data: existing,
-            error: existingError
-        } = await db
+        const { data: existing, error: existingError } = await db
             .from("profiles")
             .select("id")
             .eq("username", username)
@@ -489,37 +361,23 @@
         }
 
         if (existing) {
-            toast(
-                "This username is already taken.",
-                "error"
-            );
+            toast("That username is already taken.", "error");
             return;
         }
 
-        const {
-            data,
-            error
-        } = await db
+        const { data, error } = await db
             .from("profiles")
             .update({
                 full_name: fullName,
                 username,
-                bio: bio || ""
+                bio
             })
             .eq("id", currentUser.id)
-            .select("*")
+            .select()
             .single();
 
         if (error) {
-            if (isUniqueError(error)) {
-                toast(
-                    "This username is already taken.",
-                    "error"
-                );
-            } else {
-                showError(error);
-            }
-
+            showError(error);
             return;
         }
 
@@ -529,175 +387,118 @@
 
         closeModal("profileModal");
 
-        toast(
-            "Profile updated.",
-            "success"
-        );
+        await refreshSidebar();
+
+        toast("Profile updated.", "success");
     }
 
-    async function uploadAvatar(
-        input,
-        bucket,
-        pathPrefix
-    ) {
-        if (
-            !input?.files?.length ||
-            !currentUser
-        ) {
-            return null;
-        }
-
-        const file = input.files[0];
+    async function uploadAvatar(file) {
+        if (!file || !currentUser) return;
 
         if (!file.type.startsWith("image/")) {
-            toast(
-                "Please select an image.",
-                "error"
-            );
-            return null;
+            toast("Please choose an image.", "warning");
+            return;
         }
 
         if (file.size > 5 * 1024 * 1024) {
-            toast(
-                "Image must be smaller than 5 MB.",
-                "error"
-            );
-            return null;
+            toast("Image must be smaller than 5 MB.", "warning");
+            return;
         }
 
         const extension =
-            file.name
-                .split(".")
-                .pop()
-                ?.toLowerCase() || "jpg";
+            file.name.split(".").pop()?.toLowerCase() || "jpg";
 
         const path =
-            `${pathPrefix}/${currentUser.id}-${Date.now()}.${extension}`;
+            `${currentUser.id}/${Date.now()}.${extension}`;
 
-        const {
-            error: uploadError
-        } = await db.storage
-            .from(bucket)
-            .upload(
-                path,
-                file,
-                {
-                    upsert: true,
-                    contentType: file.type
-                }
-            );
+        const { error: uploadError } = await db.storage
+            .from("avatars")
+            .upload(path, file, {
+                upsert: true
+            });
 
         if (uploadError) {
-            showError(
-                uploadError,
-                "Avatar upload failed."
-            );
-            return null;
+            showError(uploadError);
+            return;
         }
 
-        const { data } =
-            db.storage
-                .from(bucket)
-                .getPublicUrl(path);
-
-        return data?.publicUrl || null;
-    }
-
-    async function handleProfileAvatar() {
-        const input =
-            $("profileAvatarInput");
-
-        const url =
-            await uploadAvatar(
-                input,
-                "avatars",
-                "profiles"
-            );
-
-        if (!url) return;
-
         const {
-            data,
-            error
-        } = await db
+            data: publicData
+        } = db.storage
+            .from("avatars")
+            .getPublicUrl(path);
+
+        const avatarUrl = publicData?.publicUrl;
+
+        if (!avatarUrl) {
+            toast("Could not create avatar URL.", "error");
+            return;
+        }
+
+        const { error } = await db
             .from("profiles")
             .update({
-                avatar_url: url
+                avatar_url: avatarUrl
             })
-            .eq("id", currentUser.id)
-            .select("*")
-            .single();
+            .eq("id", currentUser.id);
 
         if (error) {
             showError(error);
             return;
         }
 
-        currentProfile = data;
+        currentProfile.avatar_url = avatarUrl;
 
         renderMyProfile();
 
-        const image =
-            $("profileAvatarImage");
+        await refreshSidebar();
 
-        const initial =
-            $("profileAvatarInitial");
-
-        if (image) {
-            image.src = url;
-            image.style.display = "block";
-        }
-
-        if (initial) {
-            initial.style.display = "none";
-        }
-
-        toast(
-            "Avatar updated.",
-            "success"
-        );
+        toast("Avatar updated.", "success");
     }
 
-    async function loadPrivacy() {
+    async function handleProfileAvatar(event) {
+        const file = event.target.files?.[0];
+
+        if (file) {
+            await uploadAvatar(file);
+        }
+
+        event.target.value = "";
+    }
+
+    /* =========================================================
+       PRIVACY
+    ========================================================= */
+
+    function loadPrivacy() {
         if (!currentProfile) return;
 
-        const online =
-            $("showOnlineToggle");
-
-        const lastSeen =
-            $("showLastSeenToggle");
-
-        if (online) {
-            online.checked =
+        if ($("showOnlineToggle")) {
+            $("showOnlineToggle").checked =
                 currentProfile.show_online !== false;
         }
 
-        if (lastSeen) {
-            lastSeen.checked =
+        if ($("showLastSeenToggle")) {
+            $("showLastSeenToggle").checked =
                 currentProfile.show_last_seen !== false;
         }
     }
 
     async function savePrivacy() {
         const showOnline =
-            $("showOnlineToggle")
-                ?.checked ?? true;
+            $("showOnlineToggle")?.checked !== false;
 
         const showLastSeen =
-            $("showLastSeenToggle")
-                ?.checked ?? true;
+            $("showLastSeenToggle")?.checked !== false;
 
-        const {
-            data,
-            error
-        } = await db
+        const { data, error } = await db
             .from("profiles")
             .update({
                 show_online: showOnline,
                 show_last_seen: showLastSeen
             })
             .eq("id", currentUser.id)
-            .select("*")
+            .select()
             .single();
 
         if (error) {
@@ -707,10 +508,9 @@
 
         currentProfile = data;
 
-        toast(
-            "Privacy settings saved.",
-            "success"
-        );
+        closeModal("privacyModal");
+
+        toast("Privacy settings saved.", "success");
     }
 
     /* =========================================================
@@ -720,28 +520,40 @@
     async function getContactRequests() {
         if (!currentUser) return [];
 
-        const {
-            data,
-            error
-        } = await db
+        const { data, error } = await db
             .from("contact_requests")
             .select("*")
             .or(
                 `sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`
             )
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
+            .order("created_at", {
+                ascending: false
+            });
 
         if (error) {
-            console.error(
-                "Contact requests:",
-                error
-            );
+            console.error("Contact requests:", error);
+            return [];
+        }
 
+        currentRequests = data || [];
+
+        return currentRequests;
+    }
+
+    async function getProfiles(ids) {
+        const cleanIds = [...new Set(
+            (ids || []).filter(Boolean)
+        )];
+
+        if (!cleanIds.length) return [];
+
+        const { data, error } = await db
+            .from("profiles")
+            .select("*")
+            .in("id", cleanIds);
+
+        if (error) {
+            console.error("Profiles:", error);
             return [];
         }
 
@@ -749,145 +561,66 @@
     }
 
     async function loadIncomingRequests() {
-        if (!currentUser) return [];
+        const requests = await getContactRequests();
 
-        try {
-            const {
-                data: requests,
-                error
-            } = await db
-                .from("contact_requests")
-                .select("*")
-                .eq(
-                    "receiver_id",
-                    currentUser.id
-                )
-                .eq(
-                    "status",
-                    "pending"
-                )
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                );
+        const incoming = requests.filter(
+            (request) =>
+                request.receiver_id === currentUser.id &&
+                request.status === "pending"
+        );
 
-            if (error) {
-                console.error(
-                    "Incoming requests:",
-                    error
-                );
+        if (!incoming.length) return [];
 
-                return [];
-            }
+        const profiles = await getProfiles(
+            incoming.map((request) => request.sender_id)
+        );
 
-            if (!requests?.length) {
-                currentRequests = [];
-                return [];
-            }
-
-            const senderIds = [
-                ...new Set(
-                    requests.map(
-                        (r) => r.sender_id
-                    )
-                )
-            ];
-
-            const profiles =
-                await getProfiles(
-                    senderIds
-                );
-
-            const map =
-                new Map(
-                    profiles.map(
-                        (profile) => [
-                            profile.id,
-                            profile
-                        ]
-                    )
-                );
-
-            currentRequests =
-                requests.map(
-                    (request) => ({
-                        ...request,
-                        sender:
-                            map.get(
-                                request.sender_id
-                            ) || null
-                    })
-                );
-
-            return currentRequests;
-        } catch (error) {
-            console.error(
-                "loadIncomingRequests:",
-                error
-            );
-
-            return [];
-        }
+        return incoming.map((request) => ({
+            request,
+            profile: profiles.find(
+                (profile) =>
+                    profile.id === request.sender_id
+            )
+        }));
     }
 
     async function getAcceptedContacts() {
-        const requests =
-            await getContactRequests();
+        const requests = await getContactRequests();
 
-        const accepted =
-            requests.filter(
-                (r) =>
-                    r.status === "accepted"
-            );
+        const ids = [];
 
-        const ids =
-            accepted.map(
-                (request) =>
-                    request.sender_id ===
-                    currentUser.id
-                        ? request.receiver_id
-                        : request.sender_id
-            );
+        requests.forEach((request) => {
+            if (request.status !== "accepted") return;
 
-        return [
-            ...new Set(ids)
-        ];
+            if (request.sender_id === currentUser.id) {
+                ids.push(request.receiver_id);
+            }
+
+            if (request.receiver_id === currentUser.id) {
+                ids.push(request.sender_id);
+            }
+        });
+
+        return getProfiles(ids);
     }
 
     async function getRelationship(userId) {
-        if (
-            !currentUser ||
-            !userId
-        ) {
-            return null;
-        }
+        if (!userId || !currentUser) return null;
 
-        const {
-            data,
-            error
-        } = await db
+        const { data, error } = await db
             .from("contact_requests")
             .select("*")
             .or(
                 `and(sender_id.eq.${currentUser.id},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${currentUser.id})`
             )
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            )
+            .order("created_at", {
+                ascending: false
+            })
             .limit(1)
             .maybeSingle();
 
         if (error) {
-            console.error(
-                "Relationship:",
-                error
-            );
-
+            console.error("Relationship:", error);
             return null;
         }
 
@@ -895,332 +628,284 @@
     }
 
     async function sendContactRequest(userId) {
-        if (
-            !userId ||
-            userId === currentUser.id
-        ) {
+        if (!userId || userId === currentUser.id) return;
+
+        const relationship = await getRelationship(userId);
+
+        if (relationship?.status === "accepted") {
+            toast("You are already contacts.", "info");
             return;
         }
 
-        const relationship =
-            await getRelationship(userId);
-
-        if (
-            relationship?.status ===
-            "accepted"
-        ) {
-            toast(
-                "You are already contacts.",
-                "info"
-            );
+        if (relationship?.status === "pending") {
+            toast("Request already pending.", "info");
             return;
         }
 
-        if (
-            relationship?.status ===
-            "pending"
-        ) {
-            toast(
-                relationship.sender_id ===
-                    currentUser.id
-                    ? "Contact request already sent."
-                    : "This user already sent you a request.",
-                "info"
-            );
-
-            return;
-        }
-
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from("contact_requests")
             .insert({
-                sender_id:
-                    currentUser.id,
-                receiver_id:
-                    userId,
+                sender_id: currentUser.id,
+                receiver_id: userId,
                 status: "pending"
             });
 
         if (error) {
-            if (isUniqueError(error)) {
-                toast(
-                    "Contact request already exists.",
-                    "info"
-                );
-            } else {
-                showError(error);
-            }
-
+            showError(error);
             return;
         }
 
-        toast(
-            "Contact request sent.",
-            "success"
-        );
+        toast("Contact request sent.", "success");
 
-        await refreshSidebar();
+        await renderContactActions();
     }
 
-    async function acceptContactRequest(
-        requestId
-    ) {
-        if (!requestId) return;
-
-        const {
-            error
-        } = await db
+    async function acceptContactRequest(requestId) {
+        const { error } = await db
             .from("contact_requests")
             .update({
                 status: "accepted"
             })
-            .eq(
-                "id",
-                requestId
-            )
-            .eq(
-                "receiver_id",
-                currentUser.id
-            )
-            .eq(
-                "status",
-                "pending"
-            );
+            .eq("id", requestId)
+            .eq("receiver_id", currentUser.id);
 
         if (error) {
             showError(error);
             return;
         }
 
-        toast(
-            "Contact request accepted.",
-            "success"
-        );
+        toast("Contact accepted.", "success");
 
         await refreshSidebar();
 
-        if (activeUserProfile) {
-            await openDirectChat(
-                activeUserProfile
-            );
+        if (activeChatUser) {
+            await renderContactActions();
         }
     }
 
-    async function declineContactRequest(
-        requestId
-    ) {
-        if (!requestId) return;
-
-        const {
-            error
-        } = await db
+    async function declineContactRequest(requestId) {
+        const { error } = await db
             .from("contact_requests")
             .update({
                 status: "declined"
             })
-            .eq(
-                "id",
-                requestId
-            )
-            .eq(
-                "receiver_id",
-                currentUser.id
-            )
-            .eq(
-                "status",
-                "pending"
-            );
+            .eq("id", requestId)
+            .eq("receiver_id", currentUser.id);
 
         if (error) {
             showError(error);
             return;
         }
 
-        toast(
-            "Contact request declined.",
-            "success"
-        );
+        toast("Request declined.", "info");
 
         await refreshSidebar();
     }
 
     /* =========================================================
-       CONTACT LIST
+       SIDEBAR
     ========================================================= */
 
-    async function renderContacts() {
-        const list =
-            $("userList");
+    async function refreshSidebar() {
+        if (!currentUser) return;
+
+        if (currentTab === "groups") {
+            await loadGroups();
+            return;
+        }
+
+        if (currentTab === "channels") {
+            await loadChannels();
+            return;
+        }
+
+        const list = $("userList");
 
         if (!list) return;
 
         list.innerHTML = `
-            <div class="loading-state">
-                Loading contacts...
+            <div class="list-loading">
+                Loading...
             </div>
         `;
 
-        const acceptedIds =
-            await getAcceptedContacts();
-
-        let profiles = [];
-
-        try {
-            profiles =
-                await getProfiles(
-                    acceptedIds
-                );
-        } catch (error) {
-            showError(error);
-        }
-
-        const requests =
-            await loadIncomingRequests();
+        const [contacts, requests] = await Promise.all([
+            getAcceptedContacts(),
+            loadIncomingRequests()
+        ]);
 
         list.innerHTML = "";
 
         if (requests.length) {
-            const title =
-                document.createElement(
-                    "div"
-                );
+            const requestTitle = document.createElement("div");
 
-            title.className =
-                "section-title";
+            requestTitle.className = "list-section-title";
+            requestTitle.textContent = "Contact requests";
 
-            title.textContent =
-                "Contact requests";
+            list.appendChild(requestTitle);
 
-            list.appendChild(title);
+            requests.forEach((item) => {
+                if (!item.profile) return;
 
-            requests.forEach(
-                (request) => {
-                    const profile =
-                        request.sender;
+                const row = document.createElement("div");
 
-                    if (!profile) return;
+                row.className = "user-list-item request-item";
 
-                    const item =
-                        document.createElement(
-                            "div"
-                        );
+                row.innerHTML = `
+                    ${avatarHTML(item.profile)}
 
-                    item.className =
-                        "contact-request-item";
-
-                    item.innerHTML = `
-                        ${avatarHTML(
-                            profile,
-                            "list-avatar"
-                        )}
-
-                        <div class="list-user-info">
-                            <div class="list-user-name">
-                                ${escapeHTML(
-                                    profile.full_name ||
-                                    profile.username
-                                )}
-                                ${verifiedHTML(
-                                    profile
-                                )}
-                            </div>
-
-                            <div class="list-user-username">
-                                @${escapeHTML(
-                                    profile.username
-                                )}
-                            </div>
-                        </div>
-
-                        <div class="request-actions">
-                            <button
-                                type="button"
-                                class="request-accept"
-                                data-request-id="${request.id}"
-                            >
-                                Accept
-                            </button>
-
-                            <button
-                                type="button"
-                                class="request-decline"
-                                data-request-id="${request.id}"
-                            >
-                                Decline
-                            </button>
-                        </div>
-                    `;
-
-                    list.appendChild(item);
-                }
-            );
-        }
-
-        if (
-            !profiles.length &&
-            !requests.length
-        ) {
-            list.innerHTML += `
-                <div class="empty-state">
-                    No contacts yet.
-                </div>
-            `;
-        }
-
-        profiles.forEach(
-            (profile) => {
-                const item =
-                    document.createElement(
-                        "div"
-                    );
-
-                item.className =
-                    "chat-list-item";
-
-                item.innerHTML = `
-                    ${avatarHTML(
-                        profile,
-                        "list-avatar"
-                    )}
-
-                    <div class="list-user-info">
-                        <div class="list-user-name">
+                    <div class="list-item-info">
+                        <strong>
                             ${escapeHTML(
-                                profile.full_name ||
-                                profile.username
+                                item.profile.full_name ||
+                                item.profile.username
                             )}
-                            ${verifiedHTML(
-                                profile
-                            )}
-                        </div>
+                            ${verifiedHTML(item.profile)}
+                        </strong>
 
-                        <div class="list-user-username">
-                            @${escapeHTML(
-                                profile.username
-                            )}
-                        </div>
+                        <small>
+                            @${escapeHTML(item.profile.username || "")}
+                        </small>
+                    </div>
+
+                    <div class="request-actions">
+                        <button
+                            type="button"
+                            class="request-accept"
+                            data-request-action="accept"
+                            data-request-id="${item.request.id}"
+                        >
+                            ✓
+                        </button>
+
+                        <button
+                            type="button"
+                            class="request-decline"
+                            data-request-action="decline"
+                            data-request-id="${item.request.id}"
+                        >
+                            ×
+                        </button>
                     </div>
                 `;
 
-                item.addEventListener(
-                    "click",
-                    () =>
-                        openDirectChat(
-                            profile
+                row.addEventListener("click", (event) => {
+                    if (
+                        event.target.closest(
+                            "[data-request-action]"
                         )
-                );
+                    ) {
+                        return;
+                    }
 
-                list.appendChild(item);
-            }
-        );
+                    openDirectChat(item.profile);
+                });
 
-        if ($("contactCount")) {
-            $("contactCount")
-                .textContent =
-                profiles.length;
+                list.appendChild(row);
+            });
         }
+
+        if (!contacts.length && !requests.length) {
+            list.innerHTML += `
+                <div class="empty-list">
+                    <i class="fa-solid fa-user-group"></i>
+                    <strong>No chats yet</strong>
+                    <span>Search for a username to start.</span>
+                </div>
+            `;
+
+            return;
+        }
+
+        if (contacts.length) {
+            const title = document.createElement("div");
+
+            title.className = "list-section-title";
+            title.textContent = "Chats";
+
+            list.appendChild(title);
+
+            contacts.forEach((profile) => {
+                list.appendChild(
+                    createUserListItem(profile)
+                );
+            });
+        }
+    }
+
+    function createUserListItem(profile) {
+        const row = document.createElement("button");
+
+        row.type = "button";
+        row.className = "user-list-item";
+
+        row.innerHTML = `
+            ${avatarHTML(profile)}
+
+            <div class="list-item-info">
+                <strong>
+                    ${escapeHTML(
+                        profile.full_name ||
+                        profile.username ||
+                        "User"
+                    )}
+                    ${verifiedHTML(profile)}
+                </strong>
+
+                <small>
+                    @${escapeHTML(profile.username || "")}
+                </small>
+            </div>
+        `;
+
+        row.addEventListener("click", () => {
+            openDirectChat(profile);
+        });
+
+        return row;
+    }
+
+    /* =========================================================
+       TABS
+    ========================================================= */
+
+    function setupTabs() {
+        $$(".sidebar-tab").forEach((button) => {
+            button.addEventListener("click", async () => {
+
+                $$(".sidebar-tab").forEach((item) => {
+                    item.classList.remove("active");
+                });
+
+                button.classList.add("active");
+
+                currentTab =
+                    button.dataset.tab || "chats";
+
+                if ($("userList")) {
+                    $("userList").style.display =
+                        currentTab === "chats"
+                            ? ""
+                            : "none";
+                }
+
+                if ($("groupsList")) {
+                    $("groupsList").style.display =
+                        currentTab === "groups"
+                            ? ""
+                            : "none";
+                }
+
+                if ($("channelsList")) {
+                    $("channelsList").style.display =
+                        currentTab === "channels"
+                            ? ""
+                            : "none";
+                }
+
+                await refreshSidebar();
+            });
+        });
     }
 
     /* =========================================================
@@ -1228,60 +913,43 @@
     ========================================================= */
 
     async function searchEverything(query) {
-        query =
-            query
-                .trim()
-                .toLowerCase();
+        query = String(query || "").trim();
 
         if (!query) {
             await refreshSidebar();
             return;
         }
 
-        const usersList =
-            $("userList");
+        const list = $("userList");
 
-        if (!usersList) return;
+        if (!list) return;
 
-        usersList.innerHTML = `
-            <div class="loading-state">
+        list.innerHTML = `
+            <div class="list-loading">
                 Searching...
             </div>
         `;
 
+        const clean = query.replace(/^@/, "");
+
         const [
-            usersResult,
+            profilesResult,
             groupsResult,
             channelsResult
         ] = await Promise.all([
             db
                 .from("profiles")
-                .select(`
-                    id,
-                    username,
-                    full_name,
-                    avatar_url,
-                    bio,
-                    is_verified,
-                    verified_until,
-                    last_seen,
-                    show_online,
-                    show_last_seen
-                `)
+                .select("*")
                 .or(
-                    `username.ilike.%${query}%,full_name.ilike.%${query}%`
+                    `username.ilike.%${clean}%,full_name.ilike.%${clean}%`
                 )
-                .neq(
-                    "id",
-                    currentUser.id
-                )
-                .limit(20),
+                .limit(30),
 
             db
                 .from("groups")
                 .select("*")
                 .or(
-                    `username.ilike.%${query}%,name.ilike.%${query}%`
+                    `username.ilike.%${clean}%,name.ilike.%${clean}%`
                 )
                 .limit(20),
 
@@ -1289,497 +957,279 @@
                 .from("channels")
                 .select("*")
                 .or(
-                    `username.ilike.%${query}%,name.ilike.%${query}%`
+                    `username.ilike.%${clean}%,name.ilike.%${clean}%`
                 )
                 .limit(20)
         ]);
 
-        usersList.innerHTML = "";
+        list.innerHTML = "";
 
-        if (!usersResult.error) {
-            (
-                usersResult.data || []
-            ).forEach(
-                (profile) =>
-                    renderSearchUser(
-                        usersList,
-                        profile
-                    )
-            );
+        if (profilesResult.error) {
+            console.error(profilesResult.error);
         }
 
-        if (!groupsResult.error) {
-            (
-                groupsResult.data || []
-            ).forEach(
-                (group) =>
-                    renderSearchCommunity(
-                        usersList,
-                        group,
-                        "group"
-                    )
-            );
-        }
+        const profiles = profilesResult.data || [];
+        const groups = groupsResult.data || [];
+        const channels = channelsResult.data || [];
 
-        if (!channelsResult.error) {
-            (
-                channelsResult.data || []
-            ).forEach(
-                (channel) =>
-                    renderSearchCommunity(
-                        usersList,
-                        channel,
-                        "channel"
-                    )
-            );
-        }
-
-        if (!usersList.children.length) {
-            usersList.innerHTML = `
-                <div class="empty-state">
-                    Nothing found.
+        if (!profiles.length && !groups.length && !channels.length) {
+            list.innerHTML = `
+                <div class="empty-list">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <strong>Nothing found</strong>
+                    <span>Try another username.</span>
                 </div>
             `;
+
+            return;
         }
+
+        profiles.forEach((profile) => {
+            if (profile.id === currentUser.id) return;
+
+            list.appendChild(
+                createSearchUser(profile)
+            );
+        });
+
+        groups.forEach((group) => {
+            list.appendChild(
+                createSearchCommunity(group, "group")
+            );
+        });
+
+        channels.forEach((channel) => {
+            list.appendChild(
+                createSearchCommunity(channel, "channel")
+            );
+        });
     }
 
-    function renderSearchUser(
-        container,
-        profile
-    ) {
-        const item =
-            document.createElement(
-                "div"
-            );
+    function createSearchUser(profile) {
+        const row = document.createElement("button");
 
-        item.className =
-            "search-result-item";
+        row.type = "button";
+        row.className = "user-list-item";
 
-        item.innerHTML = `
-            ${avatarHTML(
-                profile,
-                "list-avatar"
-            )}
+        row.innerHTML = `
+            ${avatarHTML(profile)}
 
-            <div class="list-user-info">
-                <div class="list-user-name">
+            <div class="list-item-info">
+                <strong>
                     ${escapeHTML(
                         profile.full_name ||
-                        profile.username
+                        profile.username ||
+                        "User"
                     )}
                     ${verifiedHTML(profile)}
-                </div>
+                </strong>
 
-                <div class="list-user-username">
-                    @${escapeHTML(
-                        profile.username
-                    )}
-                </div>
+                <small>
+                    @${escapeHTML(profile.username || "")}
+                </small>
             </div>
-
-            <button
-                type="button"
-                class="search-user-action"
-            >
-                Open
-            </button>
         `;
 
-        item.querySelector("button")
-            ?.addEventListener(
-                "click",
-                (event) => {
-                    event.stopPropagation();
+        row.addEventListener("click", () => {
+            openDirectChat(profile);
+        });
 
-                    openDirectChat(
-                        profile
-                    );
-                }
-            );
-
-        item.addEventListener(
-            "click",
-            () =>
-                openDirectChat(
-                    profile
-                )
-        );
-
-        container.appendChild(item);
+        return row;
     }
 
-    function renderSearchCommunity(
-        container,
-        community,
-        type
-    ) {
-        const item =
-            document.createElement(
-                "div"
-            );
+    function createSearchCommunity(item, type) {
+        const row = document.createElement("button");
 
-        item.className =
-            "search-result-item community-result";
+        row.type = "button";
+        row.className = "user-list-item";
 
-        item.innerHTML = `
-            ${communityAvatarHTML(
-                community
-            )}
+        const name =
+            item.name ||
+            item.username ||
+            "Community";
 
-            <div class="list-user-info">
-                <div class="list-user-name">
-                    ${escapeHTML(
-                        community.name
-                    )}
-                </div>
+        row.innerHTML = `
+            <div class="avatar">
+                <span>${escapeHTML(initials(name))}</span>
+            </div>
 
-                <div class="list-user-username">
-                    @${escapeHTML(
-                        community.username || ""
-                    )}
-                    · ${type}
-                    · ${
-                        community.privacy ===
-                        "private"
-                            ? "private"
-                            : "public"
-                    }
-                </div>
+            <div class="list-item-info">
+                <strong>
+                    ${escapeHTML(name)}
+                </strong>
+
+                <small>
+                    ${type === "group" ? "Group" : "Channel"}
+                    · @${escapeHTML(item.username || "")}
+                </small>
             </div>
         `;
 
-        item.addEventListener(
-            "click",
-            () =>
-                openCommunity(
-                    community,
-                    type
-                )
-        );
+        row.addEventListener("click", () => {
+            openCommunity(item, type);
+        });
 
-        container.appendChild(item);
+        return row;
     }
 
     /* =========================================================
        DIRECT CHAT
     ========================================================= */
 
-    async function openDirectChat(
-        profile
-    ) {
+    async function openDirectChat(profile) {
         if (!profile) return;
 
         activeChatUser = profile;
-
         activeCommunity = null;
         activeCommunityType = null;
-
         activeUserProfile = profile;
 
-        currentChatSearch = "";
+        $("chatEmpty")?.classList.add("hidden");
+        $("activeChat")?.classList.remove("hidden");
 
-        closeModal(
-            "userProfileModal"
-        );
+        renderChatHeader();
 
-        renderChatHeader(profile);
+        await renderContactActions();
 
-        const relationship =
-            await getRelationship(
-                profile.id
-            );
+        await loadDirectMessages();
 
-        if (
-            relationship?.status ===
-            "accepted"
-        ) {
-            showDirectComposer(true);
-
-            await loadDirectMessages();
-        } else {
-            showDirectComposer(false);
-
-            renderContactActions(
-                relationship
-            );
-
-            $("messages").innerHTML = `
-                <div class="messages-empty">
-                    Add this user as a contact to start chatting.
-                </div>
-            `;
+        if (window.innerWidth <= 800) {
+            $("sidebar")?.classList.add("mobile-hidden");
         }
-
-        $("chatEmpty")
-            ?.classList.add(
-                "hidden"
-            );
-
-        $("activeChat")
-            ?.classList.remove(
-                "hidden"
-            );
     }
 
-    function renderChatHeader(
-        profile
-    ) {
+    function renderChatHeader() {
+        if (!activeChatUser) return;
+
         const name =
-            profile.full_name ||
-            profile.username ||
+            activeChatUser.full_name ||
+            activeChatUser.username ||
             "User";
 
         if ($("chatName")) {
-            $("chatName").textContent =
-                name;
+            $("chatName").textContent = name;
         }
 
         if ($("chatVerified")) {
-            $("chatVerified")
-                .style.display =
-                isVerifiedActive(profile)
-                    ? "inline-flex"
-                    : "none";
+            $("chatVerified").outerHTML =
+                isVerifiedActive(activeChatUser)
+                    ? `<span id="chatVerified" class="verified-badge">✓</span>`
+                    : `<span id="chatVerified" class="verified-badge hidden">✓</span>`;
+        }
+
+        if ($("chatAvatar")) {
+            $("chatAvatar").innerHTML =
+                activeChatUser.avatar_url
+                    ? `<img src="${escapeAttr(activeChatUser.avatar_url)}" alt="">`
+                    : `<span>${escapeHTML(initials(name))}</span>`;
         }
 
         if ($("chatStatus")) {
             if (
-                profile.show_online !== false &&
-                profile.last_seen &&
-                Date.now() -
-                    new Date(
-                        profile.last_seen
-                    ).getTime() <
-                    5 * 60 * 1000
+                activeChatUser.show_online !== false &&
+                activeChatUser.last_seen
             ) {
-                $("chatStatus")
-                    .textContent =
-                    "online";
-            } else if (
-                profile.show_last_seen !==
-                    false &&
-                profile.last_seen
-            ) {
-                $("chatStatus")
-                    .textContent =
-                    `last seen ${formatDate(
-                        profile.last_seen
-                    )}`;
+                $("chatStatus").textContent =
+                    "last seen " +
+                    formatDate(activeChatUser.last_seen);
             } else {
-                $("chatStatus")
-                    .textContent = "";
+                $("chatStatus").textContent =
+                    "offline";
             }
-        }
-
-        const avatar =
-            $("chatAvatar");
-
-        if (!avatar) return;
-
-        if (profile.avatar_url) {
-            avatar.innerHTML = `
-                <img
-                    src="${escapeAttr(
-                        profile.avatar_url
-                    )}"
-                    alt=""
-                >
-            `;
-        } else {
-            avatar.innerHTML = `
-                <span>
-                    ${escapeHTML(
-                        initials(name)
-                    )}
-                </span>
-            `;
         }
     }
 
-    function renderContactActions(
-        relationship
-    ) {
-        const box =
-            $("contactActions");
+    async function renderContactActions() {
+        const box = $("contactActions");
 
-        if (!box) return;
+        if (!box || !activeChatUser) return;
 
-        box.innerHTML = "";
+        const relationship =
+            await getRelationship(activeChatUser.id);
 
-        if (!activeChatUser) return;
+        box.classList.remove("hidden");
+
+        const add = $("addContactBtn");
+        const accept = $("acceptContactBtn");
+        const decline = $("declineContactBtn");
+
+        [add, accept, decline].forEach((button) => {
+            button?.classList.add("hidden");
+        });
+
+        if (relationship?.status === "accepted") {
+            box.classList.add("hidden");
+            showDirectComposer(true);
+            return;
+        }
+
+        showDirectComposer(false);
 
         if (!relationship) {
-            box.innerHTML = `
-                <button
-                    type="button"
-                    id="dynamicAddContactBtn"
-                >
-                    Add Contact
-                </button>
-            `;
-
-            $("dynamicAddContactBtn")
-                ?.addEventListener(
-                    "click",
-                    () =>
-                        sendContactRequest(
-                            activeChatUser.id
-                        )
-                );
-
+            add?.classList.remove("hidden");
             return;
         }
 
         if (
-            relationship.status ===
-            "pending"
+            relationship.status === "pending" &&
+            relationship.receiver_id === currentUser.id
         ) {
-            if (
-                relationship.sender_id ===
-                currentUser.id
-            ) {
-                box.innerHTML = `
-                    <div class="request-status">
-                        Contact request sent
-                    </div>
-                `;
-            } else {
-                box.innerHTML = `
-                    <button
-                        type="button"
-                        id="dynamicAcceptBtn"
-                    >
-                        Accept
-                    </button>
-
-                    <button
-                        type="button"
-                        id="dynamicDeclineBtn"
-                    >
-                        Decline
-                    </button>
-                `;
-
-                $("dynamicAcceptBtn")
-                    ?.addEventListener(
-                        "click",
-                        () =>
-                            acceptContactRequest(
-                                relationship.id
-                            )
-                    );
-
-                $("dynamicDeclineBtn")
-                    ?.addEventListener(
-                        "click",
-                        () =>
-                            declineContactRequest(
-                                relationship.id
-                            )
-                    );
-            }
-
+            accept?.classList.remove("hidden");
+            decline?.classList.remove("hidden");
             return;
         }
 
         if (
-            relationship.status ===
-            "declined"
+            relationship.status === "pending" &&
+            relationship.sender_id === currentUser.id
         ) {
-            box.innerHTML = `
-                <button
-                    type="button"
-                    id="dynamicAddContactBtn"
-                >
-                    Add Contact
-                </button>
-            `;
-
-            $("dynamicAddContactBtn")
-                ?.addEventListener(
-                    "click",
-                    () =>
-                        sendContactRequest(
-                            activeChatUser.id
-                        )
-                );
+            add?.classList.remove("hidden");
+            if (add) add.textContent = "Request sent";
+            if (add) add.disabled = true;
         }
     }
 
-    function showDirectComposer(
-        enabled
-    ) {
-        const form =
-            $("messageForm");
+    function showDirectComposer(show) {
+        const form = $("messageForm");
 
-        const input =
-            $("messageInput");
+        if (!form) return;
 
-        const send =
-            $("sendButton");
-
-        if (form) {
-            form.style.display =
-                enabled
-                    ? "flex"
-                    : "none";
-        }
-
-        if (input) {
-            input.disabled =
-                !enabled;
-        }
-
-        if (send) {
-            send.disabled =
-                !enabled;
-        }
-
-        if ($("contactActions")) {
-            $("contactActions")
-                .style.display =
-                enabled
-                    ? "none"
-                    : "flex";
-        }
+        form.classList.toggle("hidden", !show);
     }
 
     async function loadDirectMessages() {
-        if (
-            !currentUser ||
-            !activeChatUser
-        ) {
-            return;
-        }
+        if (!activeChatUser) return;
 
-        const {
-            data,
-            error
-        } = await db
+        const messages = $("messages");
+
+        if (!messages) return;
+
+        messages.innerHTML = `
+            <div class="list-loading">
+                Loading messages...
+            </div>
+        `;
+
+        const otherId = activeChatUser.id;
+
+        const { data, error } = await db
             .from("messages")
             .select("*")
             .or(
-                `and(sender_id.eq.${currentUser.id},receiver_id.eq.${activeChatUser.id}),and(sender_id.eq.${activeChatUser.id},receiver_id.eq.${currentUser.id})`
+                `and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${currentUser.id})`
             )
-            .order(
-                "created_at",
-                {
-                    ascending: true
-                }
-            );
+            .order("created_at", {
+                ascending: true
+            });
 
         if (error) {
             showError(error);
             return;
         }
 
-        currentMessages =
-            data || [];
+        currentMessages = data || [];
 
-        await renderMessages(
-            currentMessages,
-            "direct"
-        );
+        await renderMessages(currentMessages);
     }
 
     /* =========================================================
@@ -1789,22 +1239,9 @@
     async function getMediaUrl(path) {
         if (!path) return "";
 
-        if (
-            path.startsWith("http://") ||
-            path.startsWith("https://")
-        ) {
-            return path;
-        }
-
-        const {
-            data,
-            error
-        } = await db.storage
+        const { data, error } = await db.storage
             .from("chat-media")
-            .createSignedUrl(
-                path,
-                3600
-            );
+            .createSignedUrl(path, 60 * 60);
 
         if (error) {
             console.error(error);
@@ -1815,666 +1252,295 @@
     }
 
     /* =========================================================
-       MESSAGE SEARCH
+       MESSAGES
     ========================================================= */
 
-    function filterMessages(
-        messages
-    ) {
-        if (!currentChatSearch) {
-            return messages;
-        }
-
-        const query =
-            currentChatSearch
-                .trim()
-                .toLowerCase();
-
-        if (!query) {
-            return messages;
-        }
-
-        return messages.filter(
-            (message) =>
-                String(
-                    message.content || ""
-                )
-                    .toLowerCase()
-                    .includes(query)
-        );
-    }
-
-    function showChatSearch() {
-        const existing =
-            $("chatSearchBox");
-
-        if (existing) {
-            existing.classList.toggle(
-                "open"
-            );
-
-            if (
-                existing.classList.contains(
-                    "open"
-                )
-            ) {
-                $("chatSearchInput")
-                    ?.focus();
-            }
-
-            return;
-        }
-
-        const header =
-            document.querySelector(
-                ".chat-header"
-            );
-
-        if (!header) {
-            toast(
-                "Chat search is unavailable.",
-                "warning"
-            );
-            return;
-        }
-
-        const box =
-            document.createElement(
-                "div"
-            );
-
-        box.id =
-            "chatSearchBox";
-
-        box.className =
-            "chat-search-box open";
-
-        box.innerHTML = `
-            <input
-                id="chatSearchInput"
-                type="search"
-                placeholder="Search messages..."
-                autocomplete="off"
-            >
-
-            <button
-                type="button"
-                id="closeChatSearchBtn"
-            >
-                ✕
-            </button>
-        `;
-
-        header.insertAdjacentElement(
-            "afterend",
-            box
-        );
-
-        $("chatSearchInput")
-            ?.addEventListener(
-                "input",
-                (event) => {
-                    clearTimeout(
-                        chatSearchTimer
-                    );
-
-                    chatSearchTimer =
-                        setTimeout(
-                            async () => {
-                                currentChatSearch =
-                                    event.target.value.trim();
-
-                                await renderMessages(
-                                    currentMessages,
-                                    activeCommunity
-                                        ? activeCommunityType
-                                        : "direct"
-                                );
-                            },
-                            150
-                        );
-                }
-            );
-
-        $("closeChatSearchBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    currentChatSearch =
-                        "";
-
-                    box.remove();
-
-                    renderMessages(
-                        currentMessages,
-                        activeCommunity
-                            ? activeCommunityType
-                            : "direct"
-                    );
-                }
-            );
-
-        $("chatSearchInput")
-            ?.focus();
-    }
-
-    /* =========================================================
-       MESSAGE RENDER
-    ========================================================= */
-
-    async function renderMessages(
-        messages,
-        type
-    ) {
-        const container =
-            $("messages");
+    async function renderMessages(messages) {
+        const container = $("messages");
 
         if (!container) return;
 
-        const filtered =
-            filterMessages(
-                messages || []
-            );
-
         container.innerHTML = "";
 
-        if (
-            currentChatSearch &&
-            !filtered.length
-        ) {
+        if (!messages.length) {
             container.innerHTML = `
-                <div class="messages-empty">
-                    No messages found.
+                <div class="empty-messages">
+                    <i class="fa-regular fa-message"></i>
+                    <span>No messages yet.</span>
                 </div>
             `;
 
             return;
         }
 
-        if (!filtered.length) {
-            container.innerHTML = `
-                <div class="messages-empty">
-                    No messages yet.
-                </div>
-            `;
-
-            return;
-        }
-
-        for (
-            const message of filtered
-        ) {
+        for (const message of messages) {
             const mine =
-                message.sender_id ===
-                currentUser.id;
-
-            const row =
-                document.createElement(
-                    "div"
-                );
-
-            row.className =
-                `message-row ${
-                    mine
-                        ? "mine"
-                        : "theirs"
-                }`;
+                message.sender_id === currentUser.id;
 
             const wrapper =
-                document.createElement(
-                    "div"
-                );
+                document.createElement("div");
 
             wrapper.className =
-                "message-wrapper";
+                `message-wrapper ${mine ? "mine" : "theirs"}`;
 
-            wrapper.dataset.messageId =
-                message.id;
+            wrapper.dataset.messageId = message.id;
 
             let content = "";
 
             if (message.deleted_at) {
                 content = `
-                    <div class="message-bubble deleted-message">
-                        Message deleted
+                    <div class="message-bubble deleted">
+                        <i>This message was deleted</i>
                     </div>
                 `;
             } else if (
-                message.message_type ===
-                    "image" &&
+                message.message_type === "image" &&
                 message.image_url
             ) {
                 const url =
-                    await getMediaUrl(
-                        message.image_url
-                    );
+                    await getMediaUrl(message.image_url);
 
                 content = `
                     <div class="message-bubble image-message">
                         ${
                             url
-                                ? `
-                            <img
-                                src="${escapeAttr(
-                                    url
-                                )}"
-                                alt="Image"
-                                loading="lazy"
-                            >
-                        `
-                                : `
-                            <span>
-                                Image unavailable
-                            </span>
-                        `
+                                ? `<img src="${escapeAttr(url)}" alt="Image">`
+                                : "Image unavailable"
                         }
+                    </div>
+                `;
+            } else if (
+                message.message_type === "sticker" &&
+                message.sticker_url
+            ) {
+                content = `
+                    <div class="message-bubble sticker-message">
+                        <img
+                            src="${escapeAttr(message.sticker_url)}"
+                            alt="Sticker"
+                        >
                     </div>
                 `;
             } else {
                 content = `
                     <div class="message-bubble">
-                        ${escapeHTML(
-                            message.content
-                        )}
-
-                        ${
-                            message.edited_at
-                                ? `
-                            <span class="edited-label">
-                                edited
-                            </span>
-                        `
-                                : ""
-                        }
+                        ${escapeHTML(message.content || "")}
                     </div>
                 `;
             }
 
-            const canEditDelete =
-                mine &&
-                !message.deleted_at &&
-                type === "direct";
+            const edited =
+                message.edited_at && !message.deleted_at
+                    ? `<span class="edited-label">edited</span>`
+                    : "";
 
             wrapper.innerHTML = `
-                <div class="message-actions">
-                    <button
-                        type="button"
-                        class="message-action"
-                        data-action="save"
-                        title="Save"
-                    >
-                        🔖
-                    </button>
+                <div class="message-content">
+                    ${content}
 
-                    ${
-                        canEditDelete
-                            ? `
-                        <button
-                            type="button"
-                            class="message-action"
-                            data-action="edit"
-                            title="Edit"
-                        >
-                            ✏️
-                        </button>
+                    <div class="message-meta">
+                        <span>
+                            ${formatTime(message.created_at)}
+                        </span>
 
-                        <button
-                            type="button"
-                            class="message-action"
-                            data-action="delete"
-                            title="Delete"
-                        >
-                            🗑️
-                        </button>
-                    `
-                            : ""
-                    }
+                        ${edited}
+                    </div>
                 </div>
 
-                ${content}
+                <div class="message-actions">
 
-                <div class="message-time">
-                    ${formatTime(
-                        message.created_at
-                    )}
+                    ${
+                        mine && !message.deleted_at
+                            ? `
+                                <button
+                                    type="button"
+                                    data-message-action="edit"
+                                    data-message-id="${message.id}"
+                                >
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                            `
+                            : ""
+                    }
+
+                    ${
+                        mine && !message.deleted_at
+                            ? `
+                                <button
+                                    type="button"
+                                    data-message-action="delete"
+                                    data-message-id="${message.id}"
+                                >
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            `
+                            : ""
+                    }
+
+                    <button
+                        type="button"
+                        data-message-action="save"
+                        data-message-id="${message.id}"
+                    >
+                        <i class="fa-solid fa-bookmark"></i>
+                    </button>
+
                 </div>
             `;
 
-            row.appendChild(
-                wrapper
-            );
-
-            setupMessageSwipe(
-                wrapper,
-                message
-            );
-
-            container.appendChild(
-                row
-            );
+            container.appendChild(wrapper);
         }
 
-        container.scrollTop =
-            container.scrollHeight;
+        setupMessageInteractions();
+
+        requestAnimationFrame(() => {
+            container.scrollTop = container.scrollHeight;
+        });
     }
 
     /* =========================================================
-       MESSAGE HOLD / SWIPE
+       MESSAGE ACTIONS
     ========================================================= */
 
-    function setupMessageSwipe(
-        wrapper,
-        message
-    ) {
-        let startX = 0;
-        let currentX = 0;
+    function setupMessageInteractions() {
+        $$(".message-wrapper").forEach((wrapper) => {
 
-        let holdTimer = null;
-        let holding = false;
-        let pointerActive = false;
+            let startX = 0;
+            let startY = 0;
+            let holding = false;
+            let holdTimer = null;
 
-        function clearHold() {
-            if (holdTimer) {
-                clearTimeout(
-                    holdTimer
-                );
-                holdTimer = null;
-            }
-        }
+            const start = (event) => {
+                const point =
+                    event.touches?.[0] ||
+                    event;
 
-        wrapper.addEventListener(
-            "pointerdown",
-            (event) => {
-                if (
-                    event.button !== undefined &&
-                    event.button !== 0
-                ) {
-                    return;
-                }
-
-                pointerActive = true;
-
-                startX =
-                    event.clientX;
-
-                currentX =
-                    event.clientX;
+                startX = point.clientX;
+                startY = point.clientY;
 
                 holding = false;
 
-                clearHold();
+                clearTimeout(holdTimer);
 
-                holdTimer =
-                    setTimeout(() => {
-                        if (!pointerActive) {
-                            return;
-                        }
+                holdTimer = setTimeout(() => {
+                    holding = true;
+                    wrapper.classList.add("swiped");
+                }, 450);
+            };
 
-                        holding = true;
+            const move = (event) => {
+                const point =
+                    event.touches?.[0] ||
+                    event;
 
-                        wrapper.classList.add(
-                            "hold-active"
-                        );
-                    }, 350);
+                const dx = point.clientX - startX;
+                const dy = point.clientY - startY;
 
-                try {
-                    wrapper.setPointerCapture(
-                        event.pointerId
-                    );
-                } catch {}
-            }
-        );
-
-        wrapper.addEventListener(
-            "pointermove",
-            (event) => {
-                if (!pointerActive) {
+                if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+                    clearTimeout(holdTimer);
                     return;
                 }
 
-                currentX =
-                    event.clientX;
-
-                const delta =
-                    currentX -
-                    startX;
-
-                /*
-                 * Allow slight movement before hold
-                 * without accidentally triggering actions.
-                 */
-
-                if (
-                    !holding &&
-                    Math.abs(delta) > 12
-                ) {
-                    clearHold();
-                    return;
+                if (Math.abs(dx) > 8) {
+                    clearTimeout(holdTimer);
                 }
 
-                if (!holding) return;
+                if (dx < -45) {
+                    wrapper.classList.add("swiped");
+                }
 
-                if (delta < 0) {
-                    const amount =
-                        Math.max(
-                            -80,
-                            Math.min(
-                                0,
-                                delta
-                            )
-                        );
+                if (dx > 25 && !holding) {
+                    wrapper.classList.remove("swiped");
+                }
+            };
 
-                    const bubble =
-                        wrapper.querySelector(
-                            ".message-bubble"
-                        );
+            const end = () => {
+                clearTimeout(holdTimer);
+            };
 
-                    if (bubble) {
-                        bubble.style.transform =
-                            `translateX(${amount}px)`;
+            wrapper.addEventListener("pointerdown", start);
+            wrapper.addEventListener("pointermove", move);
+            wrapper.addEventListener("pointerup", end);
+            wrapper.addEventListener("pointercancel", end);
+        });
+
+        $$(".message-wrapper [data-message-action]").forEach(
+            (button) => {
+
+                button.addEventListener("click", async (event) => {
+                    event.stopPropagation();
+
+                    const action =
+                        button.dataset.messageAction;
+
+                    const id =
+                        button.dataset.messageId;
+
+                    if (action === "edit") {
+                        await editMessage(id);
                     }
-                }
-            }
-        );
 
-        wrapper.addEventListener(
-            "pointerup",
-            (event) => {
-                clearHold();
-
-                if (!pointerActive) {
-                    return;
-                }
-
-                pointerActive = false;
-
-                if (holding) {
-                    const delta =
-                        currentX -
-                        startX;
-
-                    if (
-                        delta <= -45
-                    ) {
-                        wrapper.classList.add(
-                            "swiped"
-                        );
-                    } else {
-                        /*
-                         * A hold without swipe
-                         * simply reveals actions.
-                         */
-                        wrapper.classList.add(
-                            "swiped"
-                        );
+                    if (action === "delete") {
+                        await deleteMessage(id);
                     }
-                }
 
-                holding = false;
+                    if (action === "save") {
+                        await saveMessage(id);
+                    }
 
-                try {
-                    wrapper.releasePointerCapture(
-                        event.pointerId
-                    );
-                } catch {}
+                    const wrapper =
+                        button.closest(".message-wrapper");
+
+                    wrapper?.classList.remove("swiped");
+                });
             }
         );
-
-        wrapper.addEventListener(
-            "pointercancel",
-            () => {
-                clearHold();
-
-                pointerActive = false;
-                holding = false;
-
-                resetMessageSwipe(
-                    wrapper
-                );
-            }
-        );
-
-        wrapper
-            .querySelectorAll(
-                ".message-action"
-            )
-            .forEach(
-                (button) => {
-                    button.addEventListener(
-                        "click",
-                        async (event) => {
-                            event.stopPropagation();
-
-                            const action =
-                                button.dataset.action;
-
-                            if (
-                                action ===
-                                "save"
-                            ) {
-                                await saveMessage(
-                                    message
-                                );
-                            }
-
-                            if (
-                                action ===
-                                "edit"
-                            ) {
-                                await editMessage(
-                                    message
-                                );
-                            }
-
-                            if (
-                                action ===
-                                "delete"
-                            ) {
-                                await deleteMessage(
-                                    message
-                                );
-                            }
-
-                            resetMessageSwipe(
-                                wrapper
-                            );
-                        }
-                    );
-                }
-            );
     }
 
-    function resetMessageSwipe(
-        wrapper
-    ) {
-        if (!wrapper) return;
-
-        wrapper.classList.remove(
-            "swiped",
-            "hold-active"
-        );
-
-        const bubble =
-            wrapper.querySelector(
-                ".message-bubble"
-            );
-
-        if (bubble) {
-            bubble.style.transform =
-                "";
-        }
-    }
-
-    /* =========================================================
-       SEND DIRECT MESSAGE
-    ========================================================= */
-
-    async function sendMessage(
-        event
-    ) {
+    async function sendMessage(event) {
         event?.preventDefault();
 
-        if (
-            !currentUser ||
-            !activeChatUser
-        ) {
-            return;
-        }
+        if (!activeChatUser) return;
+
+        const input = $("messageInput");
+
+        if (!input) return;
+
+        const content = input.value.trim();
+
+        if (!content) return;
 
         const relationship =
-            await getRelationship(
-                activeChatUser.id
-            );
+            await getRelationship(activeChatUser.id);
 
-        if (
-            relationship?.status !==
-            "accepted"
-        ) {
+        if (relationship?.status !== "accepted") {
             toast(
-                "Accept the contact request before chatting.",
+                "You can only message accepted contacts.",
                 "warning"
             );
             return;
         }
 
         if (
-            currentProfile.messaging_blocked &&
+            currentProfile?.messaging_blocked &&
             (
-                !currentProfile
-                    .messaging_blocked_until ||
+                !currentProfile.messaging_blocked_until ||
                 new Date(
-                    currentProfile
-                        .messaging_blocked_until
-                ) > new Date()
+                    currentProfile.messaging_blocked_until
+                ).getTime() > Date.now()
             )
         ) {
-            toast(
-                "Messaging is currently blocked for your account.",
-                "error"
-            );
+            toast("Messaging is blocked on your account.", "error");
             return;
         }
 
-        const input =
-            $("messageInput");
-
-        const content =
-            input?.value.trim();
-
-        if (!content) return;
-
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from("messages")
             .insert({
-                sender_id:
-                    currentUser.id,
-                receiver_id:
-                    activeChatUser.id,
+                sender_id: currentUser.id,
+                receiver_id: activeChatUser.id,
                 content,
-                message_type:
-                    "text"
+                message_type: "text"
             });
 
         if (error) {
@@ -2487,99 +1553,60 @@
         await loadDirectMessages();
     }
 
-    async function sendImage(
-        file
-    ) {
-        if (
-            !file ||
-            !activeChatUser
-        ) {
+    async function sendImage(event) {
+        const file =
+            event.target.files?.[0];
+
+        event.target.value = "";
+
+        if (!file || !activeChatUser) return;
+
+        if (!file.type.startsWith("image/")) {
+            toast("Please select an image.", "warning");
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            toast("Image must be smaller than 10 MB.", "warning");
             return;
         }
 
         const relationship =
-            await getRelationship(
-                activeChatUser.id
-            );
+            await getRelationship(activeChatUser.id);
 
-        if (
-            relationship?.status !==
-            "accepted"
-        ) {
+        if (relationship?.status !== "accepted") {
             toast(
-                "You are not contacts yet.",
+                "You can only send messages to contacts.",
                 "warning"
             );
             return;
         }
 
-        if (
-            !file.type.startsWith(
-                "image/"
-            )
-        ) {
-            toast(
-                "Only image files are supported.",
-                "error"
-            );
-            return;
-        }
-
-        if (
-            file.size >
-            10 * 1024 * 1024
-        ) {
-            toast(
-                "Image must be smaller than 10 MB.",
-                "error"
-            );
-            return;
-        }
-
         const extension =
-            file.name.split(
-                "."
-            ).pop() || "jpg";
+            file.name.split(".").pop()?.toLowerCase() || "jpg";
 
         const path =
-            `${currentUser.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+            `${currentUser.id}/${Date.now()}-${Math.random()
+                .toString(36)
+                .slice(2)}.${extension}`;
 
-        const {
-            error: uploadError
-        } = await db.storage
+        const { error: uploadError } = await db.storage
             .from("chat-media")
-            .upload(
-                path,
-                file,
-                {
-                    upsert: false,
-                    contentType:
-                        file.type
-                }
-            );
+            .upload(path, file);
 
         if (uploadError) {
-            showError(
-                uploadError,
-                "Image upload failed."
-            );
+            showError(uploadError);
             return;
         }
 
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from("messages")
             .insert({
-                sender_id:
-                    currentUser.id,
-                receiver_id:
-                    activeChatUser.id,
+                sender_id: currentUser.id,
+                receiver_id: activeChatUser.id,
                 content: "",
-                message_type:
-                    "image",
-                image_url:
-                    path
+                message_type: "image",
+                image_url: path
             });
 
         if (error) {
@@ -2590,64 +1617,40 @@
         await loadDirectMessages();
     }
 
-    /* =========================================================
-       EDIT / DELETE / SAVE
-    ========================================================= */
+    async function editMessage(messageId) {
+        const message =
+            currentMessages.find(
+                (item) =>
+                    String(item.id) === String(messageId)
+            );
 
-    async function editMessage(
-        message
-    ) {
-        if (
-            message.sender_id !==
-            currentUser.id
-        ) {
+        if (!message) return;
+
+        if (message.sender_id !== currentUser.id) {
+            toast("You can only edit your own message.", "error");
             return;
         }
 
-        if (
-            message.deleted_at
-        ) {
-            return;
-        }
-
-        const value =
+        const next =
             prompt(
                 "Edit message:",
                 message.content || ""
             );
 
-        if (value === null) {
-            return;
-        }
+        if (next === null) return;
 
-        const content =
-            value.trim();
+        const content = next.trim();
 
-        if (!content) {
-            toast(
-                "Message cannot be empty.",
-                "error"
-            );
-            return;
-        }
+        if (!content) return;
 
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from("messages")
             .update({
                 content,
-                edited_at:
-                    new Date().toISOString()
+                edited_at: new Date().toISOString()
             })
-            .eq(
-                "id",
-                message.id
-            )
-            .eq(
-                "sender_id",
-                currentUser.id
-            );
+            .eq("id", messageId)
+            .eq("sender_id", currentUser.id);
 
         if (error) {
             showError(error);
@@ -2657,40 +1660,30 @@
         await loadDirectMessages();
     }
 
-    async function deleteMessage(
-        message
-    ) {
-        if (
-            message.sender_id !==
-            currentUser.id
-        ) {
+    async function deleteMessage(messageId) {
+        const message =
+            currentMessages.find(
+                (item) =>
+                    String(item.id) === String(messageId)
+            );
+
+        if (!message) return;
+
+        if (message.sender_id !== currentUser.id) {
+            toast("You can only delete your own message.", "error");
             return;
         }
 
-        if (
-            !confirm(
-                "Delete this message?"
-            )
-        ) {
-            return;
-        }
+        if (!confirm("Delete this message?")) return;
 
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from("messages")
             .update({
-                deleted_at:
-                    new Date().toISOString()
+                deleted_at: new Date().toISOString(),
+                content: ""
             })
-            .eq(
-                "id",
-                message.id
-            )
-            .eq(
-                "sender_id",
-                currentUser.id
-            );
+            .eq("id", messageId)
+            .eq("sender_id", currentUser.id);
 
         if (error) {
             showError(error);
@@ -2700,48 +1693,37 @@
         await loadDirectMessages();
     }
 
-    async function saveMessage(
-        message
-    ) {
-        const payload = {
-            user_id:
-                currentUser.id,
-            message_id:
-                message.id,
-            content:
-                message.content || ""
-        };
-
-        const {
-            error
-        } = await db
-            .from("saved_messages")
-            .insert(
-                payload
+    async function saveMessage(messageId) {
+        const message =
+            currentMessages.find(
+                (item) =>
+                    String(item.id) === String(messageId)
             );
+
+        if (!message) return;
+
+        const { error } = await db
+            .from("saved_messages")
+            .insert({
+                user_id: currentUser.id,
+                message_id: message.id
+            });
 
         if (error) {
             if (
-                isUniqueError(error)
+                String(error.message || "")
+                    .toLowerCase()
+                    .includes("duplicate")
             ) {
-                toast(
-                    "Message is already saved.",
-                    "info"
-                );
-            } else {
-                showError(
-                    error,
-                    "Could not save message."
-                );
+                toast("Already saved.", "info");
+                return;
             }
 
+            showError(error);
             return;
         }
 
-        toast(
-            "Message saved.",
-            "success"
-        );
+        toast("Message saved.", "success");
     }
 
     /* =========================================================
@@ -2749,463 +1731,89 @@
     ========================================================= */
 
     async function loadGroups() {
-        const list =
-            $("groupsList");
+        const container = $("groupsList");
 
-        if (!list) return;
+        if (!container) return;
 
-        /*
-         * Members first.
-         */
-        const {
-            data: memberships,
-            error: membershipError
-        } = await db
-            .from("group_members")
-            .select("group_id")
-            .eq(
-                "user_id",
-                currentUser.id
-            );
+        const items =
+            $("groupsItems");
 
-        if (membershipError) {
-            console.error(
-                membershipError
-            );
-        }
+        if (!items) return;
 
-        const memberIds =
-            (memberships || [])
-                .map(
-                    (x) => x.group_id
-                );
-
-        /*
-         * Public groups can be discovered without
-         * membership. We also include private groups
-         * where the current user is already a member.
-         */
-        const [
-            publicResult,
-            memberResult
-        ] = await Promise.all([
-            db
-                .from("groups")
-                .select("*")
-                .eq(
-                    "privacy",
-                    "public"
-                )
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                )
-                .limit(100),
-
-            memberIds.length
-                ? db
-                    .from("groups")
-                    .select("*")
-                    .in(
-                        "id",
-                        memberIds
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    )
-                : Promise.resolve({
-                    data: [],
-                    error: null
-                })
-        ]);
-
-        if (
-            publicResult.error &&
-            memberResult.error
-        ) {
-            list.innerHTML = `
-                <div class="empty-state">
-                    Could not load groups.
-                </div>
-            `;
-
-            return;
-        }
-
-        const map =
-            new Map();
-
-        (
-            publicResult.data || []
-        ).forEach(
-            (group) =>
-                map.set(
-                    group.id,
-                    group
-                )
-        );
-
-        (
-            memberResult.data || []
-        ).forEach(
-            (group) =>
-                map.set(
-                    group.id,
-                    group
-                )
-        );
-
-        const groups =
-            [...map.values()]
-                .sort(
-                    (a, b) =>
-                        new Date(
-                            b.created_at || 0
-                        ) -
-                        new Date(
-                            a.created_at || 0
-                        )
-                );
-
-        list.innerHTML = "";
-
-        if (!groups.length) {
-            list.innerHTML = `
-                <div class="empty-state">
-                    No groups yet.
-                </div>
-            `;
-
-            if ($("groupCount")) {
-                $("groupCount")
-                    .textContent = "0";
-            }
-
-            return;
-        }
-
-        groups.forEach(
-            (group) =>
-                renderCommunityItem(
-                    list,
-                    group,
-                    "group"
-                )
-        );
-
-        if ($("groupCount")) {
-            $("groupCount")
-                .textContent =
-                groups.length;
-        }
-    }
-
-    function renderCommunityItem(
-        container,
-        community,
-        type
-    ) {
-        const item =
-            document.createElement(
-                "div"
-            );
-
-        item.className =
-            "chat-list-item";
-
-        const privateText =
-            community.privacy ===
-            "private"
-                ? " · Private"
-                : "";
-
-        item.innerHTML = `
-            ${communityAvatarHTML(
-                community
-            )}
-
-            <div class="list-user-info">
-                <div class="list-user-name">
-                    ${escapeHTML(
-                        community.name
-                    )}
-                </div>
-
-                <div class="list-user-username">
-                    @${escapeHTML(
-                        community.username || ""
-                    )}
-                    ${privateText}
-                </div>
+        items.innerHTML = `
+            <div class="list-loading">
+                Loading groups...
             </div>
         `;
 
-        item.addEventListener(
-            "click",
-            () =>
-                openCommunity(
-                    community,
-                    type
-                )
-        );
-
-        container.appendChild(
-            item
-        );
-    }
-
-    async function createGroup(
-        event
-    ) {
-        event?.preventDefault();
-
-        const name =
-            $("groupName")
-                ?.value.trim();
-
-        const username =
-            $("groupUsername")
-                ?.value
-                .trim()
-                .toLowerCase();
-
-        const bio =
-            $("groupBio")
-                ?.value.trim();
-
-        const privacy =
-            document.querySelector(
-                'input[name="groupPrivacy"]:checked'
-            )?.value ||
-            "public";
-
-        if (!name) {
-            toast(
-                "Group name is required.",
-                "error"
-            );
-            return;
-        }
-
-        if (
-            !/^[a-z0-9_]{3,32}$/.test(
-                username
-            )
-        ) {
-            toast(
-                "Invalid group username.",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            data: sameGroup
-        } = await db
-            .from("groups")
-            .select("id")
-            .eq(
-                "username",
-                username
-            )
-            .maybeSingle();
-
-        if (sameGroup) {
-            toast(
-                "This group username is already taken.",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            data: sameProfile
-        } = await db
-            .from("profiles")
-            .select("id")
-            .eq(
-                "username",
-                username
-            )
-            .maybeSingle();
-
-        if (sameProfile) {
-            toast(
-                "This username is already used by a user.",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            data: groupId,
-            error
-        } = await db.rpc(
-            "create_group",
-            {
-                p_name: name,
-                p_username:
-                    username,
-                p_bio:
-                    bio || ""
-            }
-        );
+        const { data: memberships, error } = await db
+            .from("group_members")
+            .select("group_id")
+            .eq("user_id", currentUser.id);
 
         if (error) {
-            showError(
-                error,
-                "Could not create group."
-            );
+            console.error(error);
+            items.innerHTML = `
+                <div class="empty-list">
+                    Unable to load groups.
+                </div>
+            `;
             return;
         }
 
-        const id =
-            typeof groupId ===
-            "object"
-                ? groupId?.id
-                : groupId;
+        const ids =
+            (memberships || []).map(
+                (item) => item.group_id
+            );
 
-        if (id) {
-            const {
-                error: privacyError
-            } = await db
+        let groups = [];
+
+        if (ids.length) {
+            const result = await db
                 .from("groups")
-                .update({
-                    privacy
-                })
-                .eq(
-                    "id",
-                    id
-                );
+                .select("*")
+                .in("id", ids);
 
-            if (privacyError) {
-                console.warn(
-                    "Could not update group privacy:",
-                    privacyError
-                );
+            if (!result.error) {
+                groups = result.data || [];
             }
         }
 
-        const input =
-            $("groupAvatarInput");
+        const publicResult = await db
+            .from("groups")
+            .select("*")
+            .eq("privacy", "public")
+            .limit(100);
 
-        if (
-            id &&
-            input?.files?.length
-        ) {
-            const url =
-                await uploadCommunityAvatar(
-                    input,
-                    "group-avatars",
-                    "groups"
-                );
+        if (!publicResult.error) {
+            const map = new Map();
 
-            if (url) {
-                await db
-                    .from("groups")
-                    .update({
-                        avatar_url:
-                            url
-                    })
-                    .eq(
-                        "id",
-                        id
-                    );
-            }
+            [...groups, ...(publicResult.data || [])]
+                .forEach((group) => {
+                    map.set(String(group.id), group);
+                });
+
+            groups = [...map.values()];
         }
 
-        closeModal(
-            "createGroupModal"
-        );
+        items.innerHTML = "";
 
-        $("groupForm")
-            ?.reset();
-
-        toast(
-            "Group created.",
-            "success"
-        );
-
-        await loadGroups();
-    }
-
-    async function uploadCommunityAvatar(
-        input,
-        bucket,
-        folder
-    ) {
-        if (
-            !input?.files?.length
-        ) {
-            return null;
+        if (!groups.length) {
+            items.innerHTML = `
+                <div class="empty-list">
+                    <i class="fa-solid fa-users"></i>
+                    <strong>No groups</strong>
+                    <span>Create or search for a group.</span>
+                </div>
+            `;
+            return;
         }
 
-        const file =
-            input.files[0];
-
-        if (
-            !file.type.startsWith(
-                "image/"
-            )
-        ) {
-            toast(
-                "Please select an image.",
-                "error"
+        groups.forEach((group) => {
+            items.appendChild(
+                createCommunityItem(group, "group")
             );
-            return null;
-        }
-
-        if (
-            file.size >
-            5 * 1024 * 1024
-        ) {
-            toast(
-                "Image must be smaller than 5 MB.",
-                "error"
-            );
-            return null;
-        }
-
-        const extension =
-            file.name
-                .split(".")
-                .pop() ||
-            "jpg";
-
-        const path =
-            `${folder}/${crypto.randomUUID()}.${extension}`;
-
-        const {
-            error
-        } = await db.storage
-            .from(bucket)
-            .upload(
-                path,
-                file,
-                {
-                    upsert: false,
-                    contentType:
-                        file.type
-                }
-            );
-
-        if (error) {
-            showError(error);
-            return null;
-        }
-
-        const { data } =
-            db.storage
-                .from(bucket)
-                .getPublicUrl(path);
-
-        return data?.publicUrl ||
-            null;
+        });
     }
 
     /* =========================================================
@@ -3213,528 +1821,532 @@
     ========================================================= */
 
     async function loadChannels() {
-        const list =
-            $("channelsList");
+        const items = $("channelsItems");
 
-        if (!list) return;
+        if (!items) return;
 
-        const {
-            data: memberships,
-            error: membershipError
-        } = await db
+        items.innerHTML = `
+            <div class="list-loading">
+                Loading channels...
+            </div>
+        `;
+
+        const { data: memberships, error } = await db
             .from("channel_members")
             .select("channel_id")
-            .eq(
-                "user_id",
-                currentUser.id
-            );
+            .eq("user_id", currentUser.id);
 
-        if (membershipError) {
-            console.error(
-                membershipError
-            );
-        }
-
-        const memberIds =
-            (memberships || [])
-                .map(
-                    (x) =>
-                        x.channel_id
-                );
-
-        const [
-            publicResult,
-            memberResult
-        ] = await Promise.all([
-            db
-                .from("channels")
-                .select("*")
-                .eq(
-                    "privacy",
-                    "public"
-                )
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                )
-                .limit(100),
-
-            memberIds.length
-                ? db
-                    .from("channels")
-                    .select("*")
-                    .in(
-                        "id",
-                        memberIds
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending: false
-                        }
-                    )
-                : Promise.resolve({
-                    data: [],
-                    error: null
-                })
-        ]);
-
-        const map =
-            new Map();
-
-        (
-            publicResult.data || []
-        ).forEach(
-            (channel) =>
-                map.set(
-                    channel.id,
-                    channel
-                )
-        );
-
-        (
-            memberResult.data || []
-        ).forEach(
-            (channel) =>
-                map.set(
-                    channel.id,
-                    channel
-                )
-        );
-
-        const channels =
-            [...map.values()]
-                .sort(
-                    (a, b) =>
-                        new Date(
-                            b.created_at || 0
-                        ) -
-                        new Date(
-                            a.created_at || 0
-                        )
-                );
-
-        list.innerHTML = "";
-
-        if (!channels.length) {
-            list.innerHTML = `
-                <div class="empty-state">
-                    No channels yet.
+        if (error) {
+            console.error(error);
+            items.innerHTML = `
+                <div class="empty-list">
+                    Unable to load channels.
                 </div>
             `;
-
-            if ($("channelCount")) {
-                $("channelCount")
-                    .textContent = "0";
-            }
-
             return;
         }
 
-        channels.forEach(
-            (channel) =>
-                renderCommunityItem(
-                    list,
-                    channel,
-                    "channel"
-                )
-        );
+        const ids =
+            (memberships || []).map(
+                (item) => item.channel_id
+            );
 
-        if ($("channelCount")) {
-            $("channelCount")
-                .textContent =
-                channels.length;
+        let channels = [];
+
+        if (ids.length) {
+            const result = await db
+                .from("channels")
+                .select("*")
+                .in("id", ids);
+
+            if (!result.error) {
+                channels = result.data || [];
+            }
         }
+
+        const publicResult = await db
+            .from("channels")
+            .select("*")
+            .eq("privacy", "public")
+            .limit(100);
+
+        if (!publicResult.error) {
+            const map = new Map();
+
+            [...channels, ...(publicResult.data || [])]
+                .forEach((channel) => {
+                    map.set(String(channel.id), channel);
+                });
+
+            channels = [...map.values()];
+        }
+
+        items.innerHTML = "";
+
+        if (!channels.length) {
+            items.innerHTML = `
+                <div class="empty-list">
+                    <i class="fa-solid fa-bullhorn"></i>
+                    <strong>No channels</strong>
+                    <span>Create or search for a channel.</span>
+                </div>
+            `;
+            return;
+        }
+
+        channels.forEach((channel) => {
+            items.appendChild(
+                createCommunityItem(channel, "channel")
+            );
+        });
     }
 
-    async function createChannel(
-        event
-    ) {
+    function createCommunityItem(item, type) {
+        const button =
+            document.createElement("button");
+
+        button.type = "button";
+        button.className = "user-list-item community-item";
+
+        const name =
+            item.name ||
+            item.username ||
+            "Community";
+
+        button.innerHTML = `
+            <div class="avatar">
+                ${
+                    item.avatar_url
+                        ? `<img src="${escapeAttr(item.avatar_url)}" alt="">`
+                        : `<span>${escapeHTML(initials(name))}</span>`
+                }
+            </div>
+
+            <div class="list-item-info">
+                <strong>${escapeHTML(name)}</strong>
+
+                <small>
+                    ${type === "group" ? "Group" : "Channel"}
+                    · @${escapeHTML(item.username || "")}
+                </small>
+            </div>
+        `;
+
+        button.addEventListener("click", () => {
+            openCommunity(item, type);
+        });
+
+        return button;
+    }
+
+    /* =========================================================
+       CREATE GROUP
+    ========================================================= */
+
+    async function createGroup(event) {
         event?.preventDefault();
 
         const name =
-            $("channelName")
-                ?.value.trim();
+            $("groupName")?.value.trim();
 
         const username =
-            $("channelUsername")
-                ?.value
+            $("groupUsername")?.value
                 .trim()
                 .toLowerCase();
 
         const bio =
-            $("channelBio")
-                ?.value.trim();
+            $("groupBio")?.value.trim() || "";
+
+        const privacy =
+            document.querySelector(
+                'input[name="groupPrivacy"]:checked'
+            )?.value || "public";
+
+        if (!name) {
+            toast("Enter group name.", "warning");
+            return;
+        }
+
+        if (!/^[a-z0-9_]{3,32}$/.test(username)) {
+            toast("Invalid group username.", "warning");
+            return;
+        }
+
+        const { data: groupId, error } =
+            await db.rpc("create_group", {
+                p_name: name,
+                p_username: username,
+                p_bio: bio
+            });
+
+        if (error) {
+            showError(error);
+            return;
+        }
+
+        const { error: updateError } =
+            await db
+                .from("groups")
+                .update({
+                    privacy
+                })
+                .eq("id", groupId);
+
+        if (updateError) {
+            console.error(updateError);
+        }
+
+        const file =
+            $("groupAvatarInput")?.files?.[0];
+
+        if (file) {
+            await uploadCommunityAvatar(
+                file,
+                "group",
+                groupId
+            );
+        }
+
+        $("groupForm")?.reset();
+
+        closeModal("createGroupModal");
+
+        await loadGroups();
+
+        toast("Group created.", "success");
+    }
+
+    /* =========================================================
+       CREATE CHANNEL
+    ========================================================= */
+
+    async function createChannel(event) {
+        event?.preventDefault();
+
+        const name =
+            $("channelName")?.value.trim();
+
+        const username =
+            $("channelUsername")?.value
+                .trim()
+                .toLowerCase();
+
+        const bio =
+            $("channelBio")?.value.trim() || "";
 
         const privacy =
             document.querySelector(
                 'input[name="channelPrivacy"]:checked'
-            )?.value ||
-            "public";
+            )?.value || "public";
 
         if (!name) {
-            toast(
-                "Channel name is required.",
-                "error"
-            );
+            toast("Enter channel name.", "warning");
             return;
         }
 
-        if (
-            !/^[a-z0-9_]{3,32}$/.test(
-                username
-            )
-        ) {
-            toast(
-                "Invalid channel username.",
-                "error"
-            );
+        if (!/^[a-z0-9_]{3,32}$/.test(username)) {
+            toast("Invalid channel username.", "warning");
             return;
         }
 
-        const {
-            data: existing
-        } = await db
-            .from("channels")
-            .select("id")
-            .eq(
-                "username",
-                username
-            )
-            .maybeSingle();
-
-        if (existing) {
-            toast(
-                "This channel username is already taken.",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            data: profileMatch
-        } = await db
-            .from("profiles")
-            .select("id")
-            .eq(
-                "username",
-                username
-            )
-            .maybeSingle();
-
-        if (profileMatch) {
-            toast(
-                "This username is already used by a user.",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            data: channelId,
-            error
-        } = await db.rpc(
-            "create_channel",
-            {
+        const { data: channelId, error } =
+            await db.rpc("create_channel", {
                 p_name: name,
-                p_username:
-                    username,
-                p_bio:
-                    bio || ""
-            }
-        );
+                p_username: username,
+                p_bio: bio
+            });
 
         if (error) {
-            showError(
-                error,
-                "Could not create channel."
-            );
+            showError(error);
             return;
         }
 
-        const id =
-            typeof channelId ===
-            "object"
-                ? channelId?.id
-                : channelId;
-
-        if (id) {
-            const {
-                error: privacyError
-            } = await db
+        const { error: updateError } =
+            await db
                 .from("channels")
                 .update({
                     privacy
                 })
-                .eq(
-                    "id",
-                    id
-                );
+                .eq("id", channelId);
 
-            if (privacyError) {
-                console.warn(
-                    "Could not update channel privacy:",
-                    privacyError
-                );
-            }
+        if (updateError) {
+            console.error(updateError);
         }
 
-        const input =
-            $("channelAvatarInput");
+        const file =
+            $("channelAvatarInput")?.files?.[0];
 
-        if (
-            id &&
-            input?.files?.length
-        ) {
-            const url =
-                await uploadCommunityAvatar(
-                    input,
-                    "channel-avatars",
-                    "channels"
-                );
-
-            if (url) {
-                await db
-                    .from("channels")
-                    .update({
-                        avatar_url:
-                            url
-                    })
-                    .eq(
-                        "id",
-                        id
-                    );
-            }
+        if (file) {
+            await uploadCommunityAvatar(
+                file,
+                "channel",
+                channelId
+            );
         }
 
-        closeModal(
-            "createChannelModal"
-        );
+        $("channelForm")?.reset();
 
-        $("channelForm")
-            ?.reset();
-
-        toast(
-            "Channel created.",
-            "success"
-        );
+        closeModal("createChannelModal");
 
         await loadChannels();
+
+        toast("Channel created.", "success");
+    }
+
+    async function uploadCommunityAvatar(file, type, id) {
+        if (!file || !id) return;
+
+        const bucket =
+            type === "group"
+                ? "group-avatars"
+                : "channel-avatars";
+
+        const extension =
+            file.name.split(".").pop()?.toLowerCase() || "jpg";
+
+        const path =
+            `${id}/${Date.now()}.${extension}`;
+
+        const { error } = await db.storage
+            .from(bucket)
+            .upload(path, file, {
+                upsert: true
+            });
+
+        if (error) {
+            console.error(error);
+            return;
+        }
+
+        const {
+            data
+        } = db.storage
+            .from(bucket)
+            .getPublicUrl(path);
+
+        const avatarUrl = data?.publicUrl;
+
+        if (!avatarUrl) return;
+
+        const table =
+            type === "group"
+                ? "groups"
+                : "channels";
+
+        await db
+            .from(table)
+            .update({
+                avatar_url: avatarUrl
+            })
+            .eq("id", id);
     }
 
     /* =========================================================
-       COMMUNITY MEMBERSHIP
+       COMMUNITY
     ========================================================= */
 
-    async function getCommunityMembership(
-        community,
-        type
-    ) {
-        if (
-            !community ||
-            !currentUser
-        ) {
-            return null;
-        }
+    async function openCommunity(item, type) {
+        if (!item) return;
 
-        const table =
+        activeCommunity = item;
+        activeCommunityType = type;
+        activeChatUser = null;
+
+        $("chatEmpty")?.classList.add("hidden");
+        $("activeChat")?.classList.remove("hidden");
+
+        renderCommunityHeader();
+
+        const tableMembers =
             type === "group"
                 ? "group_members"
                 : "channel_members";
 
-        const idColumn =
+        const key =
             type === "group"
                 ? "group_id"
                 : "channel_id";
 
-        const {
-            data,
-            error
-        } = await db
-            .from(table)
-            .select("*")
-            .eq(
-                idColumn,
-                community.id
-            )
-            .eq(
-                "user_id",
-                currentUser.id
-            )
-            .maybeSingle();
+        const { data: membership } =
+            await db
+                .from(tableMembers)
+                .select("*")
+                .eq(key, item.id)
+                .eq("user_id", currentUser.id)
+                .maybeSingle();
 
-        if (error) {
-            console.error(
-                "Community membership:",
-                error
-            );
-            return null;
+        if (!membership) {
+            showDirectComposer(false);
+
+            $("contactActions")
+                ?.classList.add("hidden");
+
+            showCommunityJoinCard(item, type);
+
+            return;
         }
 
-        return data;
+        $("contactActions")
+            ?.classList.add("hidden");
+
+        if (type === "channel") {
+            const role = membership.role;
+
+            showDirectComposer(
+                role === "owner" ||
+                role === "admin"
+            );
+        } else {
+            showDirectComposer(true);
+        }
+
+        await loadCommunityMessages();
     }
 
-    /* =========================================================
-       COMMUNITY JOIN UI
-    ========================================================= */
+    function renderCommunityHeader() {
+        if (!activeCommunity) return;
 
-    function renderCommunityJoinState(
-        community,
-        type
-    ) {
-        const actions =
-            $("contactActions");
+        const name =
+            activeCommunity.name ||
+            activeCommunity.username ||
+            "Community";
 
-        if (!actions) return;
+        if ($("chatName")) {
+            $("chatName").textContent = name;
+        }
 
-        actions.style.display =
-            "flex";
+        if ($("chatVerified")) {
+            $("chatVerified").classList.add("hidden");
+        }
 
-        const isPrivate =
-            community.privacy ===
-            "private";
+        if ($("chatStatus")) {
+            $("chatStatus").textContent =
+                activeCommunityType === "group"
+                    ? "Group"
+                    : "Channel";
+        }
 
-        actions.innerHTML = `
+        if ($("chatAvatar")) {
+            $("chatAvatar").innerHTML =
+                activeCommunity.avatar_url
+                    ? `<img src="${escapeAttr(activeCommunity.avatar_url)}" alt="">`
+                    : `<span>${escapeHTML(initials(name))}</span>`;
+        }
+    }
+
+    function showCommunityJoinCard(item, type) {
+        const container = $("messages");
+
+        if (!container) return;
+
+        const name =
+            item.name ||
+            item.username ||
+            "Community";
+
+        const isPublic =
+            item.privacy === "public";
+
+        container.innerHTML = `
             <div class="community-join-card">
-                ${communityAvatarHTML(
-                    community,
-                    "community-join-avatar"
-                )}
 
-                <div class="community-join-info">
-                    <strong>
-                        ${escapeHTML(
-                            community.name
-                        )}
-                    </strong>
-
-                    <span>
-                        @${escapeHTML(
-                            community.username ||
-                            ""
-                        )}
-                    </span>
-
-                    <p>
-                        ${escapeHTML(
-                            community.bio ||
-                            `Join this ${type}.`
-                        )}
-                    </p>
-
-                    <small>
-                        ${
-                            isPrivate
-                                ? "Private community"
-                                : "Public community"
-                        }
-                    </small>
+                <div class="community-join-image">
+                    ${
+                        item.avatar_url
+                            ? `<img src="${escapeAttr(item.avatar_url)}" alt="">`
+                            : `<span>${escapeHTML(initials(name))}</span>`
+                    }
                 </div>
 
-                <div class="community-join-question">
-                    Do you want to join?
+                <h2>${escapeHTML(name)}</h2>
+
+                <div class="community-join-username">
+                    @${escapeHTML(item.username || "")}
                 </div>
+
+                <p>
+                    ${escapeHTML(item.bio || "")}
+                </p>
+
+                <strong>
+                    ${
+                        isPublic
+                            ? "Do you want to join?"
+                            : "This is a private community."
+                    }
+                </strong>
 
                 <div class="community-join-actions">
+
                     <button
                         type="button"
-                        id="communityJoinYesBtn"
                         class="primary-btn"
+                        id="communityJoinYesBtn"
                     >
                         YES
                     </button>
 
                     <button
                         type="button"
+                        class="secondary-btn"
                         id="communityJoinNoBtn"
                     >
                         NO
                     </button>
+
                 </div>
+
             </div>
         `;
 
         $("communityJoinYesBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    if (
-                        community.privacy ===
-                        "public"
-                    ) {
-                        joinPublicCommunity(
-                            community,
-                            type
-                        );
-                    } else {
-                        openPrivateJoin(
-                            community,
-                            type
-                        );
-                    }
+            ?.addEventListener("click", async () => {
+
+                if (!isPublic) {
+                    toast(
+                        "Private communities require an invitation.",
+                        "warning"
+                    );
+
+                    return;
                 }
-            );
+
+                await joinPublicCommunity(
+                    item.id,
+                    type
+                );
+            });
 
         $("communityJoinNoBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    actions.innerHTML =
-                        "";
-                }
-            );
+            ?.addEventListener("click", () => {
+                resetChat();
+            });
     }
 
-    async function joinPublicCommunity(
-        community,
-        type
-    ) {
+    async function joinPublicCommunity(id, type) {
         const table =
             type === "group"
                 ? "group_members"
                 : "channel_members";
 
-        const idColumn =
+        const key =
             type === "group"
                 ? "group_id"
                 : "channel_id";
 
-        /*
-         * First try the direct insert.
-         * This works when the corresponding RLS
-         * policy permits joining public communities.
-         */
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from(table)
             .insert({
-                [idColumn]:
-                    community.id,
-                user_id:
-                    currentUser.id,
-                role:
-                    "member"
+                [key]: id,
+                user_id: currentUser.id,
+                role: "member"
             });
 
         if (error) {
-            /*
-             * Some databases intentionally block direct
-             * membership insertion. In that case we show
-             * the invite UI instead of pretending success.
-             */
-            console.error(
-                "Public community join:",
-                error
+            showError(
+                error,
+                "Public join is not enabled by the database yet."
             );
-
-            toast(
-                "Public join is not enabled by the database policy yet.",
-                "warning"
-            );
-
             return;
         }
 
@@ -3743,307 +2355,55 @@
             "success"
         );
 
+        await openCommunity(
+            activeCommunity,
+            type
+        );
+
         if (type === "group") {
             await loadGroups();
         } else {
             await loadChannels();
         }
-
-        await openCommunity(
-            community,
-            type
-        );
-    }
-
-    function openPrivateJoin(
-        community,
-        type
-    ) {
-        /*
-         * Private communities still use invite codes
-         * with the current database structure.
-         */
-        if (type === "group") {
-            openModal(
-                "joinGroupModal"
-            );
-        } else {
-            openModal(
-                "joinChannelModal"
-            );
-        }
-
-        toast(
-            "Private community: enter an invite code.",
-            "info"
-        );
-    }
-
-    /* =========================================================
-       OPEN COMMUNITY
-    ========================================================= */
-
-    async function openCommunity(
-        community,
-        type
-    ) {
-        if (!community) return;
-
-        activeCommunity =
-            community;
-
-        activeCommunityType =
-            type;
-
-        activeChatUser = null;
-        activeUserProfile = null;
-
-        currentChatSearch = "";
-
-        const searchBox =
-            $("chatSearchBox");
-
-        searchBox?.remove();
-
-        renderCommunityHeader(
-            community,
-            type
-        );
-
-        $("chatEmpty")
-            ?.classList.add(
-                "hidden"
-            );
-
-        $("activeChat")
-            ?.classList.remove(
-                "hidden"
-            );
-
-        const membership =
-            await getCommunityMembership(
-                community,
-                type
-            );
-
-        if (!membership) {
-            showDirectComposer(false);
-
-            renderCommunityJoinState(
-                community,
-                type
-            );
-
-            $("messages").innerHTML = `
-                <div class="messages-empty">
-                    ${
-                        community.privacy ===
-                        "private"
-                            ? "This is a private community."
-                            : "Join this community to see its messages."
-                    }
-                </div>
-            `;
-
-            return;
-        }
-
-        /*
-         * Groups: members can send.
-         * Channels: only owner/admin can send
-         * with the current channel model.
-         */
-        if (
-            type === "channel" &&
-            membership.role !== "owner" &&
-            membership.role !== "admin"
-        ) {
-            showDirectComposer(false);
-
-            $("messages").insertAdjacentHTML(
-                "afterbegin",
-                `
-                <div class="messages-empty channel-readonly-note">
-                    You can read this channel.
-                </div>
-                `
-            );
-        } else {
-            showDirectComposer(true);
-        }
-
-        if ($("contactActions")) {
-            $("contactActions")
-                .style.display =
-                "none";
-        }
-
-        await loadCommunityMessages();
-    }
-
-    function renderCommunityHeader(
-        community,
-        type
-    ) {
-        if ($("chatName")) {
-            $("chatName")
-                .textContent =
-                community.name;
-        }
-
-        if ($("chatVerified")) {
-            $("chatVerified")
-                .style.display =
-                "none";
-        }
-
-        if ($("chatStatus")) {
-            $("chatStatus")
-                .textContent =
-                type === "group"
-                    ? "Group"
-                    : "Channel";
-        }
-
-        const avatar =
-            $("chatAvatar");
-
-        if (!avatar) return;
-
-        if (community.avatar_url) {
-            avatar.innerHTML = `
-                <img
-                    src="${escapeAttr(
-                        community.avatar_url
-                    )}"
-                    alt=""
-                >
-            `;
-        } else {
-            avatar.innerHTML = `
-                <span>
-                    ${escapeHTML(
-                        initials(
-                            community.name
-                        )
-                    )}
-                </span>
-            `;
-        }
     }
 
     async function loadCommunityMessages() {
-        if (
-            !activeCommunity ||
-            !activeCommunityType
-        ) {
-            return;
-        }
+        if (!activeCommunity) return;
 
         const table =
-            activeCommunityType ===
-            "group"
+            activeCommunityType === "group"
                 ? "group_messages"
                 : "channel_messages";
 
-        const column =
-            activeCommunityType ===
-            "group"
+        const key =
+            activeCommunityType === "group"
                 ? "group_id"
                 : "channel_id";
 
-        const {
-            data,
-            error
-        } = await db
+        const { data, error } = await db
             .from(table)
             .select("*")
-            .eq(
-                column,
-                activeCommunity.id
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: true
-                }
-            );
+            .eq(key, activeCommunity.id)
+            .order("created_at", {
+                ascending: true
+            });
 
         if (error) {
             showError(error);
             return;
         }
 
-        currentMessages =
-            data || [];
+        currentMessages = data || [];
 
-        await renderMessages(
-            currentMessages,
-            activeCommunityType
-        );
+        await renderMessages(currentMessages);
     }
 
-    async function sendCommunityMessage(
-        event
-    ) {
+    async function sendCommunityMessage(event) {
         event?.preventDefault();
 
-        if (
-            !activeCommunity ||
-            !activeCommunityType
-        ) {
-            return;
-        }
+        if (!activeCommunity) return;
 
-        const membership =
-            await getCommunityMembership(
-                activeCommunity,
-                activeCommunityType
-            );
-
-        if (!membership) {
-            toast(
-                "Join this community first.",
-                "warning"
-            );
-            return;
-        }
-
-        if (
-            activeCommunityType ===
-                "channel" &&
-            membership.role !==
-                "owner" &&
-            membership.role !==
-                "admin"
-        ) {
-            toast(
-                "Only channel admins can post.",
-                "warning"
-            );
-            return;
-        }
-
-        if (
-            currentProfile.messaging_blocked &&
-            (
-                !currentProfile
-                    .messaging_blocked_until ||
-                new Date(
-                    currentProfile
-                        .messaging_blocked_until
-                ) > new Date()
-            )
-        ) {
-            toast(
-                "Messaging is currently blocked.",
-                "error"
-            );
-            return;
-        }
-
-        const input =
-            $("messageInput");
+        const input = $("messageInput");
 
         const content =
             input?.value.trim();
@@ -4051,40 +2411,23 @@
         if (!content) return;
 
         const table =
-            activeCommunityType ===
-            "group"
+            activeCommunityType === "group"
                 ? "group_messages"
                 : "channel_messages";
 
-        const payload =
-            activeCommunityType ===
-            "group"
-                ? {
-                    group_id:
-                        activeCommunity.id,
-                    sender_id:
-                        currentUser.id,
-                    content,
-                    message_type:
-                        "text"
-                }
-                : {
-                    channel_id:
-                        activeCommunity.id,
-                    sender_id:
-                        currentUser.id,
-                    content,
-                    message_type:
-                        "text"
-                };
+        const key =
+            activeCommunityType === "group"
+                ? "group_id"
+                : "channel_id";
 
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from(table)
-            .insert(
-                payload
-            );
+            .insert({
+                [key]: activeCommunity.id,
+                sender_id: currentUser.id,
+                content,
+                message_type: "text"
+            });
 
         if (error) {
             showError(error);
@@ -4101,123 +2444,63 @@
     ========================================================= */
 
     async function joinGroup() {
-        const input =
-            $("groupInviteInput");
-
         const code =
-            input?.value.trim();
+            $("groupInviteInput")?.value.trim();
 
         if (!code) {
-            toast(
-                "Enter an invite code.",
-                "error"
-            );
+            toast("Enter invite code.", "warning");
             return;
         }
 
-        const {
-            error
-        } = await db.rpc(
+        const { error } = await db.rpc(
             "join_group_by_invite",
             {
-                p_invite_code:
-                    code
+                p_invite_code: code
             }
         );
 
         if (error) {
-            showError(
-                error,
-                "Could not join group."
-            );
+            showError(error);
             return;
         }
 
-        closeModal(
-            "joinGroupModal"
-        );
+        $("groupInviteInput").value = "";
 
-        if (input) {
-            input.value = "";
-        }
-
-        toast(
-            "Joined group.",
-            "success"
-        );
+        closeModal("joinGroupModal");
 
         await loadGroups();
 
-        if (
-            activeCommunity &&
-            activeCommunityType ===
-                "group"
-        ) {
-            await openCommunity(
-                activeCommunity,
-                "group"
-            );
-        }
+        toast("Joined group.", "success");
     }
 
     async function joinChannel() {
-        const input =
-            $("channelInviteInput");
-
         const code =
-            input?.value.trim();
+            $("channelInviteInput")?.value.trim();
 
         if (!code) {
-            toast(
-                "Enter an invite code.",
-                "error"
-            );
+            toast("Enter invite code.", "warning");
             return;
         }
 
-        const {
-            error
-        } = await db.rpc(
+        const { error } = await db.rpc(
             "join_channel_by_invite",
             {
-                p_invite_code:
-                    code
+                p_invite_code: code
             }
         );
 
         if (error) {
-            showError(
-                error,
-                "Could not join channel."
-            );
+            showError(error);
             return;
         }
 
-        closeModal(
-            "joinChannelModal"
-        );
+        $("channelInviteInput").value = "";
 
-        if (input) {
-            input.value = "";
-        }
-
-        toast(
-            "Joined channel.",
-            "success"
-        );
+        closeModal("joinChannelModal");
 
         await loadChannels();
 
-        if (
-            activeCommunity &&
-            activeCommunityType ===
-                "channel"
-        ) {
-            await openCommunity(
-                activeCommunity,
-                "channel"
-            );
-        }
+        toast("Joined channel.", "success");
     }
 
     /* =========================================================
@@ -4225,194 +2508,107 @@
     ========================================================= */
 
     async function saveNickname() {
-        if (!activeUserProfile) {
-            return;
-        }
-
-        const input =
-            $("nicknameInput");
+        if (!activeUserProfile) return;
 
         const nickname =
-            input?.value.trim();
+            $("nicknameInput")?.value.trim();
 
         if (!nickname) {
-            toast(
-                "Nickname cannot be empty.",
-                "error"
-            );
+            toast("Enter a nickname.", "warning");
             return;
         }
 
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from("contact_nicknames")
-            .upsert(
-                {
-                    user_id:
-                        currentUser.id,
-                    contact_id:
-                        activeUserProfile.id,
-                    nickname
-                },
-                {
-                    onConflict:
-                        "user_id,contact_id"
-                }
-            );
+            .upsert({
+                owner_id: currentUser.id,
+                contact_id: activeUserProfile.id,
+                nickname
+            });
 
         if (error) {
             showError(error);
             return;
         }
 
-        closeModal(
-            "nicknameModal"
-        );
+        closeModal("nicknameModal");
 
-        toast(
-            "Nickname saved.",
-            "success"
-        );
-
-        await refreshSidebar();
+        toast("Nickname saved.", "success");
     }
 
     async function removeNickname() {
-        if (!activeUserProfile) {
-            return;
-        }
+        if (!activeUserProfile) return;
 
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from("contact_nicknames")
             .delete()
-            .eq(
-                "user_id",
-                currentUser.id
-            )
-            .eq(
-                "contact_id",
-                activeUserProfile.id
-            );
+            .eq("owner_id", currentUser.id)
+            .eq("contact_id", activeUserProfile.id);
 
         if (error) {
             showError(error);
             return;
         }
 
-        closeModal(
-            "nicknameModal"
-        );
+        closeModal("nicknameModal");
 
-        toast(
-            "Nickname removed.",
-            "success"
-        );
-
-        await refreshSidebar();
+        toast("Nickname removed.", "success");
     }
 
     /* =========================================================
        USER PROFILE
     ========================================================= */
 
-    async function openUserProfile(
-        profile
-    ) {
+    function openUserProfile(profile) {
         if (!profile) return;
 
-        activeUserProfile =
-            profile;
+        activeUserProfile = profile;
+
+        if ($("userProfileAvatar")) {
+            $("userProfileAvatar").innerHTML =
+                profile.avatar_url
+                    ? `<img src="${escapeAttr(profile.avatar_url)}" alt="">`
+                    : `<span>${escapeHTML(
+                        initials(
+                            profile.full_name ||
+                            profile.username
+                        )
+                    )}</span>`;
+        }
 
         if ($("userProfileName")) {
-            $("userProfileName")
-                .textContent =
+            $("userProfileName").textContent =
                 profile.full_name ||
-                profile.username;
+                profile.username ||
+                "User";
         }
 
         if ($("userProfileUsername")) {
-            $("userProfileUsername")
-                .textContent =
-                `@${profile.username}`;
+            $("userProfileUsername").textContent =
+                `@${profile.username || ""}`;
         }
 
         if ($("userProfileBio")) {
-            $("userProfileBio")
-                .textContent =
+            $("userProfileBio").textContent =
                 profile.bio || "";
         }
 
         if ($("userProfileVerified")) {
             $("userProfileVerified")
-                .style.display =
-                isVerifiedActive(profile)
-                    ? "inline-flex"
-                    : "none";
+                .classList.toggle(
+                    "hidden",
+                    !isVerifiedActive(profile)
+                );
         }
 
-        if ($("userProfileStatus")) {
-            $("userProfileStatus")
-                .textContent =
-                profile.last_seen
-                    ? `Last seen ${formatDate(
-                        profile.last_seen
-                    )}`
-                    : "";
-        }
+        $("userProfileMenu")
+            ?.classList.add("hidden");
 
-        const avatar =
-            $("userProfileAvatar");
-
-        if (avatar) {
-            if (profile.avatar_url) {
-                avatar.innerHTML = `
-                    <img
-                        src="${escapeAttr(
-                            profile.avatar_url
-                        )}"
-                        alt=""
-                    >
-                `;
-            } else {
-                avatar.innerHTML = `
-                    <span>
-                        ${escapeHTML(
-                            initials(
-                                profile.full_name ||
-                                profile.username
-                            )
-                        )}
-                    </span>
-                `;
-            }
-        }
-
-        openModal(
-            "userProfileModal"
-        );
+        openModal("userProfileModal");
     }
 
     async function blockUser() {
-        if (!activeUserProfile) {
-            return;
-        }
-
-        /*
-         * Owner protection.
-         */
-        if (
-            activeUserProfile.id ===
-            currentProfile?.id
-        ) {
-            toast(
-                "You cannot block yourself.",
-                "warning"
-            );
-            return;
-        }
+        if (!activeUserProfile) return;
 
         if (
             !confirm(
@@ -4422,98 +2618,11 @@
             return;
         }
 
-        const {
-            data: target
-        } = await db
-            .from("profiles")
-            .select("role")
-            .eq(
-                "id",
-                activeUserProfile.id
-            )
-            .maybeSingle();
-
-        if (
-            target?.role === "owner" &&
-            currentRole !== "owner"
-        ) {
-            toast(
-                "Owner cannot be blocked.",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from("user_blocks")
             .insert({
-                blocker_id:
-                    currentUser.id,
-                blocked_id:
-                    activeUserProfile.id
-            });
-
-        if (error) {
-            if (
-                isUniqueError(error)
-            ) {
-                toast(
-                    "User is already blocked.",
-                    "info"
-                );
-            } else {
-                showError(error);
-            }
-
-            return;
-        }
-
-        closeModal(
-            "userProfileModal"
-        );
-
-        toast(
-            "User blocked.",
-            "success"
-        );
-    }
-
-    async function reportUser() {
-        if (!activeUserProfile) {
-            return;
-        }
-
-        const reason =
-            document.querySelector(
-                'input[name="reportReason"]:checked'
-            )?.value;
-
-        const description =
-            $("reportDescription")
-                ?.value.trim();
-
-        if (!reason) {
-            toast(
-                "Select a report reason.",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            error
-        } = await db
-            .from("reports")
-            .insert({
-                reporter_id:
-                    currentUser.id,
-                reported_user_id:
-                    activeUserProfile.id,
-                reason,
-                description:
-                    description || ""
+                blocker_id: currentUser.id,
+                blocked_id: activeUserProfile.id
             });
 
         if (error) {
@@ -4521,19 +2630,47 @@
             return;
         }
 
-        closeModal(
-            "reportModal"
-        );
+        closeModal("userProfileModal");
 
-        if ($("reportDescription")) {
-            $("reportDescription")
-                .value = "";
+        toast("User blocked.", "success");
+    }
+
+    async function reportUser() {
+        if (!activeUserProfile) return;
+
+        openModal("reportModal");
+    }
+
+    async function submitReport() {
+        if (!activeUserProfile) return;
+
+        const reason =
+            document.querySelector(
+                'input[name="reportReason"]:checked'
+            )?.value || "other";
+
+        const description =
+            $("reportDescription")?.value.trim() || "";
+
+        const { error } = await db
+            .from("reports")
+            .insert({
+                reporter_id: currentUser.id,
+                reported_user_id: activeUserProfile.id,
+                reason,
+                description
+            });
+
+        if (error) {
+            showError(error);
+            return;
         }
 
-        toast(
-            "Report submitted.",
-            "success"
-        );
+        $("reportDescription").value = "";
+
+        closeModal("reportModal");
+
+        toast("Report submitted.", "success");
     }
 
     /* =========================================================
@@ -4546,199 +2683,18 @@
 
         if (!list) return;
 
-        const {
-            data,
-            error
-        } = await db
+        list.innerHTML = `
+            <div class="list-loading">
+                Loading...
+            </div>
+        `;
+
+        const { data, error } = await db
             .from("saved_messages")
             .select("*")
-            .eq(
-                "user_id",
-                currentUser.id
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
-
-        if (error) {
-            showError(error);
-            return;
-        }
-
-        list.innerHTML = "";
-
-        if (!data?.length) {
-            list.innerHTML = `
-                <div class="empty-state">
-                    No saved messages.
-                </div>
-            `;
-
-            return;
-        }
-
-        data.forEach(
-            (item) => {
-                const row =
-                    document.createElement(
-                        "div"
-                    );
-
-                row.className =
-                    "saved-message-item";
-
-                row.innerHTML = `
-                    <div class="saved-message-content">
-                        ${escapeHTML(
-                            item.content ||
-                            ""
-                        )}
-                    </div>
-
-                    <div class="saved-message-date">
-                        ${formatDate(
-                            item.created_at
-                        )}
-                    </div>
-                `;
-
-                list.appendChild(
-                    row
-                );
-            }
-        );
-    }
-
-    /* =========================================================
-       UPDATES
-    ========================================================= */
-
-    async function loadUpdates() {
-        const list =
-            $("updatesList");
-
-        if (!list) return;
-
-        const {
-            data,
-            error
-        } = await db
-            .from("app_updates")
-            .select("*")
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
-
-        if (error) {
-            console.error(error);
-            return;
-        }
-
-        list.innerHTML = "";
-
-        if (!data?.length) {
-            list.innerHTML = `
-                <div class="empty-state">
-                    No updates yet.
-                </div>
-            `;
-
-            return;
-        }
-
-        data.forEach(
-            (update) => {
-                const item =
-                    document.createElement(
-                        "div"
-                    );
-
-                item.className =
-                    "update-item";
-
-                item.innerHTML = `
-                    <div class="update-type">
-                        ${escapeHTML(
-                            update.type ||
-                            "update"
-                        )}
-                    </div>
-
-                    <h3>
-                        ${escapeHTML(
-                            update.title ||
-                            ""
-                        )}
-                    </h3>
-
-                    <p>
-                        ${escapeHTML(
-                            update.content ||
-                            ""
-                        )}
-                    </p>
-
-                    <small>
-                        ${formatDate(
-                            update.created_at
-                        )}
-                    </small>
-                `;
-
-                list.appendChild(
-                    item
-                );
-            }
-        );
-    }
-
-    async function publishUpdate() {
-        const title =
-            $("updateTitle")
-                ?.value.trim();
-
-        const content =
-            $("updateContent")
-                ?.value.trim();
-
-        const type =
-            $("updateType")
-                ?.value ||
-            "update";
-
-        if (!title || !content) {
-            toast(
-                "Title and content are required.",
-                "error"
-            );
-            return;
-        }
-
-        if (!isAdminOrOwner()) {
-            toast(
-                "You do not have permission.",
-                "error"
-            );
-            return;
-        }
-
-        const {
-            error
-        } = await db
-            .from("app_updates")
-            .insert({
-                type,
-                title,
-                content,
-                created_by:
-                    currentUser.id,
-                published: true
+            .eq("user_id", currentUser.id)
+            .order("created_at", {
+                ascending: false
             });
 
         if (error) {
@@ -4746,280 +2702,296 @@
             return;
         }
 
-        if ($("updateTitle")) {
-            $("updateTitle")
-                .value = "";
+        list.innerHTML = "";
+
+        if (!data?.length) {
+            list.innerHTML = `
+                <div class="empty-list">
+                    <i class="fa-solid fa-bookmark"></i>
+                    <strong>No saved messages</strong>
+                </div>
+            `;
+            return;
         }
 
-        if ($("updateContent")) {
-            $("updateContent")
-                .value = "";
+        data.forEach((item) => {
+            const row =
+                document.createElement("div");
+
+            row.className = "saved-message-item";
+
+            row.innerHTML = `
+                <div>
+                    ${escapeHTML(
+                        item.content ||
+                        "Saved message"
+                    )}
+                </div>
+
+                <small>
+                    ${formatDate(item.created_at)}
+                </small>
+            `;
+
+            list.appendChild(row);
+        });
+    }
+
+    /* =========================================================
+       UPDATES
+    ========================================================= */
+
+    async function loadUpdates() {
+        const list = $("updatesList");
+
+        if (!list) return;
+
+        const { data, error } = await db
+            .from("app_updates")
+            .select("*")
+            .order("created_at", {
+                ascending: false
+            });
+
+        if (error) {
+            showError(error);
+            return;
         }
 
-        toast(
-            "Update published.",
-            "success"
-        );
+        list.innerHTML = "";
+
+        if (!data?.length) {
+            list.innerHTML = `
+                <div class="empty-list">
+                    No updates yet.
+                </div>
+            `;
+            return;
+        }
+
+        data.forEach((update) => {
+            const item =
+                document.createElement("article");
+
+            item.className = "update-item";
+
+            item.innerHTML = `
+                <span class="update-type">
+                    ${escapeHTML(update.type || "update")}
+                </span>
+
+                <h3>
+                    ${escapeHTML(update.title || "")}
+                </h3>
+
+                <p>
+                    ${escapeHTML(update.content || "")}
+                </p>
+
+                <small>
+                    ${formatDate(update.created_at)}
+                </small>
+            `;
+
+            list.appendChild(item);
+        });
+    }
+
+    async function publishUpdate() {
+        const type =
+            $("updateType")?.value || "update";
+
+        const title =
+            $("updateTitle")?.value.trim();
+
+        const content =
+            $("updateContent")?.value.trim();
+
+        if (!title || !content) {
+            toast("Complete the update fields.", "warning");
+            return;
+        }
+
+        if (
+            currentRole !== "owner" &&
+            currentRole !== "admin"
+        ) {
+            toast("Admin permission required.", "error");
+            return;
+        }
+
+        const { error } = await db
+            .from("app_updates")
+            .insert({
+                type,
+                title,
+                content,
+                created_by: currentUser.id
+            });
+
+        if (error) {
+            showError(error);
+            return;
+        }
+
+        $("updateTitle").value = "";
+        $("updateContent").value = "";
 
         await loadUpdates();
+
+        toast("Update published.", "success");
     }
 
     /* =========================================================
        COMMUNITY INFO
     ========================================================= */
 
-    function renderCommunityInfo(
-        community,
-        type
-    ) {
+    async function renderCommunityInfo(type) {
+        if (!activeCommunity) return;
+
         const prefix =
             type === "group"
                 ? "group"
                 : "channel";
 
-        const modal =
-            type === "group"
-                ? "groupInfoModal"
-                : "channelInfoModal";
-
         const name =
-            $(`${prefix}InfoName`);
+            activeCommunity.name || "";
 
         const username =
-            $(`${prefix}InfoUsername`);
-
-        const bio =
-            $(`${prefix}InfoBio`);
+            activeCommunity.username || "";
 
         const privacy =
-            $(`${prefix}InfoPrivacy`);
+            activeCommunity.privacy || "public";
+
+        const bio =
+            activeCommunity.bio || "";
+
+        $(`${prefix}InfoName`).textContent = name;
+
+        $(`${prefix}InfoUsername`).textContent =
+            `@${username}`;
+
+        $(`${prefix}InfoPrivacy`).textContent =
+            privacy;
+
+        $(`${prefix}InfoBio`).textContent =
+            bio;
 
         const avatar =
             $(`${prefix}InfoAvatar`);
 
-        if (name) {
-            name.textContent =
-                community.name || "";
-        }
-
-        if (username) {
-            username.textContent =
-                `@${community.username || ""}`;
-        }
-
-        if (bio) {
-            bio.textContent =
-                community.bio || "";
-        }
-
-        if (privacy) {
-            privacy.textContent =
-                community.privacy ||
-                "public";
-        }
-
         if (avatar) {
             avatar.innerHTML =
-                communityAvatarHTML(
-                    community,
-                    "community-info-avatar"
-                );
+                activeCommunity.avatar_url
+                    ? `<img src="${escapeAttr(activeCommunity.avatar_url)}" alt="">`
+                    : `<span>${escapeHTML(initials(name))}</span>`;
         }
-
-        openModal(modal);
     }
 
-    async function loadMembers(
-        type
-    ) {
-        if (!activeCommunity) {
+    async function loadMembers(type) {
+        if (!activeCommunity) return;
+
+        const table =
+            type === "group"
+                ? "group_members"
+                : "channel_members";
+
+        const key =
+            type === "group"
+                ? "group_id"
+                : "channel_id";
+
+        const { data, error } = await db
+            .from(table)
+            .select("*")
+            .eq(key, activeCommunity.id);
+
+        if (error) {
+            showError(error);
             return;
         }
+
+        const profiles =
+            await getProfiles(
+                (data || []).map(
+                    (member) => member.user_id
+                )
+            );
 
         const list =
             $("membersList");
 
         if (!list) return;
 
-        const table =
-            type === "group"
-                ? "group_members"
-                : "channel_members";
-
-        const idColumn =
-            type === "group"
-                ? "group_id"
-                : "channel_id";
-
-        const {
-            data,
-            error
-        } = await db
-            .from(table)
-            .select("*")
-            .eq(
-                idColumn,
-                activeCommunity.id
-            );
-
-        if (error) {
-            showError(error);
-            return;
-        }
-
-        const ids =
-            (data || []).map(
-                (member) =>
-                    member.user_id
-            );
-
-        let profiles = [];
-
-        try {
-            profiles =
-                await getProfiles(ids);
-        } catch (error) {
-            showError(error);
-        }
-
-        const map =
-            new Map(
-                profiles.map(
-                    (profile) => [
-                        profile.id,
-                        profile
-                    ]
-                )
-            );
-
         list.innerHTML = "";
 
-        (
-            data || []
-        ).forEach(
-            (member) => {
-                const profile =
-                    map.get(
-                        member.user_id
-                    );
-
-                if (!profile) return;
-
-                const item =
-                    document.createElement(
-                        "div"
-                    );
-
-                item.className =
-                    "member-item";
-
-                item.innerHTML = `
-                    ${avatarHTML(
-                        profile,
-                        "list-avatar"
-                    )}
-
-                    <div class="list-user-info">
-                        <div class="list-user-name">
-                            ${escapeHTML(
-                                profile.full_name ||
-                                profile.username
-                            )}
-                            ${verifiedHTML(
-                                profile
-                            )}
-                        </div>
-
-                        <div class="list-user-username">
-                            @${escapeHTML(
-                                profile.username
-                            )}
-                            · ${escapeHTML(
-                                member.role ||
-                                "member"
-                            )}
-                        </div>
-                    </div>
-                `;
-
-                list.appendChild(
-                    item
+        (data || []).forEach((member) => {
+            const profile =
+                profiles.find(
+                    (item) =>
+                        item.id === member.user_id
                 );
-            }
-        );
+
+            if (!profile) return;
+
+            const row =
+                document.createElement("div");
+
+            row.className = "member-item";
+
+            row.innerHTML = `
+                ${avatarHTML(profile)}
+
+                <div class="list-item-info">
+                    <strong>
+                        ${escapeHTML(
+                            profile.full_name ||
+                            profile.username ||
+                            "User"
+                        )}
+                    </strong>
+
+                    <small>
+                        @${escapeHTML(profile.username || "")}
+                        · ${escapeHTML(member.role || "member")}
+                    </small>
+                </div>
+            `;
+
+            list.appendChild(row);
+        });
 
         if ($("membersTitle")) {
-            $("membersTitle")
-                .textContent =
-                type === "group"
-                    ? "Group members"
-                    : "Channel members";
+            $("membersTitle").textContent =
+                `${type === "group" ? "Group" : "Channel"} members`;
         }
 
-        openModal(
-            "membersModal"
-        );
+        openModal("membersModal");
     }
 
-    async function leaveCommunity(
-        type
-    ) {
-        if (!activeCommunity) {
-            return;
-        }
-
-        if (
-            !confirm(
-                `Leave this ${type}?`
-            )
-        ) {
-            return;
-        }
-
-        /*
-         * Owner should not accidentally leave a community
-         * they own through the normal Leave button.
-         */
-        if (
-            activeCommunity.owner_id ===
-            currentUser.id
-        ) {
-            toast(
-                "The creator cannot leave their own community. Delete or transfer it first.",
-                "warning"
-            );
-            return;
-        }
+    async function leaveCommunity(type) {
+        if (!activeCommunity) return;
 
         const table =
             type === "group"
                 ? "group_members"
                 : "channel_members";
 
-        const idColumn =
+        const key =
             type === "group"
                 ? "group_id"
                 : "channel_id";
 
-        const {
-            error
-        } = await db
+        if (!confirm("Leave this community?")) return;
+
+        const { error } = await db
             .from(table)
             .delete()
-            .eq(
-                idColumn,
-                activeCommunity.id
-            )
-            .eq(
-                "user_id",
-                currentUser.id
-            );
+            .eq(key, activeCommunity.id)
+            .eq("user_id", currentUser.id);
 
         if (error) {
-            showError(
-                error,
-                "Could not leave."
-            );
+            showError(error);
             return;
         }
 
@@ -5029,18 +3001,7 @@
                 : "channelInfoModal"
         );
 
-        activeCommunity = null;
-        activeCommunityType = null;
-
-        $("activeChat")
-            ?.classList.add(
-                "hidden"
-            );
-
-        $("chatEmpty")
-            ?.classList.remove(
-                "hidden"
-            );
+        resetChat();
 
         if (type === "group") {
             await loadGroups();
@@ -5048,169 +3009,107 @@
             await loadChannels();
         }
 
-        toast(
-            `Left ${type}.`,
-            "success"
-        );
+        toast("You left the community.", "success");
     }
-
-    /* =========================================================
-       INVITES
-    ========================================================= */
 
     function makeInviteCode() {
-        return crypto
-            .randomUUID()
-            .replace(/-/g, "")
-            .slice(0, 16);
+        const chars =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+
+        let code = "";
+
+        for (let i = 0; i < 10; i++) {
+            code += chars.charAt(
+                Math.floor(
+                    Math.random() * chars.length
+                )
+            );
+        }
+
+        return code;
     }
 
-    async function createInvite(
-        type
-    ) {
-        if (!activeCommunity) {
-            return;
-        }
-
-        if (
-            !canManageCommunity()
-        ) {
-            toast(
-                "You do not have permission.",
-                "error"
-            );
-            return;
-        }
+    async function createInvite(type) {
+        if (!activeCommunity) return;
 
         const table =
             type === "group"
                 ? "group_invites"
                 : "channel_invites";
 
-        const idColumn =
+        const key =
             type === "group"
                 ? "group_id"
                 : "channel_id";
 
-        const code =
-            makeInviteCode();
+        const code = makeInviteCode();
 
-        const payload = {
-            [idColumn]:
-                activeCommunity.id,
-
-            inviter_id:
-                currentUser.id,
-
-            invite_code:
-                code
-        };
-
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from(table)
-            .insert(
-                payload
-            );
+            .insert({
+                [key]: activeCommunity.id,
+                invite_code: code,
+                created_by: currentUser.id
+            });
 
         if (error) {
-            showError(
-                error,
-                "Could not create invite."
-            );
+            showError(error);
             return;
         }
 
         try {
-            await navigator.clipboard
-                ?.writeText(code);
-        } catch {}
+            await navigator.clipboard.writeText(code);
 
-        toast(
-            `Invite code: ${code}`,
-            "success"
-        );
+            toast(
+                `Invite code copied: ${code}`,
+                "success"
+            );
+        } catch {
+            prompt(
+                "Copy this invite code:",
+                code
+            );
+        }
     }
 
     /* =========================================================
-       OWNER / ADMIN
+       OWNER
     ========================================================= */
 
     async function loadRole() {
         try {
-            const {
-                data,
-                error
-            } = await db.rpc(
-                "get_my_role"
-            );
+            const { data, error } =
+                await db.rpc("get_my_role");
 
-            if (error) {
-                console.warn(
-                    "get_my_role unavailable:",
-                    error
-                );
-
-                currentRole =
-                    currentProfile?.role ||
-                    "user";
-            } else {
-                currentRole =
-                    data ||
-                    currentProfile?.role ||
-                    "user";
+            if (!error && data) {
+                currentRole = data;
             }
-        } catch (error) {
-            console.warn(
-                "Role check:",
-                error
+        } catch {
+            currentRole =
+                currentProfile?.role || "user";
+        }
+
+        if (!currentRole) {
+            currentRole =
+                currentProfile?.role || "user";
+        }
+
+        $("ownerPanelButton")
+            ?.classList.toggle(
+                "hidden",
+                currentRole !== "owner"
             );
 
-            currentRole =
-                currentProfile?.role ||
-                "user";
-        }
-
-        const ownerButton =
-            $("ownerPanelButton");
-
-        const adminButton =
-            $("adminPanelButton");
-
-        if (ownerButton) {
-            ownerButton.style.display =
-                currentRole === "owner"
-                    ? ""
-                    : "none";
-        }
-
-        if (adminButton) {
-            adminButton.style.display =
-                isAdminOrOwner()
-                    ? ""
-                    : "none";
-        }
-
-        const createUpdate =
-            $("updateCreateSection");
-
-        if (createUpdate) {
-            createUpdate.style.display =
-                isAdminOrOwner()
-                    ? ""
-                    : "none";
-        }
+        $("adminPanelButton")
+            ?.classList.toggle(
+                "hidden",
+                currentRole !== "owner" &&
+                currentRole !== "admin"
+            );
     }
 
     async function ownerSearchVerified() {
-        if (!isOwner()) {
-            toast(
-                "Owner permission required.",
-                "error"
-            );
-            return;
-        }
+        if (currentRole !== "owner") return;
 
         const username =
             $("ownerVerifiedUsername")
@@ -5218,51 +3117,42 @@
                 .trim()
                 .toLowerCase();
 
-        if (!username) {
-            toast(
-                "Enter a username.",
-                "warning"
-            );
-            return;
-        }
+        if (!username) return;
 
-        const {
-            data,
-            error
-        } = await db
+        const { data, error } = await db
             .from("profiles")
             .select("*")
-            .eq(
-                "username",
-                username
-            )
+            .eq("username", username)
             .maybeSingle();
-
-        const result =
-            $("ownerVerifiedResult");
 
         if (error) {
             showError(error);
             return;
         }
 
-        if (!data) {
-            if (result) {
-                result.innerHTML =
-                    "User not found.";
-            }
+        const result =
+            $("ownerVerifiedResult");
 
+        if (!result) return;
+
+        if (!data) {
+            result.innerHTML = `
+                <div class="empty-list">
+                    User not found.
+                </div>
+            `;
             return;
         }
 
-        if (result) {
-            result.innerHTML = `
-                <div class="owner-user-result">
-                    ${avatarHTML(
-                        data,
-                        "list-avatar"
-                    )}
+        const active =
+            isVerifiedActive(data);
 
+        result.innerHTML = `
+            <div class="owner-result-card">
+
+                ${avatarHTML(data)}
+
+                <div class="list-item-info">
                     <strong>
                         ${escapeHTML(
                             data.full_name ||
@@ -5270,102 +3160,57 @@
                         )}
                     </strong>
 
-                    <span>
-                        @${escapeHTML(
-                            data.username
-                        )}
-                    </span>
+                    <small>
+                        @${escapeHTML(data.username)}
+                    </small>
 
-                    <span>
+                    <small>
                         ${
-                            isVerifiedActive(
-                                data
-                            )
+                            active
                                 ? "Verified"
                                 : "Not verified"
                         }
-                    </span>
-
-                    ${
-                        data.verified_until
-                            ? `
-                        <span>
-                            Until:
-                            ${formatDate(
-                                data.verified_until
-                            )}
-                        </span>
-                    `
-                            : ""
-                    }
-
-                    <button
-                        type="button"
-                        id="ownerToggleVerifiedBtn"
-                    >
-                        ${
-                            isVerifiedActive(
-                                data
-                            )
-                                ? "Remove verification"
-                                : "Give verification"
-                        }
-                    </button>
+                    </small>
                 </div>
-            `;
 
-            $("ownerToggleVerifiedBtn")
-                ?.addEventListener(
-                    "click",
-                    () =>
-                        toggleOwnerVerified(
-                            data
-                        )
-                );
-        }
+                <button
+                    type="button"
+                    class="primary-btn"
+                    id="toggleVerifiedBtn"
+                >
+                    ${
+                        active
+                            ? "Remove"
+                            : "Give badge"
+                    }
+                </button>
+
+            </div>
+        `;
+
+        $("toggleVerifiedBtn")
+            ?.addEventListener(
+                "click",
+                () => toggleOwnerVerified(data)
+            );
     }
 
-    async function toggleOwnerVerified(
-        profile
-    ) {
-        if (!isOwner()) {
-            toast(
-                "Owner permission required.",
-                "error"
-            );
+    async function toggleOwnerVerified(profile) {
+        if (currentRole !== "owner") {
+            toast("Owner permission required.", "error");
             return;
         }
 
-        /*
-         * Never allow owner verification controls
-         * to remove the Owner's own protected role.
-         */
         const active =
-            isVerifiedActive(
-                profile
-            );
+            isVerifiedActive(profile);
 
-        const duration =
-            Number(
-                $("verifiedDuration")
-                    ?.value || 30
-            );
-
-        const action =
-            active
-                ? "remove"
-                : "give";
-
-        const {
-            error
-        } = await db.rpc(
+        const { error } = await db.rpc(
             "owner_set_verified",
             {
-                p_user_id:
-                    profile.id,
-
-                p_action:
-                    action
+                p_user_id: profile.id,
+                p_action: active
+                    ? "remove"
+                    : "give"
             }
         );
 
@@ -5374,14 +3219,12 @@
             return;
         }
 
-        /*
-         * Existing RPC controls the verification.
-         * Try expiry only when giving a temporary badge.
-         */
-        if (
-            !active &&
-            duration > 0
-        ) {
+        const duration =
+            Number(
+                $("verifiedDuration")?.value || 30
+            );
+
+        if (!active && duration > 0) {
             const until =
                 new Date(
                     Date.now() +
@@ -5392,41 +3235,168 @@
                     1000
                 ).toISOString();
 
-            const {
-                error:
-                    expiryError
-            } = await db
-                .from("profiles")
-                .update({
-                    verified_until:
-                        until
-                })
-                .eq(
-                    "id",
-                    profile.id
-                );
+            const { error: expiryError } =
+                await db
+                    .from("profiles")
+                    .update({
+                        verified_until: until
+                    })
+                    .eq("id", profile.id);
 
             if (expiryError) {
                 console.warn(
-                    "Could not set verified expiry:",
+                    "Verified expiry update failed:",
                     expiryError
-                );
-
-                toast(
-                    "Verification changed, but expiry could not be saved.",
-                    "warning"
                 );
             }
         }
 
         toast(
             active
-                ? "Verification removed."
-                : "Verification updated.",
+                ? "Verified badge removed."
+                : "Verified badge granted.",
             "success"
         );
 
         await ownerSearchVerified();
+    }
+
+    async function ownerSearchModeration() {
+        if (currentRole !== "owner") return;
+
+        const username =
+            $("ownerModerationUsername")
+                ?.value
+                .trim()
+                .toLowerCase();
+
+        if (!username) return;
+
+        const { data, error } = await db
+            .from("profiles")
+            .select("*")
+            .eq("username", username)
+            .maybeSingle();
+
+        if (error) {
+            showError(error);
+            return;
+        }
+
+        const result =
+            $("ownerModerationResult");
+
+        if (!result) return;
+
+        if (!data) {
+            result.innerHTML = `
+                <div class="empty-list">
+                    User not found.
+                </div>
+            `;
+            return;
+        }
+
+        const blocked =
+            data.account_blocked === true;
+
+        result.innerHTML = `
+            <div class="owner-result-card">
+
+                ${avatarHTML(data)}
+
+                <div class="list-item-info">
+                    <strong>
+                        ${escapeHTML(
+                            data.full_name ||
+                            data.username
+                        )}
+                    </strong>
+
+                    <small>
+                        @${escapeHTML(data.username)}
+                    </small>
+
+                    <small>
+                        ${
+                            blocked
+                                ? "Blocked"
+                                : "Active"
+                        }
+                    </small>
+                </div>
+
+                ${
+                    data.id !== currentUser.id
+                        ? `
+                            <button
+                                type="button"
+                                class="${
+                                    blocked
+                                        ? "secondary-btn"
+                                        : "danger-btn"
+                                }"
+                                id="ownerBlockToggleBtn"
+                            >
+                                ${
+                                    blocked
+                                        ? "Unblock"
+                                        : "Block"
+                                }
+                            </button>
+                        `
+                        : `
+                            <span class="owner-protected">
+                                Owner
+                            </span>
+                        `
+                }
+
+            </div>
+        `;
+
+        $("ownerBlockToggleBtn")
+            ?.addEventListener(
+                "click",
+                () => ownerToggleBlock(data)
+            );
+    }
+
+    async function ownerToggleBlock(profile) {
+        if (currentRole !== "owner") return;
+
+        if (profile.id === currentUser.id) {
+            toast(
+                "Owner cannot be blocked.",
+                "error"
+            );
+            return;
+        }
+
+        const next =
+            !profile.account_blocked;
+
+        const { error } = await db
+            .from("profiles")
+            .update({
+                account_blocked: next,
+                account_blocked_until: null
+            })
+            .eq("id", profile.id);
+
+        if (error) {
+            showError(error);
+            return;
+        }
+
+        toast(
+            next
+                ? "User blocked."
+                : "User unblocked.",
+            "success"
+        );
+
+        await ownerSearchModeration();
     }
 
     async function loadOwnerReports() {
@@ -5435,411 +3405,100 @@
 
         if (!list) return;
 
-        const {
-            data,
-            error
-        } = await db
+        const { data, error } = await db
             .from("reports")
             .select("*")
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
-
-        if (error) {
-            showError(
-                error,
-                "Could not load reports."
-            );
-            return;
-        }
-
-        list.innerHTML = "";
-
-        if (!data?.length) {
-            list.innerHTML = `
-                <div class="empty-state">
-                    No reports.
-                </div>
-            `;
-
-            return;
-        }
-
-        data.forEach(
-            (report) => {
-                const item =
-                    document.createElement(
-                        "div"
-                    );
-
-                item.className =
-                    "owner-report-item";
-
-                item.innerHTML = `
-                    <strong>
-                        ${escapeHTML(
-                            report.reason ||
-                            "Report"
-                        )}
-                    </strong>
-
-                    <p>
-                        ${escapeHTML(
-                            report.description ||
-                            ""
-                        )}
-                    </p>
-
-                    <small>
-                        ${formatDate(
-                            report.created_at
-                        )}
-                    </small>
-                `;
-
-                list.appendChild(
-                    item
-                );
-            }
-        );
-    }
-
-    /* =========================================================
-       OWNER ADMIN UI
-       ========================================================= */
-
-    async function ownerSearchAdmin() {
-        if (!isOwner()) {
-            toast(
-                "Owner permission required.",
-                "error"
-            );
-            return;
-        }
-
-        const username =
-            $("ownerAdminUsername")
-                ?.value
-                .trim()
-                .toLowerCase();
-
-        if (!username) {
-            toast(
-                "Enter a username.",
-                "warning"
-            );
-            return;
-        }
-
-        const {
-            data,
-            error
-        } = await db
-            .from("profiles")
-            .select(
-                "id,username,full_name,avatar_url,role,is_verified"
-            )
-            .eq(
-                "username",
-                username
-            )
-            .maybeSingle();
-
-        const result =
-            $("ownerAdminResult");
+            .order("created_at", {
+                ascending: false
+            });
 
         if (error) {
             showError(error);
             return;
         }
 
-        if (!data) {
-            if (result) {
-                result.innerHTML =
-                    "User not found.";
-            }
-
-            return;
-        }
-
-        if (
-            data.id ===
-            currentUser.id
-        ) {
-            if (result) {
-                result.innerHTML = `
-                    <div class="owner-user-result">
-                        This account is the Owner.
-                    </div>
-                `;
-            }
-
-            return;
-        }
-
-        if (result) {
-            result.innerHTML = `
-                <div class="owner-user-result">
-                    ${avatarHTML(
-                        data,
-                        "list-avatar"
-                    )}
-
-                    <div>
-                        <strong>
-                            ${escapeHTML(
-                                data.full_name ||
-                                data.username
-                            )}
-                        </strong>
-
-                        <span>
-                            @${escapeHTML(
-                                data.username
-                            )}
-                        </span>
-
-                        <span>
-                            Current role:
-                            ${escapeHTML(
-                                data.role ||
-                                "user"
-                            )}
-                        </span>
-                    </div>
-
-                    <div class="owner-admin-actions">
-                        ${
-                            data.role ===
-                            "admin"
-                                ? `
-                            <button
-                                type="button"
-                                id="ownerRemoveAdminBtn"
-                                data-user-id="${data.id}"
-                            >
-                                Remove Admin
-                            </button>
-                        `
-                                : `
-                            <button
-                                type="button"
-                                id="ownerMakeAdminBtn"
-                                data-user-id="${data.id}"
-                            >
-                                Make Admin
-                            </button>
-                        `
-                        }
-                    </div>
-                </div>
-            `;
-
-            $("ownerMakeAdminBtn")
-                ?.addEventListener(
-                    "click",
-                    () =>
-                        ownerSetAdmin(
-                            data.id,
-                            true
-                        )
-                );
-
-            $("ownerRemoveAdminBtn")
-                ?.addEventListener(
-                    "click",
-                    () =>
-                        ownerSetAdmin(
-                            data.id,
-                            false
-                        )
-                );
-        }
-    }
-
-    async function ownerSetAdmin(
-        userId,
-        makeAdmin
-    ) {
-        if (!isOwner()) {
-            toast(
-                "Owner permission required.",
-                "error"
-            );
-            return;
-        }
-
-        if (
-            userId ===
-            currentUser.id
-        ) {
-            toast(
-                "The Owner cannot change their own role.",
-                "warning"
-            );
-            return;
-        }
-
-        /*
-         * There is intentionally NO call to
-         * owner_set_admin because that RPC does
-         * not exist in the current database.
-         *
-         * We use a direct profiles update only if
-         * the current RLS policy permits Owner updates.
-         */
-        const newRole =
-            makeAdmin
-                ? "admin"
-                : "user";
-
-        const {
-            error
-        } = await db
-            .from("profiles")
-            .update({
-                role: newRole
-            })
-            .eq(
-                "id",
-                userId
-            )
-            .neq(
-                "role",
-                "owner"
-            );
-
-        if (error) {
-            showError(
-                error,
-                "Admin role could not be changed. An Owner role-management RPC/policy is required."
-            );
-            return;
-        }
-
-        toast(
-            makeAdmin
-                ? "Admin added."
-                : "Admin removed.",
-            "success"
-        );
-
-        await ownerSearchAdmin();
-        await loadOwnerAdminList();
-    }
-
-    async function loadOwnerAdminList() {
-        const list =
-            $("ownerAdminList");
-
-        if (!list || !isOwner()) {
-            return;
-        }
-
-        const {
-            data,
-            error
-        } = await db
-            .from("profiles")
-            .select(
-                "id,username,full_name,avatar_url,role,is_verified,verified_until"
-            )
-            .eq(
-                "role",
-                "admin"
-            )
-            .order(
-                "username",
-                {
-                    ascending: true
-                }
-            );
-
-        if (error) {
-            showError(
-                error,
-                "Could not load admins."
-            );
-            return;
-        }
-
         list.innerHTML = "";
 
         if (!data?.length) {
             list.innerHTML = `
-                <div class="empty-state">
-                    No admins.
+                <div class="empty-list">
+                    No reports.
                 </div>
             `;
             return;
         }
 
-        data.forEach(
-            (admin) => {
-                const item =
-                    document.createElement(
-                        "div"
-                    );
+        data.forEach((report) => {
+            const row =
+                document.createElement("div");
 
-                item.className =
-                    "owner-admin-item";
+            row.className = "report-item";
 
-                item.innerHTML = `
-                    ${avatarHTML(
-                        admin,
-                        "list-avatar"
-                    )}
+            row.innerHTML = `
+                <strong>
+                    ${escapeHTML(report.reason || "Report")}
+                </strong>
 
-                    <div class="list-user-info">
-                        <div class="list-user-name">
-                            ${escapeHTML(
-                                admin.full_name ||
-                                admin.username
-                            )}
-                        </div>
+                <p>
+                    ${escapeHTML(report.description || "")}
+                </p>
 
-                        <div class="list-user-username">
-                            @${escapeHTML(
-                                admin.username
-                            )}
-                            · Admin
-                        </div>
-                    </div>
+                <small>
+                    ${formatDate(report.created_at)}
+                </small>
+            `;
 
-                    <button
-                        type="button"
-                        class="owner-remove-admin-inline"
-                        data-user-id="${admin.id}"
-                    >
-                        Remove
-                    </button>
-                `;
-
-                item.querySelector(
-                    ".owner-remove-admin-inline"
-                )?.addEventListener(
-                    "click",
-                    () =>
-                        ownerSetAdmin(
-                            admin.id,
-                            false
-                        )
-                );
-
-                list.appendChild(
-                    item
-                );
-            }
-        );
+            list.appendChild(row);
+        });
     }
 
-    async function loadAdminPanelData(
-        section
-    ) {
-        if (!isAdminOrOwner()) {
+    function setupOwnerTabs() {
+        $$("[data-owner-tab]").forEach((button) => {
+
+            button.addEventListener("click", async () => {
+
+                $$("[data-owner-tab]").forEach(
+                    (item) => {
+                        item.classList.remove("active");
+                    }
+                );
+
+                button.classList.add("active");
+
+                const tab =
+                    button.dataset.ownerTab;
+
+                const panels = {
+                    verified: $("ownerVerifiedPanel"),
+                    moderation: $("ownerModerationPanel"),
+                    admins: $("ownerAdminsPanel"),
+                    reports: $("ownerReportsPanel")
+                };
+
+                Object.values(panels).forEach(
+                    (panel) => {
+                        panel?.classList.add("hidden");
+                    }
+                );
+
+                panels[tab]?.classList.remove("hidden");
+
+                if (tab === "reports") {
+                    await loadOwnerReports();
+                }
+            });
+        });
+    }
+
+    /* =========================================================
+       ADMIN
+    ========================================================= */
+
+    async function openAdminPanel() {
+        if (
+            currentRole !== "owner" &&
+            currentRole !== "admin"
+        ) {
             toast(
                 "Admin permission required.",
                 "error"
@@ -5847,384 +3506,299 @@
             return;
         }
 
-        if (
-            section === "reports"
-        ) {
-            await loadOwnerReports();
-            return;
-        }
-
-        if (
-            section === "users"
-        ) {
-            await loadAdminUsers();
-            return;
-        }
-
-        if (
-            section === "groups"
-        ) {
-            await loadGroups();
-            return;
-        }
-
-        if (
-            section === "channels"
-        ) {
-            await loadChannels();
-            return;
-        }
-    }
-
-    async function loadAdminUsers() {
-        const {
-            data,
-            error
-        } = await db
-            .from("profiles")
-            .select(`
-                id,
-                username,
-                full_name,
-                avatar_url,
-                role,
-                is_verified,
-                account_blocked,
-                messaging_blocked
-            `)
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            )
-            .limit(100);
-
-        if (error) {
-            showError(
-                error,
-                "Could not load users."
-            );
-            return;
-        }
-
-        /*
-         * The current admin HTML only has buttons,
-         * so show the data through a toast rather
-         * than creating an incompatible modal.
-         */
-        toast(
-            `${data?.length || 0} users loaded.`,
-            "success"
-        );
-
-        console.table(
-            data || []
-        );
+        openModal("adminModal");
     }
 
     /* =========================================================
-       SETTINGS / THEME / LANGUAGE
+       APPEARANCE
     ========================================================= */
 
     function applyTheme(theme) {
-        const root =
-            document.documentElement;
-
-        if (
-            theme === "system"
-        ) {
-            root.removeAttribute(
-                "data-theme"
-            );
+        if (theme === "light") {
+            document.body.classList.add("light-theme");
         } else {
-            root.setAttribute(
-                "data-theme",
-                theme
-            );
+            document.body.classList.remove("light-theme");
         }
 
         localStorage.setItem(
             "megchatbox-theme",
             theme
         );
+
+        $$(".appearance-option[data-theme]")
+            .forEach((button) => {
+                button.classList.toggle(
+                    "active",
+                    button.dataset.theme === theme
+                );
+            });
     }
 
-    function applyDensity(
-        density
-    ) {
-        document.documentElement
-            .setAttribute(
-                "data-density",
-                density
-            );
+    function applyDensity(density) {
+        document.body.classList.toggle(
+            "compact-mode",
+            density === "compact"
+        );
 
         localStorage.setItem(
             "megchatbox-density",
             density
         );
+
+        $$(".appearance-option[data-density]")
+            .forEach((button) => {
+                button.classList.toggle(
+                    "active",
+                    button.dataset.density === density
+                );
+            });
     }
 
-    function applyLanguage(
-        language
-    ) {
+    function applyLanguage(language) {
         localStorage.setItem(
             "megchatbox-language",
             language
         );
 
-        document.documentElement
-            .setAttribute(
-                "lang",
-                language
-            );
+        toast(
+            language === "uz"
+                ? "Til sozlamasi saqlandi."
+                : language === "ru"
+                    ? "Язык сохранён."
+                    : "Language saved.",
+            "success"
+        );
     }
 
     function loadAppearance() {
         const theme =
             localStorage.getItem(
                 "megchatbox-theme"
-            ) ||
-            "dark";
+            ) || "dark";
 
         const density =
             localStorage.getItem(
                 "megchatbox-density"
-            ) ||
-            "comfortable";
-
-        const language =
-            localStorage.getItem(
-                "megchatbox-language"
-            ) ||
-            "en";
+            ) || "normal";
 
         applyTheme(theme);
         applyDensity(density);
-        applyLanguage(language);
-
-        document
-            .querySelectorAll(
-                ".appearance-option[data-theme]"
-            )
-            .forEach(
-                (el) => {
-                    el.classList.toggle(
-                        "active",
-                        el.dataset.theme ===
-                            theme
-                    );
-                }
-            );
-
-        document
-            .querySelectorAll(
-                ".appearance-option[data-density]"
-            )
-            .forEach(
-                (el) => {
-                    el.classList.toggle(
-                        "active",
-                        el.dataset.density ===
-                            density
-                    );
-                }
-            );
-
-        document
-            .querySelectorAll(
-                ".language-option[data-language]"
-            )
-            .forEach(
-                (el) => {
-                    el.classList.toggle(
-                        "active",
-                        el.dataset.language ===
-                            language
-                    );
-                }
-            );
     }
 
     /* =========================================================
-       SIDEBAR
+       RESET CHAT
     ========================================================= */
 
-    async function refreshSidebar() {
-        await Promise.all([
-            renderContacts(),
-            loadGroups(),
-            loadChannels()
-        ]);
-    }
+    function resetChat() {
+        activeChatUser = null;
+        activeCommunity = null;
+        activeCommunityType = null;
+        activeUserProfile = null;
+        currentMessages = [];
 
-    function setupTabs() {
-        document
-            .querySelectorAll(
-                ".sidebar-tab[data-tab]"
-            )
-            .forEach(
-                (tab) => {
-                    tab.addEventListener(
-                        "click",
-                        async () => {
-                            document
-                                .querySelectorAll(
-                                    ".sidebar-tab"
-                                )
-                                .forEach(
-                                    (x) =>
-                                        x.classList.remove(
-                                            "active"
-                                        )
-                                );
+        $("activeChat")
+            ?.classList.add("hidden");
 
-                            tab.classList.add(
-                                "active"
-                            );
+        $("chatEmpty")
+            ?.classList.remove("hidden");
 
-                            const name =
-                                tab.dataset.tab;
+        $("contactActions")
+            ?.classList.add("hidden");
 
-                            document
-                                .querySelectorAll(
-                                    "#userList,#groupsList,#channelsList"
-                                )
-                                .forEach(
-                                    (list) => {
-                                        list.style.display =
-                                            "none";
-                                    }
-                                );
+        $("messageForm")
+            ?.classList.remove("hidden");
 
-                            if (
-                                name ===
-                                "chats"
-                            ) {
-                                if ($("userList")) {
-                                    $("userList")
-                                        .style.display =
-                                        "";
-                                }
-
-                                await renderContacts();
-                            }
-
-                            if (
-                                name ===
-                                "groups"
-                            ) {
-                                if ($("groupsList")) {
-                                    $("groupsList")
-                                        .style.display =
-                                        "";
-                                }
-
-                                await loadGroups();
-                            }
-
-                            if (
-                                name ===
-                                "channels"
-                            ) {
-                                if ($("channelsList")) {
-                                    $("channelsList")
-                                        .style.display =
-                                        "";
-                                }
-
-                                await loadChannels();
-                            }
-                        }
-                    );
-                }
-            );
+        if (window.innerWidth <= 800) {
+            $("sidebar")
+                ?.classList.remove("mobile-hidden");
+        }
     }
 
     /* =========================================================
-       LOGOUT / DELETE
+       LOGOUT
     ========================================================= */
 
     async function logout() {
-        try {
+        const { error } =
             await db.auth.signOut();
-        } finally {
-            location.href =
-                "index.html";
+
+        if (error) {
+            showError(error);
+            return;
         }
+
+        window.location.href = "index.html";
     }
 
     async function deleteAccount() {
         toast(
-            "Secure account deletion is not configured yet.",
+            "Account deletion requires a secure server-side function.",
             "warning"
         );
     }
 
     /* =========================================================
-       MODAL CLOSE SYSTEM
-       ========================================================= */
+       CHAT SEARCH
+    ========================================================= */
 
-    function setupModalCloseSystem() {
-        /*
-         * Event delegation fixes duplicate IDs and
-         * dynamically created close buttons.
-         */
-        document.addEventListener(
-            "click",
-            (event) => {
-                const closeButton =
-                    event.target.closest(
-                        "[data-close-modal]"
+    function openChatSearch() {
+        if (!activeChatUser && !activeCommunity) {
+            return;
+        }
+
+        const existing =
+            $("chatSearchOverlay");
+
+        if (existing) {
+            existing.remove();
+            return;
+        }
+
+        const overlay =
+            document.createElement("div");
+
+        overlay.id =
+            "chatSearchOverlay";
+
+        overlay.className =
+            "chat-search-overlay";
+
+        overlay.innerHTML = `
+            <div class="chat-search-box">
+
+                <div class="chat-search-header">
+                    <strong>Search messages</strong>
+
+                    <button
+                        type="button"
+                        id="closeChatSearch"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                <input
+                    type="text"
+                    id="chatSearchInput"
+                    placeholder="Search in this chat..."
+                    autocomplete="off"
+                >
+
+                <div
+                    id="chatSearchResults"
+                    class="chat-search-results"
+                ></div>
+
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        $("closeChatSearch")
+            ?.addEventListener(
+                "click",
+                () => overlay.remove()
+            );
+
+        $("chatSearchInput")
+            ?.addEventListener(
+                "input",
+                () => {
+                    renderChatSearchResults(
+                        $("chatSearchInput").value
                     );
+                }
+            );
 
-                if (
-                    closeButton
-                ) {
-                    event.preventDefault();
-                    event.stopPropagation();
+        $("chatSearchInput")?.focus();
+    }
 
-                    const modalId =
-                        closeButton.dataset
-                            .closeModal;
+    function renderChatSearchResults(query) {
+        const result =
+            $("chatSearchResults");
 
-                    if (modalId) {
-                        closeModal(
-                            modalId
+        if (!result) return;
+
+        const clean =
+            query.trim().toLowerCase();
+
+        if (!clean) {
+            result.innerHTML = `
+                <div class="empty-list">
+                    Type something to search.
+                </div>
+            `;
+            return;
+        }
+
+        const matches =
+            currentMessages.filter(
+                (message) =>
+                    String(message.content || "")
+                        .toLowerCase()
+                        .includes(clean)
+            );
+
+        result.innerHTML = "";
+
+        if (!matches.length) {
+            result.innerHTML = `
+                <div class="empty-list">
+                    No messages found.
+                </div>
+            `;
+            return;
+        }
+
+        matches.forEach((message) => {
+            const item =
+                document.createElement("button");
+
+            item.type = "button";
+            item.className = "chat-search-result";
+
+            item.innerHTML = `
+                <span>
+                    ${escapeHTML(
+                        message.content || ""
+                    )}
+                </span>
+
+                <small>
+                    ${formatTime(message.created_at)}
+                </small>
+            `;
+
+            item.addEventListener(
+                "click",
+                () => {
+
+                    const target =
+                        document.querySelector(
+                            `[data-message-id="${message.id}"]`
                         );
-                    }
 
-                    return;
-                }
+                    target?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center"
+                    });
 
-                const modal =
-                    event.target.closest(
-                        ".modal"
+                    target?.classList.add(
+                        "search-highlight"
                     );
 
-                if (
-                    modal &&
-                    event.target ===
-                        modal
-                ) {
-                    closeModal(
-                        modal.id
-                    );
-                }
-            }
-        );
+                    setTimeout(() => {
+                        target?.classList.remove(
+                            "search-highlight"
+                        );
+                    }, 1500);
 
-        document.addEventListener(
-            "keydown",
-            (event) => {
-                if (
-                    event.key ===
-                    "Escape"
-                ) {
-                    closeAllModals();
+                    $("chatSearchOverlay")?.remove();
                 }
-            }
-        );
+            );
+
+            result.appendChild(item);
+        });
     }
 
     /* =========================================================
@@ -6232,73 +3806,32 @@
     ========================================================= */
 
     function setupEvents() {
+
+        /* ---------- Settings ---------- */
+
         $("settingsBtn")
             ?.addEventListener(
                 "click",
-                () =>
-                    openModal(
-                        "settingsModal"
-                    )
+                () => openModal("settingsModal")
             );
 
         $("profileSettingsBtn")
             ?.addEventListener(
                 "click",
                 () => {
-                    if (
-                        currentProfile
-                    ) {
-                        if (
-                            $("profileFullName")
-                        ) {
-                            $("profileFullName")
-                                .value =
-                                currentProfile.full_name ||
-                                "";
-                        }
-
-                        if (
-                            $("profileUsername")
-                        ) {
-                            $("profileUsername")
-                                .value =
-                                currentProfile.username ||
-                                "";
-                        }
-
-                        if (
-                            $("profileBio")
-                        ) {
-                            $("profileBio")
-                                .value =
-                                currentProfile.bio ||
-                                "";
-                        }
-                    }
-
-                    closeModal(
-                        "settingsModal"
-                    );
-
-                    openModal(
-                        "profileModal"
-                    );
+                    closeModal("settingsModal");
+                    renderMyProfile();
+                    openModal("profileModal");
                 }
             );
 
         $("privacySettingsBtn")
             ?.addEventListener(
                 "click",
-                async () => {
-                    closeModal(
-                        "settingsModal"
-                    );
-
-                    await loadPrivacy();
-
-                    openModal(
-                        "privacyModal"
-                    );
+                () => {
+                    closeModal("settingsModal");
+                    loadPrivacy();
+                    openModal("privacyModal");
                 }
             );
 
@@ -6306,13 +3839,8 @@
             ?.addEventListener(
                 "click",
                 () => {
-                    closeModal(
-                        "settingsModal"
-                    );
-
-                    openModal(
-                        "appearanceModal"
-                    );
+                    closeModal("settingsModal");
+                    openModal("appearanceModal");
                 }
             );
 
@@ -6320,13 +3848,8 @@
             ?.addEventListener(
                 "click",
                 () => {
-                    closeModal(
-                        "settingsModal"
-                    );
-
-                    openModal(
-                        "languageModal"
-                    );
+                    closeModal("settingsModal");
+                    openModal("languageModal");
                 }
             );
 
@@ -6334,15 +3857,9 @@
             ?.addEventListener(
                 "click",
                 async () => {
-                    closeModal(
-                        "settingsModal"
-                    );
-
+                    closeModal("settingsModal");
+                    openModal("savedMessagesModal");
                     await loadSavedMessages();
-
-                    openModal(
-                        "savedMessagesModal"
-                    );
                 }
             );
 
@@ -6350,15 +3867,38 @@
             ?.addEventListener(
                 "click",
                 async () => {
-                    closeModal(
-                        "settingsModal"
-                    );
-
+                    closeModal("settingsModal");
+                    openModal("updatesModal");
                     await loadUpdates();
+                }
+            );
 
-                    openModal(
-                        "updatesModal"
-                    );
+        $("ownerPanelButton")
+            ?.addEventListener(
+                "click",
+                async () => {
+                    closeModal("settingsModal");
+
+                    if (currentRole !== "owner") {
+                        toast(
+                            "Owner permission required.",
+                            "error"
+                        );
+                        return;
+                    }
+
+                    openModal("ownerModal");
+
+                    await ownerSearchVerified();
+                }
+            );
+
+        $("adminPanelButton")
+            ?.addEventListener(
+                "click",
+                async () => {
+                    closeModal("settingsModal");
+                    await openAdminPanel();
                 }
             );
 
@@ -6368,23 +3908,12 @@
                 logout
             );
 
-        $("logoutBtn")
-            ?.addEventListener(
-                "click",
-                logout
-            );
-
         $("deleteAccountBtn")
             ?.addEventListener(
                 "click",
                 () => {
-                    closeModal(
-                        "settingsModal"
-                    );
-
-                    openModal(
-                        "deleteAccountModal"
-                    );
+                    closeModal("settingsModal");
+                    openModal("deleteAccountModal");
                 }
             );
 
@@ -6394,14 +3923,12 @@
                 deleteAccount
             );
 
+        /* ---------- Profile ---------- */
+
         $("profileForm")
             ?.addEventListener(
                 "submit",
-                (event) => {
-                    event.preventDefault();
-
-                    saveProfile();
-                }
+                saveProfile
             );
 
         $("profileAvatarInput")
@@ -6410,38 +3937,76 @@
                 handleProfileAvatar
             );
 
-        $("showOnlineToggle")
+        /* ---------- Privacy ---------- */
+
+        $("savePrivacyBtn")
             ?.addEventListener(
-                "change",
+                "click",
                 savePrivacy
             );
 
-        $("showLastSeenToggle")
-            ?.addEventListener(
-                "change",
-                savePrivacy
-            );
+        /* ---------- Appearance ---------- */
 
-        /* -----------------------------------------
-           GLOBAL SEARCH
-        ----------------------------------------- */
+        $$("[data-theme]")
+            .forEach((button) => {
+                button.addEventListener(
+                    "click",
+                    () => {
+                        applyTheme(
+                            button.dataset.theme
+                        );
+                    }
+                );
+            });
+
+        $$("[data-density]")
+            .forEach((button) => {
+                button.addEventListener(
+                    "click",
+                    () => {
+                        applyDensity(
+                            button.dataset.density
+                        );
+                    }
+                );
+            });
+
+        $$("[data-language]")
+            .forEach((button) => {
+                button.addEventListener(
+                    "click",
+                    () => {
+                        applyLanguage(
+                            button.dataset.language
+                        );
+                    }
+                );
+            });
+
+        /* ---------- Search ---------- */
 
         $("searchInput")
             ?.addEventListener(
                 "input",
                 (event) => {
-                    clearTimeout(
-                        searchTimer
-                    );
+
+                    const query =
+                        event.target.value;
+
+                    $("clearSearchBtn")
+                        ?.classList.toggle(
+                            "hidden",
+                            !query
+                        );
+
+                    clearTimeout(searchTimer);
 
                     searchTimer =
                         setTimeout(
-                            () =>
-                                searchEverything(
-                                    event.target
-                                        .value
-                                ),
-                            300
+                            () => {
+                                searchEverything(query);
+                            },
+                            250
                         );
                 }
             );
@@ -6450,35 +4015,28 @@
             ?.addEventListener(
                 "click",
                 async () => {
-                    if (
-                        $("searchInput")
-                    ) {
-                        $("searchInput")
-                            .value = "";
+                    if ($("searchInput")) {
+                        $("searchInput").value = "";
                     }
+
+                    $("clearSearchBtn")
+                        ?.classList.add("hidden");
 
                     await refreshSidebar();
                 }
             );
 
-        /* -----------------------------------------
-           MESSAGE FORM
-        ----------------------------------------- */
+        /* ---------- Messages ---------- */
 
         $("messageForm")
             ?.addEventListener(
                 "submit",
                 async (event) => {
-                    if (
-                        activeCommunity
-                    ) {
-                        await sendCommunityMessage(
-                            event
-                        );
+
+                    if (activeCommunity) {
+                        await sendCommunityMessage(event);
                     } else {
-                        await sendMessage(
-                            event
-                        );
+                        await sendMessage(event);
                     }
                 }
             );
@@ -6486,38 +4044,26 @@
         $("imageBtn")
             ?.addEventListener(
                 "click",
-                () =>
-                    $("imageInput")
-                        ?.click()
+                () => $("imageInput")?.click()
             );
 
         $("imageInput")
             ?.addEventListener(
                 "change",
-                async (event) => {
-                    const file =
-                        event.target
-                            .files?.[0];
-
-                    if (file) {
-                        await sendImage(
-                            file
-                        );
-                    }
-
-                    event.target.value =
-                        "";
-                }
+                sendImage
             );
 
         $("emojiBtn")
             ?.addEventListener(
                 "click",
                 () => {
-                    $("emojiPanel")
-                        ?.classList.toggle(
-                            "open"
-                        );
+                    const input =
+                        $("messageInput");
+
+                    if (!input) return;
+
+                    input.value += " 😊";
+                    input.focus();
                 }
             );
 
@@ -6526,50 +4072,20 @@
                 "click",
                 () => {
                     toast(
-                        "Sticker panel is not available in this HTML yet.",
+                        "Sticker system will be added next.",
                         "info"
                     );
                 }
             );
 
-        $("emojiPanel")
-            ?.addEventListener(
-                "click",
-                (event) => {
-                    const emoji =
-                        event.target.closest(
-                            "[data-emoji]"
-                        );
-
-                    if (!emoji)
-                        return;
-
-                    const input =
-                        $("messageInput");
-
-                    if (!input)
-                        return;
-
-                    input.value +=
-                        emoji.dataset
-                            .emoji;
-
-                    input.focus();
-                }
-            );
-
-        /* -----------------------------------------
-           CONTACT ACTIONS
-        ----------------------------------------- */
+        /* ---------- Contact ---------- */
 
         $("addContactBtn")
             ?.addEventListener(
                 "click",
-                () => {
-                    if (
-                        activeChatUser
-                    ) {
-                        sendContactRequest(
+                async () => {
+                    if (activeChatUser) {
+                        await sendContactRequest(
                             activeChatUser.id
                         );
                     }
@@ -6580,20 +4096,14 @@
             ?.addEventListener(
                 "click",
                 async () => {
-                    if (
-                        !activeChatUser
-                    ) {
-                        return;
-                    }
-
                     const relationship =
-                        await getRelationship(
-                            activeChatUser.id
-                        );
+                        activeChatUser
+                            ? await getRelationship(
+                                activeChatUser.id
+                            )
+                            : null;
 
-                    if (
-                        relationship
-                    ) {
+                    if (relationship) {
                         await acceptContactRequest(
                             relationship.id
                         );
@@ -6605,20 +4115,14 @@
             ?.addEventListener(
                 "click",
                 async () => {
-                    if (
-                        !activeChatUser
-                    ) {
-                        return;
-                    }
-
                     const relationship =
-                        await getRelationship(
-                            activeChatUser.id
-                        );
+                        activeChatUser
+                            ? await getRelationship(
+                                activeChatUser.id
+                            )
+                            : null;
 
-                    if (
-                        relationship
-                    ) {
+                    if (relationship) {
                         await declineContactRequest(
                             relationship.id
                         );
@@ -6626,135 +4130,57 @@
                 }
             );
 
-        /*
-         * IMPORTANT:
-         * Contact request buttons are created dynamically.
-         * Event delegation makes Accept/Decline work.
-         */
-        document.addEventListener(
-            "click",
-            async (event) => {
-                const accept =
-                    event.target.closest(
-                        ".request-accept"
-                    );
-
-                if (accept) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    await acceptContactRequest(
-                        accept.dataset
-                            .requestId
-                    );
-
-                    return;
-                }
-
-                const decline =
-                    event.target.closest(
-                        ".request-decline"
-                    );
-
-                if (decline) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    await declineContactRequest(
-                        decline.dataset
-                            .requestId
-                    );
-                }
-            }
-        );
-
-        /* -----------------------------------------
-           CHAT HEADER
-        ----------------------------------------- */
+        /* ---------- Chat header ---------- */
 
         $("chatAvatarButton")
             ?.addEventListener(
                 "click",
                 () => {
-                    if (
-                        activeChatUser
-                    ) {
-                        openUserProfile(
-                            activeChatUser
-                        );
-                    } else if (
-                        activeCommunity
-                    ) {
-                        renderCommunityInfo(
-                            activeCommunity,
-                            activeCommunityType
-                        );
-                    }
-                }
-            );
 
-        $("chatMoreBtn")
-            ?.addEventListener(
-                "click",
-                () => {
-                    /*
-                     * If a current chat exists, open
-                     * a small action menu if available.
-                     * Otherwise open profile/community info.
-                     */
-                    if (
-                        activeChatUser
-                    ) {
+                    if (activeChatUser) {
                         openUserProfile(
                             activeChatUser
                         );
                         return;
                     }
 
-                    if (
-                        activeCommunity
-                    ) {
+                    if (activeCommunity) {
+                        const modal =
+                            activeCommunityType === "group"
+                                ? "groupInfoModal"
+                                : "channelInfoModal";
+
                         renderCommunityInfo(
-                            activeCommunity,
                             activeCommunityType
                         );
+
+                        openModal(modal);
                     }
                 }
             );
 
-        /*
-         * Search from the chat's 3-dot area.
-         * Long-pressing the button is not required.
-         */
         $("chatMoreBtn")
             ?.addEventListener(
-                "contextmenu",
-                (event) => {
-                    event.preventDefault();
+                "click",
+                openChatSearch
+            );
 
-                    if (
-                        activeChatUser ||
-                        activeCommunity
-                    ) {
-                        showChatSearch();
-                    }
+        $("mobileBackBtn")
+            ?.addEventListener(
+                "click",
+                () => {
+                    resetChat();
                 }
             );
 
-        /* -----------------------------------------
-           USER PROFILE
-        ----------------------------------------- */
+        /* ---------- User profile ---------- */
 
         $("userProfileMenuBtn")
             ?.addEventListener(
                 "click",
-                (event) => {
-                    event.stopPropagation();
-
+                () => {
                     $("userProfileMenu")
-                        ?.classList.toggle(
-                            "open"
-                        );
+                        ?.classList.toggle("hidden");
                 }
             );
 
@@ -6762,39 +4188,35 @@
             ?.addEventListener(
                 "click",
                 () => {
-                    closeModal(
-                        "userProfileModal"
-                    );
+                    $("nicknameInput").value = "";
+                    $("userProfileMenu")
+                        ?.classList.add("hidden");
 
-                    if (
-                        $("nicknameInput")
-                    ) {
-                        $("nicknameInput")
-                            .value = "";
-                    }
-
-                    openModal(
-                        "nicknameModal"
-                    );
+                    openModal("nicknameModal");
                 }
             );
 
         $("removeNicknameBtn")
             ?.addEventListener(
                 "click",
-                removeNickname
-            );
+                async () => {
+                    $("userProfileMenu")
+                        ?.classList.add("hidden");
 
-        $("removeNicknameBtnModal")
-            ?.addEventListener(
-                "click",
-                removeNickname
+                    await removeNickname();
+                }
             );
 
         $("saveNicknameBtn")
             ?.addEventListener(
                 "click",
                 saveNickname
+            );
+
+        $("removeNicknameBtnModal")
+            ?.addEventListener(
+                "click",
+                removeNickname
             );
 
         $("blockUserBtn")
@@ -6806,61 +4228,39 @@
         $("reportUserBtn")
             ?.addEventListener(
                 "click",
-                () => {
-                    closeModal(
-                        "userProfileModal"
-                    );
-
-                    openModal(
-                        "reportModal"
-                    );
-                }
+                reportUser
             );
 
         $("submitReportBtn")
             ?.addEventListener(
                 "click",
-                reportUser
+                submitReport
             );
 
-        /* -----------------------------------------
-           GROUP / CHANNEL CREATION
-        ----------------------------------------- */
+        /* ---------- Communities ---------- */
 
         $("createGroupBtn")
             ?.addEventListener(
                 "click",
-                () =>
-                    openModal(
-                        "createGroupModal"
-                    )
+                () => openModal("createGroupModal")
             );
 
         $("createChannelBtn")
             ?.addEventListener(
                 "click",
-                () =>
-                    openModal(
-                        "createChannelModal"
-                    )
+                () => openModal("createChannelModal")
             );
 
         $("joinGroupOpenBtn")
             ?.addEventListener(
                 "click",
-                () =>
-                    openModal(
-                        "joinGroupModal"
-                    )
+                () => openModal("joinGroupModal")
             );
 
         $("joinChannelOpenBtn")
             ?.addEventListener(
                 "click",
-                () =>
-                    openModal(
-                        "joinChannelModal"
-                    )
+                () => openModal("joinChannelModal")
             );
 
         $("groupForm")
@@ -6887,77 +4287,43 @@
                 joinChannel
             );
 
-        /* -----------------------------------------
-           COMMUNITY INFO
-        ----------------------------------------- */
-
-        $("groupInviteBtn")
-            ?.addEventListener(
-                "click",
-                () =>
-                    createInvite(
-                        "group"
-                    )
-            );
-
-        $("channelInviteBtn")
-            ?.addEventListener(
-                "click",
-                () =>
-                    createInvite(
-                        "channel"
-                    )
-            );
-
         $("groupMembersBtn")
             ?.addEventListener(
                 "click",
-                () =>
-                    loadMembers(
-                        "group"
-                    )
+                () => loadMembers("group")
             );
 
         $("channelMembersBtn")
             ?.addEventListener(
                 "click",
-                () =>
-                    loadMembers(
-                        "channel"
-                    )
+                () => loadMembers("channel")
             );
 
         $("leaveGroupBtn")
             ?.addEventListener(
                 "click",
-                () =>
-                    leaveCommunity(
-                        "group"
-                    )
+                () => leaveCommunity("group")
             );
 
         $("leaveChannelBtn")
             ?.addEventListener(
                 "click",
-                () =>
-                    leaveCommunity(
-                        "channel"
-                    )
+                () => leaveCommunity("channel")
             );
 
-        /* -----------------------------------------
-           UPDATES
-        ----------------------------------------- */
-
-        $("publishUpdateBtn")
+        $("groupInviteBtn")
             ?.addEventListener(
                 "click",
-                publishUpdate
+                () => createInvite("group")
             );
 
-        /* -----------------------------------------
-           OWNER
-        ----------------------------------------- */
+        $("channelInviteBtn")
+            ?.addEventListener(
+                "click",
+                () => createInvite("channel")
+            );
+
+        /* ---------- Owner ---------- */
 
         $("ownerVerifiedSearchBtn")
             ?.addEventListener(
@@ -6974,43 +4340,25 @@
         $("ownerAdminSearchBtn")
             ?.addEventListener(
                 "click",
-                ownerSearchAdmin
-            );
-
-        $("ownerPanelButton")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    if (
-                        !isOwner()
-                    ) {
-                        toast(
-                            "Owner permission required.",
-                            "error"
-                        );
-                        return;
-                    }
-
-                    closeModal(
-                        "settingsModal"
-                    );
-
-                    await loadOwnerReports();
-
-                    await loadOwnerAdminList();
-
-                    openModal(
-                        "ownerModal"
+                () => {
+                    toast(
+                        "Admin assignment will be connected to the secure admin RPC next.",
+                        "info"
                     );
                 }
             );
 
-        $("adminPanelButton")
+        setupOwnerTabs();
+
+        /* ---------- Admin ---------- */
+
+        $("openAdminReportsBtn")
             ?.addEventListener(
                 "click",
-                () => {
+                async () => {
                     if (
-                        !isAdminOrOwner()
+                        currentRole !== "admin" &&
+                        currentRole !== "owner"
                     ) {
                         toast(
                             "Admin permission required.",
@@ -7019,32 +4367,29 @@
                         return;
                     }
 
-                    closeModal(
-                        "settingsModal"
-                    );
+                    closeModal("adminModal");
 
-                    openModal(
-                        "adminModal"
-                    );
-                }
-            );
+                    if (currentRole === "owner") {
+                        openModal("ownerModal");
 
-        $("openAdminReportsBtn")
-            ?.addEventListener(
-                "click",
-                async () => {
-                    await loadAdminPanelData(
-                        "reports"
-                    );
+                        $("[data-owner-tab='reports']")
+                            ?.click();
+                    } else {
+                        toast(
+                            "Reports are ready for the admin system.",
+                            "info"
+                        );
+                    }
                 }
             );
 
         $("openAdminUsersBtn")
             ?.addEventListener(
                 "click",
-                async () => {
-                    await loadAdminPanelData(
-                        "users"
+                () => {
+                    toast(
+                        "User moderation is connected through the Owner/Admin system.",
+                        "info"
                     );
                 }
             );
@@ -7052,9 +4397,10 @@
         $("openAdminGroupsBtn")
             ?.addEventListener(
                 "click",
-                async () => {
-                    await loadAdminPanelData(
-                        "groups"
+                () => {
+                    toast(
+                        "Group administration will be connected next.",
+                        "info"
                     );
                 }
             );
@@ -7062,203 +4408,100 @@
         $("openAdminChannelsBtn")
             ?.addEventListener(
                 "click",
-                async () => {
-                    await loadAdminPanelData(
-                        "channels"
+                () => {
+                    toast(
+                        "Channel administration will be connected next.",
+                        "info"
                     );
                 }
             );
 
-        /*
-         * OWNER TABS
-         */
-        document
-            .querySelectorAll(
-                "[data-owner-tab]"
-            )
-            .forEach(
-                (tab) => {
-                    tab.addEventListener(
-                        "click",
-                        async () => {
-                            if (
-                                !isOwner()
-                            ) {
-                                return;
-                            }
-
-                            document
-                                .querySelectorAll(
-                                    "[data-owner-tab]"
-                                )
-                                .forEach(
-                                    (x) =>
-                                        x.classList.remove(
-                                            "active"
-                                        )
-                                );
-
-                            tab.classList.add(
-                                "active"
-                            );
-
-                            const name =
-                                tab.dataset
-                                    .ownerTab;
-
-                            document
-                                .querySelectorAll(
-                                    "[id$='Panel']"
-                                )
-                                .forEach(
-                                    (panel) => {
-                                        if (
-                                            panel.id.startsWith(
-                                                "owner"
-                                            )
-                                        ) {
-                                            panel.style.display =
-                                                "none";
-                                        }
-                                    }
-                                );
-
-                            if (
-                                name ===
-                                "verified"
-                            ) {
-                                $("ownerVerifiedPanel")
-                                    ?.style
-                                    .setProperty(
-                                        "display",
-                                        "",
-                                        ""
-                                    );
-                            }
-
-                            if (
-                                name ===
-                                "moderation"
-                            ) {
-                                $("ownerModerationPanel")
-                                    ?.style
-                                    .setProperty(
-                                        "display",
-                                        "",
-                                        ""
-                                    );
-                            }
-
-                            if (
-                                name ===
-                                "admins"
-                            ) {
-                                $("ownerAdminsPanel")
-                                    ?.style
-                                    .setProperty(
-                                        "display",
-                                        "",
-                                        ""
-                                    );
-
-                                await loadOwnerAdminList();
-                            }
-
-                            if (
-                                name ===
-                                "reports"
-                            ) {
-                                $("ownerReportsPanel")
-                                    ?.style
-                                    .setProperty(
-                                        "display",
-                                        "",
-                                        ""
-                                    );
-
-                                await loadOwnerReports();
-                            }
-                        }
-                    );
-                }
-            );
-
-        /* -----------------------------------------
-           APPEARANCE
-        ----------------------------------------- */
-
-        document
-            .querySelectorAll(
-                ".appearance-option[data-theme]"
-            )
-            .forEach(
-                (button) => {
-                    button.addEventListener(
-                        "click",
-                        () => {
-                            applyTheme(
-                                button.dataset
-                                    .theme
-                            );
-
-                            loadAppearance();
-                        }
-                    );
-                }
-            );
-
-        document
-            .querySelectorAll(
-                ".appearance-option[data-density]"
-            )
-            .forEach(
-                (button) => {
-                    button.addEventListener(
-                        "click",
-                        () => {
-                            applyDensity(
-                                button.dataset
-                                    .density
-                            );
-
-                            loadAppearance();
-                        }
-                    );
-                }
-            );
-
-        document
-            .querySelectorAll(
-                ".language-option[data-language]"
-            )
-            .forEach(
-                (button) => {
-                    button.addEventListener(
-                        "click",
-                        () => {
-                            applyLanguage(
-                                button.dataset
-                                    .language
-                            );
-
-                            loadAppearance();
-                        }
-                    );
-                }
-            );
-
-        /* -----------------------------------------
-           GLOBAL CLICK
-        ----------------------------------------- */
+        /* ---------- Generic modal close ---------- */
 
         document.addEventListener(
             "click",
             (event) => {
-                const profileMenu =
-                    $("userProfileMenu");
+
+                const closeButton =
+                    event.target.closest(
+                        "[data-close-modal]"
+                    );
+
+                if (closeButton) {
+                    const id =
+                        closeButton.dataset.closeModal;
+
+                    closeModal(id);
+                    return;
+                }
 
                 if (
-                    profileMenu &&
+                    event.target.classList.contains(
+                        "modal"
+                    )
+                ) {
+                    closeModal(
+                        event.target.id
+                    );
+                }
+            }
+        );
+
+        /* ---------- Request delegation ---------- */
+
+        $("userList")
+            ?.addEventListener(
+                "click",
+                async (event) => {
+
+                    const button =
+                        event.target.closest(
+                            "[data-request-action]"
+                        );
+
+                    if (!button) return;
+
+                    event.stopPropagation();
+
+                    const action =
+                        button.dataset.requestAction;
+
+                    const requestId =
+                        button.dataset.requestId;
+
+                    if (action === "accept") {
+                        await acceptContactRequest(
+                            requestId
+                        );
+                    }
+
+                    if (action === "decline") {
+                        await declineContactRequest(
+                            requestId
+                        );
+                    }
+                }
+            );
+
+        /* ---------- Global ---------- */
+
+        document.addEventListener(
+            "keydown",
+            (event) => {
+                if (event.key === "Escape") {
+                    closeAllModals();
+
+                    $("chatSearchOverlay")
+                        ?.remove();
+                }
+            }
+        );
+
+        document.addEventListener(
+            "click",
+            (event) => {
+
+                if (
                     !event.target.closest(
                         "#userProfileMenu"
                     ) &&
@@ -7266,326 +4509,24 @@
                         "#userProfileMenuBtn"
                     )
                 ) {
-                    profileMenu.classList.remove(
-                        "open"
-                    );
+                    $("userProfileMenu")
+                        ?.classList.add("hidden");
                 }
 
-                /*
-                 * Don't immediately close a message
-                 * action menu when clicking inside it.
-                 */
                 if (
                     !event.target.closest(
                         ".message-wrapper"
                     )
                 ) {
-                    document
-                        .querySelectorAll(
-                            ".message-wrapper.swiped"
-                        )
-                        .forEach(
-                            resetMessageSwipe
-                        );
+                    $$(".message-wrapper.swiped")
+                        .forEach((wrapper) => {
+                            wrapper.classList.remove(
+                                "swiped"
+                            );
+                        });
                 }
             }
         );
-
-        setupModalCloseSystem();
-
-        setupTabs();
-    }
-
-    /* =========================================================
-       MODERATION SEARCH
-    ========================================================= */
-
-    async function ownerSearchModeration() {
-        if (!isOwner()) {
-            toast(
-                "Owner permission required.",
-                "error"
-            );
-            return;
-        }
-
-        const username =
-            $("ownerModerationUsername")
-                ?.value
-                .trim()
-                .toLowerCase();
-
-        const result =
-            $("ownerModerationResult");
-
-        if (!username) {
-            toast(
-                "Enter a username.",
-                "warning"
-            );
-            return;
-        }
-
-        const {
-            data,
-            error
-        } = await db
-            .from("profiles")
-            .select(`
-                id,
-                username,
-                full_name,
-                avatar_url,
-                role,
-                account_blocked,
-                account_blocked_until,
-                messaging_blocked,
-                messaging_blocked_until
-            `)
-            .eq(
-                "username",
-                username
-            )
-            .maybeSingle();
-
-        if (error) {
-            showError(error);
-            return;
-        }
-
-        if (!data) {
-            if (result) {
-                result.innerHTML =
-                    "User not found.";
-            }
-
-            return;
-        }
-
-        if (
-            data.role ===
-            "owner"
-        ) {
-            if (result) {
-                result.innerHTML = `
-                    <div class="owner-user-result">
-                        Owner is protected from moderation actions.
-                    </div>
-                `;
-            }
-
-            return;
-        }
-
-        if (result) {
-            result.innerHTML = `
-                <div class="owner-user-result">
-                    ${avatarHTML(
-                        data,
-                        "list-avatar"
-                    )}
-
-                    <div>
-                        <strong>
-                            ${escapeHTML(
-                                data.full_name ||
-                                data.username
-                            )}
-                        </strong>
-
-                        <span>
-                            @${escapeHTML(
-                                data.username
-                            )}
-                        </span>
-
-                        <span>
-                            Account:
-                            ${
-                                data.account_blocked
-                                    ? "Blocked"
-                                    : "Active"
-                            }
-                        </span>
-
-                        <span>
-                            Messaging:
-                            ${
-                                data.messaging_blocked
-                                    ? "Blocked"
-                                    : "Allowed"
-                            }
-                        </span>
-                    </div>
-
-                    <div class="owner-admin-actions">
-                        <button
-                            type="button"
-                            id="ownerToggleAccountBlockBtn"
-                        >
-                            ${
-                                data.account_blocked
-                                    ? "Unblock Account"
-                                    : "Block Account"
-                            }
-                        </button>
-
-                        <button
-                            type="button"
-                            id="ownerToggleMessagingBlockBtn"
-                        >
-                            ${
-                                data.messaging_blocked
-                                    ? "Allow Messaging"
-                                    : "Block Messaging"
-                            }
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            /*
-             * These direct updates depend on Owner RLS.
-             * If RLS blocks them, Supabase will return
-             * the actual policy error instead of silently
-             * pretending the action worked.
-             */
-            $("ownerToggleAccountBlockBtn")
-                ?.addEventListener(
-                    "click",
-                    () =>
-                        ownerToggleAccountBlock(
-                            data
-                        )
-                );
-
-            $("ownerToggleMessagingBlockBtn")
-                ?.addEventListener(
-                    "click",
-                    () =>
-                        ownerToggleMessagingBlock(
-                            data
-                        )
-                );
-        }
-    }
-
-    async function ownerToggleAccountBlock(
-        profile
-    ) {
-        if (!isOwner()) {
-            return;
-        }
-
-        if (
-            profile.role ===
-            "owner"
-        ) {
-            toast(
-                "Owner is protected.",
-                "error"
-            );
-            return;
-        }
-
-        const blocked =
-            !profile.account_blocked;
-
-        const {
-            error
-        } = await db
-            .from("profiles")
-            .update({
-                account_blocked:
-                    blocked,
-                account_blocked_until:
-                    blocked
-                        ? null
-                        : null
-            })
-            .eq(
-                "id",
-                profile.id
-            )
-            .neq(
-                "role",
-                "owner"
-            );
-
-        if (error) {
-            showError(
-                error,
-                "Account moderation requires an Owner RLS policy or RPC."
-            );
-            return;
-        }
-
-        toast(
-            blocked
-                ? "Account blocked."
-                : "Account unblocked.",
-            "success"
-        );
-
-        await ownerSearchModeration();
-    }
-
-    async function ownerToggleMessagingBlock(
-        profile
-    ) {
-        if (!isOwner()) {
-            return;
-        }
-
-        if (
-            profile.role ===
-            "owner"
-        ) {
-            toast(
-                "Owner is protected.",
-                "error"
-            );
-            return;
-        }
-
-        const blocked =
-            !profile.messaging_blocked;
-
-        const {
-            error
-        } = await db
-            .from("profiles")
-            .update({
-                messaging_blocked:
-                    blocked,
-                messaging_blocked_until:
-                    null
-            })
-            .eq(
-                "id",
-                profile.id
-            )
-            .neq(
-                "role",
-                "owner"
-            );
-
-        if (error) {
-            showError(
-                error,
-                "Messaging moderation requires an Owner RLS policy or RPC."
-            );
-            return;
-        }
-
-        toast(
-            blocked
-                ? "Messaging blocked."
-                : "Messaging allowed.",
-            "success"
-        );
-
-        await ownerSearchModeration();
     }
 
     /* =========================================================
@@ -7601,7 +4542,7 @@
 
         realtimeChannel =
             db.channel(
-                `megchatbox-dashboard-${currentUser.id}`
+                "megchatbox-realtime"
             );
 
         realtimeChannel
@@ -7610,38 +4551,13 @@
                 {
                     event: "*",
                     schema: "public",
-                    table:
-                        "contact_requests"
+                    table: "contact_requests"
                 },
                 async () => {
                     await refreshSidebar();
 
-                    if (
-                        activeChatUser
-                    ) {
-                        const relationship =
-                            await getRelationship(
-                                activeChatUser.id
-                            );
-
-                        if (
-                            relationship?.status ===
-                            "accepted"
-                        ) {
-                            showDirectComposer(
-                                true
-                            );
-
-                            await loadDirectMessages();
-                        } else {
-                            showDirectComposer(
-                                false
-                            );
-
-                            renderContactActions(
-                                relationship
-                            );
-                        }
+                    if (activeChatUser) {
+                        await renderContactActions();
                     }
                 }
             )
@@ -7653,9 +4569,8 @@
                     table: "messages"
                 },
                 async () => {
-                    if (
-                        activeChatUser
-                    ) {
+
+                    if (activeChatUser) {
                         await loadDirectMessages();
                     }
                 }
@@ -7665,13 +4580,13 @@
                 {
                     event: "*",
                     schema: "public",
-                    table:
-                        "group_messages"
+                    table: "group_messages"
                 },
                 async () => {
+
                     if (
-                        activeCommunityType ===
-                        "group"
+                        activeCommunity &&
+                        activeCommunityType === "group"
                     ) {
                         await loadCommunityMessages();
                     }
@@ -7682,83 +4597,73 @@
                 {
                     event: "*",
                     schema: "public",
-                    table:
-                        "channel_messages"
+                    table: "channel_messages"
                 },
                 async () => {
+
                     if (
-                        activeCommunityType ===
-                        "channel"
+                        activeCommunity &&
+                        activeCommunityType === "channel"
                     ) {
                         await loadCommunityMessages();
                     }
                 }
             )
-            .subscribe(
-                (status) => {
-                    console.log(
-                        "Realtime:",
-                        status
-                    );
-                }
-            );
+            .subscribe();
     }
 
     /* =========================================================
-       HEARTBEAT
+       LAST SEEN
     ========================================================= */
 
     async function updateLastSeen() {
         if (!currentUser) return;
 
-        const {
-            error
-        } = await db
+        const { error } = await db
             .from("profiles")
             .update({
-                last_seen:
-                    new Date().toISOString()
+                last_seen: new Date().toISOString()
             })
-            .eq(
-                "id",
-                currentUser.id
-            );
+            .eq("id", currentUser.id);
 
         if (error) {
             console.warn(
-                "Last seen update:",
+                "Could not update last_seen:",
                 error
             );
         }
     }
 
     /* =========================================================
-       INITIALIZATION
+       INIT
     ========================================================= */
 
     async function init() {
         const authenticated =
             await initAuth();
 
-        if (!authenticated) {
-            return;
-        }
+        if (!authenticated) return;
+
+        const profileLoaded =
+            await loadMyProfile();
+
+        if (!profileLoaded) return;
 
         loadAppearance();
 
-        renderMyProfile();
-
         setupEvents();
 
-        await loadRole();
+        setupTabs();
 
-        await updateLastSeen();
+        await loadRole();
 
         await refreshSidebar();
 
         await loadUpdates();
 
         setupRealtime();
+
+        await updateLastSeen();
 
         setInterval(
             updateLastSeen,
@@ -7767,24 +4672,27 @@
 
         setInterval(
             async () => {
-                if (
-                    activeChatUser
-                ) {
-                    renderChatHeader(
-                        activeChatUser
-                    );
+                if (currentTab === "chats") {
+                    await refreshSidebar();
                 }
 
-                renderMyProfile();
+                if (currentTab === "groups") {
+                    await loadGroups();
+                }
+
+                if (currentTab === "channels") {
+                    await loadChannels();
+                }
             },
-            60 * 1000
+            30 * 1000
         );
 
         console.log(
-            "MegChatBox Dashboard V4 initialized."
+            "MegChatBox V4 initialized."
         );
     }
 
     init();
 
 })();
+```
