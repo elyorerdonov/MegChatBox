@@ -1,766 +1,2014 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
 
-    <title>MegChatBox</title>
+  <title>MegChatBox</title>
 
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css">
+  <meta
+    name="description"
+    content="MegChatBox — modern messaging and community platform."
+  />
 
-    <link rel="stylesheet" href="dashboard.css">
+  <link rel="icon" href="/favicon.ico" />
+
+  <!-- Your existing Font Awesome path -->
+  <link
+    rel="stylesheet"
+    href="/font-awesome/7.3.1/css/all.min.css"
+  />
+
+  <link rel="stylesheet" href="dashboard.css" />
 </head>
 
 <body>
+  <div id="app">
 
-<div class="app">
-
-    <!-- ================= SIDEBAR ================= -->
-
+    <!-- =========================
+         SIDEBAR
+    ========================== -->
     <aside class="sidebar" id="sidebar">
 
-        <div class="sidebar-header">
-
-            <div class="brand-mini">
-                <div class="brand-mini-icon">
-                    <i class="fa-solid fa-comments"></i>
-                </div>
-
-                <span>MegChatBox</span>
-            </div>
-
-        </div>
-
-
-        <!-- MY PROFILE -->
-
-        <button class="my-profile" id="profileButton">
-
-            <div
-                class="avatar large"
-                data-my-avatar
-            >
-                U
-            </div>
-
-            <div class="my-profile-info">
-
-                <strong id="sidebarUserName">
-                    username
-                </strong>
-
-                <span id="sidebarUserUsername">
-                    @username
-                </span>
-
-            </div>
-
-            <span data-my-verified></span>
-
+      <div class="sidebar-top">
+        <button
+          class="mobile-close-btn"
+          id="mobileCloseSidebar"
+          aria-label="Close sidebar"
+        >
+          <i class="fa-solid fa-xmark"></i>
         </button>
 
+        <div class="brand">
+          <div class="brand-logo">
+            <i class="fa-solid fa-comments"></i>
+          </div>
 
-        <!-- SEARCH -->
-
-        <button class="search-button" id="searchButton">
-
-            <i class="fa-solid fa-magnifying-glass"></i>
-
-            <span>Search</span>
-
-            <kbd>Ctrl K</kbd>
-
-        </button>
-
-
-        <!-- NAVIGATION -->
-
-        <nav class="navigation">
-
-            <button
-                class="nav-item active"
-                data-section="chats"
-            >
-                <i class="fa-solid fa-comments"></i>
-                <span>Chats</span>
-            </button>
-
-
-            <button
-                class="nav-item"
-                data-section="contacts"
-            >
-                <i class="fa-solid fa-user-group"></i>
-                <span>Contacts</span>
-            </button>
-
-
-            <button
-                class="nav-item"
-                data-section="groups"
-            >
-                <i class="fa-solid fa-users"></i>
-                <span>Groups</span>
-            </button>
-
-
-            <button
-                class="nav-item"
-                data-section="channels"
-            >
-                <i class="fa-solid fa-bullhorn"></i>
-                <span>Channels</span>
-            </button>
-
-
-            <button
-                class="nav-item"
-                data-section="notifications"
-            >
-                <i class="fa-solid fa-bell"></i>
-                <span>Notifications</span>
-            </button>
-
-
-            <button
-                class="nav-item"
-                data-section="saved"
-            >
-                <i class="fa-solid fa-bookmark"></i>
-                <span>Saved Messages</span>
-            </button>
-
-
-            <button
-                class="nav-item"
-                data-section="settings"
-            >
-                <i class="fa-solid fa-gear"></i>
-                <span>Settings</span>
-            </button>
-
-        </nav>
-
-
-        <!-- BOTTOM -->
-
-        <div class="sidebar-bottom">
-
-            <button
-                class="logout-button"
-                id="logoutButton"
-            >
-                <i class="fa-solid fa-right-from-bracket"></i>
-                <span>Logout</span>
-            </button>
-
+          <div>
+            <div class="brand-name">MegChatBox</div>
+            <div class="brand-subtitle">Connect everyone</div>
+          </div>
         </div>
 
+        <!-- Search -->
+        <button class="global-search-button" id="openGlobalSearch">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>Search</span>
+          <span class="shortcut">Ctrl K</span>
+        </button>
+      </div>
+
+      <!-- User mini profile -->
+      <div class="mini-profile" id="miniProfileButton">
+        <div id="miniAvatar" class="avatar avatar-md">
+          <span>?</span>
+        </div>
+
+        <div class="mini-profile-info">
+          <div class="mini-name-row">
+            <strong id="miniName">Loading...</strong>
+            <span id="miniVerified"></span>
+          </div>
+
+          <div class="mini-username" id="miniUsername">
+            @username
+          </div>
+        </div>
+
+        <button
+          class="icon-btn subtle"
+          id="miniProfileMenu"
+          aria-label="Profile menu"
+        >
+          <i class="fa-solid fa-ellipsis"></i>
+        </button>
+      </div>
+
+      <!-- Main navigation -->
+      <nav class="main-nav">
+        <button class="nav-item active" data-tab="chats">
+          <i class="fa-solid fa-message"></i>
+          <span>Chats</span>
+          <span class="nav-badge hidden" id="unreadTotal">0</span>
+        </button>
+
+        <button class="nav-item" data-tab="contacts">
+          <i class="fa-solid fa-address-book"></i>
+          <span>Contacts</span>
+        </button>
+
+        <button class="nav-item" data-tab="saved">
+          <i class="fa-solid fa-bookmark"></i>
+          <span>Saved Messages</span>
+        </button>
+
+        <button class="nav-item" data-tab="communities">
+          <i class="fa-solid fa-users"></i>
+          <span>Groups & Channels</span>
+        </button>
+
+        <button class="nav-item" data-tab="notifications">
+          <i class="fa-solid fa-bell"></i>
+          <span>Notifications</span>
+          <span class="nav-badge hidden" id="notificationCount">0</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Community shortcut -->
+      <div class="community-create-box">
+        <button class="secondary-btn full-width" id="createGroupBtn">
+          <i class="fa-solid fa-user-group"></i>
+          Create Group
+        </button>
+
+        <button class="secondary-btn full-width" id="createChannelBtn">
+          <i class="fa-solid fa-bullhorn"></i>
+          Create Channel
+        </button>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Bottom -->
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-tab="settings">
+          <i class="fa-solid fa-gear"></i>
+          <span>Settings</span>
+        </button>
+
+        <button class="nav-item" id="ownerAdminButton">
+          <i class="fa-solid fa-crown"></i>
+          <span>Owner / Admin</span>
+        </button>
+
+        <button class="nav-item danger-nav" id="logoutButton">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>Logout</span>
+        </button>
+      </div>
     </aside>
 
 
-    <!-- ================= MAIN ================= -->
+    <!-- =========================
+         MAIN AREA
+    ========================== -->
+    <main class="main-area">
 
-    <main class="main">
+      <!-- Mobile top -->
+      <header class="mobile-header">
+        <button class="icon-btn" id="openSidebar">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+
+        <div class="mobile-brand">
+          <div class="brand-logo small">
+            <i class="fa-solid fa-comments"></i>
+          </div>
+          <span>MegChatBox</span>
+        </div>
+
+        <button class="icon-btn" id="mobileSearch">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </button>
+      </header>
 
 
-        <!-- ================= CHATS ================= -->
+      <!-- =========================
+           TAB CONTAINER
+      ========================== -->
+      <section class="content-shell">
 
-        <section
-            class="dashboard-section active"
-            id="chatsSection"
-        >
+        <!-- CHAT TAB -->
+        <section class="tab-panel active" id="tab-chats">
 
-            <div class="section-header">
-
-                <div>
-                    <h1>Chats</h1>
-                    <p>Your conversations</p>
-                </div>
-
-                <button
-                    class="icon-button"
-                    id="mobileMenuButton"
-                >
-                    <i class="fa-solid fa-bars"></i>
-                </button>
-
+          <div class="page-header">
+            <div>
+              <h1>Chats</h1>
+              <p>Your conversations</p>
             </div>
 
+            <button class="icon-btn" id="refreshChatsButton">
+              <i class="fa-solid fa-rotate"></i>
+            </button>
+          </div>
 
-            <div class="chat-layout">
+          <div class="chat-layout">
+
+            <!-- Chat list -->
+            <aside class="chat-list-panel">
+
+              <div class="list-toolbar">
+                <div class="local-search">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input
+                    id="chatListSearch"
+                    type="text"
+                    placeholder="Search chats"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+
+              <div id="chatList" class="chat-list">
+                <div class="empty-list">
+                  <div class="empty-icon">
+                    <i class="fa-regular fa-comments"></i>
+                  </div>
+                  <h3>No chats yet</h3>
+                  <p>Search for a username and start chatting.</p>
+                </div>
+              </div>
+            </aside>
 
 
-                <!-- CHAT LIST -->
+            <!-- Chat window -->
+            <section class="chat-window" id="chatWindow">
 
-                <div class="chat-list" id="chatList">
-
-                    <div class="empty-state">
-
-                        <div class="empty-icon">
-                            <i class="fa-solid fa-comments"></i>
-                        </div>
-
-                        <h3>No chats yet</h3>
-
-                        <p>
-                            Search for a user to start chatting.
-                        </p>
-
-                        <button
-                            class="primary-button small"
-                            onclick="document.getElementById('searchButton').click()"
-                        >
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            Find people
-                        </button>
-
-                    </div>
-
+              <!-- Empty -->
+              <div class="chat-empty-state" id="chatEmptyState">
+                <div class="empty-chat-icon">
+                  <i class="fa-solid fa-paper-plane"></i>
                 </div>
 
+                <h2>Select a chat</h2>
+                <p>
+                  Choose a conversation from the list or search for a user.
+                </p>
+              </div>
 
-                <!-- CHAT -->
 
-                <div
-                    class="chat-panel"
-                    id="chatPanel"
-                >
+              <!-- Active chat -->
+              <div class="active-chat hidden" id="activeChat">
 
-                    <div class="chat-empty">
+                <header class="chat-header">
 
-                        <div class="chat-empty-icon">
-                            <i class="fa-solid fa-message"></i>
-                        </div>
-
-                        <h2>Select a chat</h2>
-
-                        <p>
-                            Choose a conversation from the left.
-                        </p>
-
+                  <div class="chat-user-info" id="chatUserHeader">
+                    <div id="chatAvatar" class="avatar avatar-sm">
+                      <span>?</span>
                     </div>
 
+                    <div class="chat-user-text">
+                      <div class="chat-name-line">
+                        <strong id="chatName">User</strong>
+                        <span id="chatVerified"></span>
+                      </div>
 
-                    <div class="chat-content">
-
-                        <!-- CHAT HEADER -->
-
-                        <header class="chat-header">
-
-                            <div class="chat-user">
-
-                                <div
-                                    class="avatar"
-                                    id="chatAvatar"
-                                >
-                                    U
-                                </div>
-
-                                <div>
-
-                                    <strong id="chatName">
-                                        User
-                                    </strong>
-
-                                    <span id="chatUsername">
-                                        @username
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-
-                            <div class="chat-actions">
-
-                                <button
-                                    class="icon-button"
-                                    title="Search"
-                                >
-                                    <i class="fa-solid fa-magnifying-glass"></i>
-                                </button>
-
-                                <button
-                                    class="icon-button"
-                                    title="More"
-                                >
-                                    <i class="fa-solid fa-ellipsis-vertical"></i>
-                                </button>
-
-                                <button
-                                    class="icon-button close-chat"
-                                    id="closeChatButton"
-                                >
-                                    <i class="fa-solid fa-xmark"></i>
-                                </button>
-
-                            </div>
-
-                        </header>
-
-
-                        <!-- MESSAGES -->
-
-                        <div
-                            class="messages"
-                            id="messages"
-                        ></div>
-
-
-                        <!-- COMPOSER -->
-
-                        <div class="composer">
-
-                            <button
-                                class="composer-button"
-                                title="Emoji"
-                            >
-                                <i class="fa-regular fa-face-smile"></i>
-                            </button>
-
-
-                            <button
-                                class="composer-button"
-                                title="Attach"
-                            >
-                                <i class="fa-solid fa-paperclip"></i>
-                            </button>
-
-
-                            <textarea
-                                id="messageInput"
-                                placeholder="Write a message..."
-                                rows="1"
-                            ></textarea>
-
-
-                            <button
-                                class="send-button"
-                                id="sendMessageButton"
-                                title="Send"
-                            >
-                                <i class="fa-solid fa-paper-plane"></i>
-                            </button>
-
-                        </div>
-
+                      <div id="chatStatus" class="chat-status">
+                        Offline
+                      </div>
                     </div>
+                  </div>
 
-                </div>
+                  <div class="chat-header-actions">
 
-            </div>
-
-        </section>
-
-
-        <!-- ================= CONTACTS ================= -->
-
-        <section
-            class="dashboard-section"
-            id="contactsSection"
-        >
-
-            <div class="section-header">
-
-                <div>
-                    <h1>Contacts</h1>
-                    <p>Your contacts</p>
-                </div>
-
-                <div class="header-actions">
-
-                    <button class="secondary-button">
-                        <i class="fa-solid fa-user-plus"></i>
-                        Add contact
+                    <button
+                      class="icon-btn"
+                      id="chatSearchButton"
+                      title="Search messages"
+                    >
+                      <i class="fa-solid fa-magnifying-glass"></i>
                     </button>
 
-                    <button class="secondary-button">
-                        <i class="fa-solid fa-users"></i>
-                        Create Group
+                    <button
+                      class="icon-btn"
+                      id="chatProfileButton"
+                      title="Profile"
+                    >
+                      <i class="fa-solid fa-user"></i>
                     </button>
 
-                    <button class="secondary-button">
-                        <i class="fa-solid fa-bullhorn"></i>
-                        Create Channel
+                    <button
+                      class="icon-btn"
+                      id="chatMenuButton"
+                      title="More"
+                    >
+                      <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+                  </div>
+
+                </header>
+
+
+                <!-- Message search -->
+                <div class="message-search hidden" id="messageSearchBar">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+
+                  <input
+                    type="text"
+                    id="messageSearchInput"
+                    placeholder="Search messages in this chat..."
+                    autocomplete="off"
+                  />
+
+                  <button class="icon-btn tiny" id="closeMessageSearch">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+
+
+                <!-- Messages -->
+                <div class="messages-area" id="messages">
+                </div>
+
+
+                <!-- Typing -->
+                <div class="typing-area hidden" id="typingIndicator">
+                  <span id="typingUserName">User</span> is typing
+                  <span class="typing-dots">
+                    <i></i>
+                    <i></i>
+                    <i></i>
+                  </span>
+                </div>
+
+
+                <!-- Reply bar -->
+                <div class="reply-bar hidden" id="replyBar">
+                  <div class="reply-bar-content">
+                    <span class="reply-label">
+                      <i class="fa-solid fa-reply"></i>
+                      Replying to
+                    </span>
+
+                    <strong id="replyUser">User</strong>
+                    <span id="replyMessage">Message</span>
+                  </div>
+
+                  <button class="icon-btn tiny" id="cancelReply">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+
+
+                <!-- Composer -->
+                <div class="composer">
+
+                  <input
+                    type="file"
+                    id="fileInput"
+                    hidden
+                    multiple
+                  />
+
+                  <button class="icon-btn composer-btn" id="attachButton">
+                    <i class="fa-solid fa-paperclip"></i>
+                  </button>
+
+                  <button class="icon-btn composer-btn" id="emojiButton">
+                    <i class="fa-regular fa-face-smile"></i>
+                  </button>
+
+                  <button class="icon-btn composer-btn" id="stickerButton">
+                    <i class="fa-solid fa-note-sticky"></i>
+                  </button>
+
+                  <div class="composer-input-wrap">
+                    <textarea
+                      id="messageInput"
+                      rows="1"
+                      placeholder="Write a message..."
+                      autocomplete="off"
+                    ></textarea>
+                  </div>
+
+                  <button
+                    class="send-button"
+                    id="sendMessageButton"
+                    disabled
+                  >
+                    <i class="fa-solid fa-paper-plane"></i>
+                  </button>
+
+                </div>
+
+
+                <!-- Emoji panel -->
+                <div class="picker-panel hidden" id="emojiPanel">
+                  <div class="picker-title">Emoji</div>
+
+                  <div class="emoji-grid" id="emojiGrid">
+                    <!-- JS fills -->
+                  </div>
+                </div>
+
+
+                <!-- Sticker panel -->
+                <div class="picker-panel hidden" id="stickerPanel">
+                  <div class="picker-title">Stickers</div>
+
+                  <div class="sticker-grid" id="stickerGrid">
+                    <!-- JS fills -->
+                  </div>
+                </div>
+
+              </div>
+            </section>
+          </div>
+        </section>
+
+
+        <!-- CONTACTS TAB -->
+        <section class="tab-panel" id="tab-contacts">
+
+          <div class="page-header">
+            <div>
+              <h1>Contacts</h1>
+              <p>People you can chat with</p>
+            </div>
+
+            <div class="header-buttons">
+              <button class="primary-btn" id="contactSearchButton">
+                <i class="fa-solid fa-user-plus"></i>
+                Add Contact
+              </button>
+            </div>
+          </div>
+
+
+          <div class="contacts-toolbar">
+            <div class="local-search large">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input
+                type="text"
+                id="contactSearchInput"
+                placeholder="Search contacts..."
+              />
+            </div>
+          </div>
+
+
+          <div id="contactsList" class="contacts-grid">
+
+            <div class="empty-state-card">
+              <div class="empty-icon">
+                <i class="fa-solid fa-address-book"></i>
+              </div>
+
+              <h3>No contacts yet</h3>
+              <p>Add a person using their username.</p>
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- SAVED TAB -->
+        <section class="tab-panel" id="tab-saved">
+
+          <div class="page-header">
+            <div>
+              <h1>Saved Messages</h1>
+              <p>Your saved content</p>
+            </div>
+          </div>
+
+          <div id="savedMessagesList" class="saved-list">
+
+            <div class="empty-state-card">
+              <div class="empty-icon">
+                <i class="fa-solid fa-bookmark"></i>
+              </div>
+
+              <h3>No saved messages</h3>
+              <p>Save useful messages to find them later.</p>
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- COMMUNITIES -->
+        <section class="tab-panel" id="tab-communities">
+
+          <div class="page-header">
+            <div>
+              <h1>Groups & Channels</h1>
+              <p>Communities you joined or created</p>
+            </div>
+
+            <div class="header-buttons">
+              <button class="secondary-btn" id="communitiesCreateGroup">
+                <i class="fa-solid fa-users"></i>
+                Group
+              </button>
+
+              <button class="primary-btn" id="communitiesCreateChannel">
+                <i class="fa-solid fa-bullhorn"></i>
+                Channel
+              </button>
+            </div>
+          </div>
+
+
+          <div class="community-tabs">
+            <button class="community-tab active" data-community-type="all">
+              All
+            </button>
+
+            <button class="community-tab" data-community-type="group">
+              Groups
+            </button>
+
+            <button class="community-tab" data-community-type="channel">
+              Channels
+            </button>
+          </div>
+
+
+          <div id="communitiesList" class="communities-grid">
+
+            <div class="empty-state-card">
+              <div class="empty-icon">
+                <i class="fa-solid fa-users"></i>
+              </div>
+
+              <h3>No communities</h3>
+              <p>Create a group or channel to get started.</p>
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- NOTIFICATIONS -->
+        <section class="tab-panel" id="tab-notifications">
+
+          <div class="page-header">
+            <div>
+              <h1>Notifications</h1>
+              <p>Stay up to date</p>
+            </div>
+
+            <button class="secondary-btn" id="clearNotifications">
+              Clear
+            </button>
+          </div>
+
+          <div id="notificationsList" class="notifications-list">
+
+            <div class="empty-state-card">
+              <div class="empty-icon">
+                <i class="fa-regular fa-bell"></i>
+              </div>
+
+              <h3>No notifications</h3>
+              <p>New activity will appear here.</p>
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- SETTINGS -->
+        <section class="tab-panel" id="tab-settings">
+
+          <div class="page-header">
+            <div>
+              <h1>Settings</h1>
+              <p>Customize your MegChatBox</p>
+            </div>
+          </div>
+
+
+          <div class="settings-layout">
+
+            <aside class="settings-sidebar">
+
+              <button
+                class="settings-nav-item active"
+                data-settings-section="profile"
+              >
+                <i class="fa-solid fa-user"></i>
+                Profile
+              </button>
+
+              <button
+                class="settings-nav-item"
+                data-settings-section="security"
+              >
+                <i class="fa-solid fa-shield-halved"></i>
+                Security
+              </button>
+
+              <button
+                class="settings-nav-item"
+                data-settings-section="appearance"
+              >
+                <i class="fa-solid fa-palette"></i>
+                Appearance
+              </button>
+
+              <button
+                class="settings-nav-item"
+                data-settings-section="privacy"
+              >
+                <i class="fa-solid fa-lock"></i>
+                Privacy
+              </button>
+
+              <button
+                class="settings-nav-item"
+                data-settings-section="other"
+              >
+                <i class="fa-solid fa-sliders"></i>
+                Other
+              </button>
+
+            </aside>
+
+
+            <div class="settings-content">
+
+              <!-- PROFILE -->
+              <div
+                class="settings-section active"
+                id="settings-profile"
+              >
+
+                <div class="settings-card">
+
+                  <div class="settings-card-header">
+                    <h2>Profile</h2>
+                    <p>Manage your public identity.</p>
+                  </div>
+
+                  <div class="profile-editor">
+
+                    <div class="profile-avatar-editor">
+
+                      <div
+                        id="settingsAvatar"
+                        class="avatar avatar-xl"
+                      >
+                        <span>?</span>
+                      </div>
+
+                      <input
+                        type="file"
+                        id="avatarInput"
+                        hidden
+                        accept="image/*"
+                      />
+
+                      <button
+                        class="secondary-btn"
+                        id="changeAvatarButton"
+                      >
+                        <i class="fa-solid fa-camera"></i>
+                        Change avatar
+                      </button>
+
+                    </div>
+
+
+                    <div class="form-grid">
+
+                      <label class="field">
+                        <span>Full name</span>
+                        <input
+                          id="profileNameInput"
+                          type="text"
+                          placeholder="Full name"
+                          maxlength="80"
+                        />
+                      </label>
+
+                      <label class="field">
+                        <span>Nickname</span>
+                        <input
+                          id="profileNicknameInput"
+                          type="text"
+                          placeholder="Nickname"
+                          maxlength="50"
+                        />
+                      </label>
+
+                      <label class="field">
+                        <span>Username</span>
+
+                        <div class="input-prefix">
+                          <span>@</span>
+
+                          <input
+                            id="profileUsernameInput"
+                            type="text"
+                            placeholder="username"
+                            maxlength="30"
+                          />
+                        </div>
+
+                        <small>
+                          Normal users: minimum 5 characters.
+                        </small>
+                      </label>
+
+                      <label class="field full">
+                        <span>Bio</span>
+                        <textarea
+                          id="profileBioInput"
+                          rows="4"
+                          maxlength="160"
+                          placeholder="Tell people about yourself..."
+                        ></textarea>
+                      </label>
+
+                    </div>
+
+                  </div>
+
+                  <div class="settings-actions">
+                    <button
+                      class="primary-btn"
+                      id="saveProfileButton"
+                    >
+                      Save changes
+                    </button>
+                  </div>
+
+                </div>
+
+
+                <div class="settings-card">
+
+                  <div class="settings-card-header">
+                    <h2>Profile Decoration</h2>
+                    <p>
+                      Choose a visual decoration shown beside your profile.
+                    </p>
+                  </div>
+
+                  <div
+                    class="decoration-grid"
+                    id="decorationGrid"
+                  >
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              <!-- SECURITY -->
+              <div
+                class="settings-section"
+                id="settings-security"
+              >
+
+                <div class="settings-card">
+
+                  <div class="settings-card-header">
+                    <h2>Security</h2>
+                    <p>Protect your account.</p>
+                  </div>
+
+                  <div class="setting-row">
+                    <div>
+                      <strong>Connected Devices</strong>
+                      <span>
+                        View active browser/device sessions.
+                      </span>
+                    </div>
+
+                    <button
+                      class="secondary-btn"
+                      id="devicesButton"
+                    >
+                      View
+                    </button>
+                  </div>
+
+                  <div class="setting-row">
+                    <div>
+                      <strong>Join Permission</strong>
+                      <span>
+                        Control whether communities require a request.
+                      </span>
+                    </div>
+
+                    <button
+                      class="toggle-switch"
+                      id="joinPermissionToggle"
+                      aria-label="Toggle join permission"
+                    >
+                      <span></span>
+                    </button>
+                  </div>
+
+                  <div class="setting-row">
+                    <div>
+                      <strong>Email</strong>
+                      <span id="securityEmail">
+                        Loading...
+                      </span>
+                    </div>
+
+                    <button
+                      class="secondary-btn"
+                      id="changeEmailButton"
+                    >
+                      Change
+                    </button>
+                  </div>
+
+                  <div class="setting-row">
+                    <div>
+                      <strong>Password</strong>
+                      <span>
+                        Change your account password.
+                      </span>
+                    </div>
+
+                    <button
+                      class="secondary-btn"
+                      id="changePasswordButton"
+                    >
+                      Change
+                    </button>
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              <!-- APPEARANCE -->
+              <div
+                class="settings-section"
+                id="settings-appearance"
+              >
+
+                <div class="settings-card">
+
+                  <div class="settings-card-header">
+                    <h2>Appearance</h2>
+                    <p>Customize the interface.</p>
+                  </div>
+
+                  <div class="appearance-grid">
+
+                    <button
+                      class="appearance-option active"
+                      data-theme="dark"
+                    >
+                      <i class="fa-solid fa-moon"></i>
+                      <strong>Dark</strong>
+                      <span>Dark interface</span>
                     </button>
 
+                    <button
+                      class="appearance-option"
+                      data-theme="light"
+                    >
+                      <i class="fa-solid fa-sun"></i>
+                      <strong>Light</strong>
+                      <span>Light interface</span>
+                    </button>
+
+                    <button
+                      class="appearance-option"
+                      data-theme="system"
+                    >
+                      <i class="fa-solid fa-desktop"></i>
+                      <strong>System</strong>
+                      <span>Use device setting</span>
+                    </button>
+
+                  </div>
+
+
+                  <div class="setting-row">
+                    <div>
+                      <strong>Compact mode</strong>
+                      <span>Reduce spacing in chats and lists.</span>
+                    </div>
+
+                    <button
+                      class="toggle-switch"
+                      id="compactModeToggle"
+                    >
+                      <span></span>
+                    </button>
+                  </div>
+
+
+                  <div class="setting-row">
+                    <div>
+                      <strong>Chat Wallpaper</strong>
+                      <span id="wallpaperName">
+                        No custom wallpaper
+                      </span>
+                    </div>
+
+                    <div class="row-buttons">
+
+                      <input
+                        type="file"
+                        id="wallpaperInput"
+                        hidden
+                        accept="image/*"
+                      />
+
+                      <button
+                        class="secondary-btn"
+                        id="uploadWallpaperButton"
+                      >
+                        Upload
+                      </button>
+
+                      <button
+                        class="danger-btn"
+                        id="removeWallpaperButton"
+                      >
+                        Remove
+                      </button>
+
+                    </div>
+                  </div>
+
                 </div>
 
-            </div>
+              </div>
 
 
-            <div
-                class="contacts-list"
-                id="contactsList"
-            ></div>
-
-        </section>
-
-
-        <!-- ================= GROUPS ================= -->
-
-        <section
-            class="dashboard-section"
-            id="groupsSection"
-        >
-
-            <div class="section-header">
-
-                <div>
-                    <h1>Groups</h1>
-                    <p>Groups you're part of</p>
-                </div>
-
-                <button class="primary-button small">
-                    <i class="fa-solid fa-plus"></i>
-                    Create Group
-                </button>
-
-            </div>
-
-
-            <div
-                class="community-grid"
-                id="groupsList"
-            ></div>
-
-        </section>
-
-
-        <!-- ================= CHANNELS ================= -->
-
-        <section
-            class="dashboard-section"
-            id="channelsSection"
-        >
-
-            <div class="section-header">
-
-                <div>
-                    <h1>Channels</h1>
-                    <p>Channels you're following</p>
-                </div>
-
-                <button class="primary-button small">
-                    <i class="fa-solid fa-plus"></i>
-                    Create Channel
-                </button>
-
-            </div>
-
-
-            <div
-                class="community-grid"
-                id="channelsList"
-            ></div>
-
-        </section>
-
-
-        <!-- ================= NOTIFICATIONS ================= -->
-
-        <section
-            class="dashboard-section"
-            id="notificationsSection"
-        >
-
-            <div class="section-header">
-
-                <div>
-                    <h1>Notifications</h1>
-                    <p>Your latest notifications</p>
-                </div>
-
-            </div>
-
-
-            <div
-                class="notifications-list"
-                id="notificationsList"
-            ></div>
-
-        </section>
-
-
-        <!-- ================= SAVED ================= -->
-
-        <section
-            class="dashboard-section"
-            id="savedSection"
-        >
-
-            <div class="section-header">
-
-                <div>
-                    <h1>Saved Messages</h1>
-                    <p>Your saved messages</p>
-                </div>
-
-            </div>
-
-
-            <div
-                class="saved-messages-list"
-                id="savedMessagesList"
-            ></div>
-
-        </section>
-
-
-        <!-- ================= SETTINGS ================= -->
-
-        <section
-            class="dashboard-section"
-            id="settingsSection"
-        >
-
-            <div class="section-header">
-
-                <div>
-                    <h1>Settings</h1>
-                    <p>Manage your MegChatBox account</p>
-                </div>
-
-            </div>
-
-
-            <div class="settings-grid">
+              <!-- PRIVACY -->
+              <div
+                class="settings-section"
+                id="settings-privacy"
+              >
 
                 <div class="settings-card">
 
-                    <div class="settings-icon">
-                        <i class="fa-solid fa-user"></i>
-                    </div>
+                  <div class="settings-card-header">
+                    <h2>Profile Privacy</h2>
+                    <p>Choose what other people can see.</p>
+                  </div>
 
+                  <div class="setting-row">
                     <div>
-                        <h3>Profile</h3>
-                        <p>
-                            Change your name, username and bio.
-                        </p>
+                      <strong>Show Last Seen</strong>
+                      <span>Allow contacts to see your last activity.</span>
                     </div>
 
-                    <i class="fa-solid fa-chevron-right"></i>
+                    <button
+                      class="toggle-switch active"
+                      data-privacy-key="lastSeen"
+                    >
+                      <span></span>
+                    </button>
+                  </div>
+
+                  <div class="setting-row">
+                    <div>
+                      <strong>Show Online Status</strong>
+                      <span>Show when you are online.</span>
+                    </div>
+
+                    <button
+                      class="toggle-switch active"
+                      data-privacy-key="online"
+                    >
+                      <span></span>
+                    </button>
+                  </div>
+
+                  <div class="setting-row">
+                    <div>
+                      <strong>Allow Messages From Accepted Contacts</strong>
+                      <span>
+                        Only accepted contacts can start messaging.
+                      </span>
+                    </div>
+
+                    <button
+                      class="toggle-switch active"
+                      data-privacy-key="acceptedOnly"
+                    >
+                      <span></span>
+                    </button>
+                  </div>
 
                 </div>
 
+              </div>
+
+
+              <!-- OTHER -->
+              <div
+                class="settings-section"
+                id="settings-other"
+              >
 
                 <div class="settings-card">
 
-                    <div class="settings-icon">
-                        <i class="fa-solid fa-shield-halved"></i>
-                    </div>
+                  <div class="settings-card-header">
+                    <h2>Other</h2>
+                    <p>Additional account actions.</p>
+                  </div>
 
+                  <div class="setting-row">
                     <div>
-                        <h3>Security</h3>
-                        <p>
-                            Password, privacy and connected devices.
-                        </p>
+                      <strong>Language</strong>
+                      <span>English</span>
                     </div>
 
-                    <i class="fa-solid fa-chevron-right"></i>
+                    <select id="languageSelect">
+                      <option value="en">English</option>
+                      <option value="uz">O‘zbekcha</option>
+                      <option value="ru">Русский</option>
+                    </select>
+                  </div>
+
+                  <div class="setting-row">
+                    <div>
+                      <strong>MegChatBox Tips</strong>
+                      <span>Product updates and announcements.</span>
+                    </div>
+
+                    <button
+                      class="secondary-btn"
+                      id="tipsButton"
+                    >
+                      Open
+                    </button>
+                  </div>
+
+                  <div class="setting-row">
+                    <div>
+                      <strong>Logout</strong>
+                      <span>Sign out from this device.</span>
+                    </div>
+
+                    <button
+                      class="danger-btn"
+                      id="settingsLogout"
+                    >
+                      Logout
+                    </button>
+                  </div>
+
+                  <div class="danger-zone">
+                    <div>
+                      <strong>Delete Account</strong>
+                      <span>
+                        This action must be confirmed.
+                      </span>
+                    </div>
+
+                    <button
+                      class="danger-btn"
+                      id="deleteAccountButton"
+                    >
+                      Delete Account
+                    </button>
+                  </div>
 
                 </div>
 
-
-                <div class="settings-card">
-
-                    <div class="settings-icon">
-                        <i class="fa-solid fa-palette"></i>
-                    </div>
-
-                    <div>
-                        <h3>Appearance</h3>
-                        <p>
-                            Theme, wallpaper and chat design.
-                        </p>
-                    </div>
-
-                    <i class="fa-solid fa-chevron-right"></i>
-
-                </div>
-
-
-                <div class="settings-card">
-
-                    <div class="settings-icon">
-                        <i class="fa-solid fa-language"></i>
-                    </div>
-
-                    <div>
-                        <h3>Language</h3>
-                        <p>
-                            Choose your preferred language.
-                        </p>
-                    </div>
-
-                    <i class="fa-solid fa-chevron-right"></i>
-
-                </div>
+              </div>
 
             </div>
 
+          </div>
+
         </section>
+
+      </section>
 
     </main>
 
-</div>
 
+    <!-- =========================
+         GLOBAL SEARCH
+    ========================== -->
+    <section
+      class="search-mode hidden"
+      id="globalSearchMode"
+    >
 
-<!-- ================= PROFILE MODAL ================= -->
-
-<div
-    class="modal-overlay"
-    id="profileModal"
-    aria-hidden="true"
->
-
-    <div class="profile-modal">
+      <div class="search-mode-header">
 
         <button
-            class="modal-close"
-            id="closeProfileModal"
+          class="icon-btn"
+          id="closeGlobalSearch"
         >
-            <i class="fa-solid fa-xmark"></i>
+          <i class="fa-solid fa-arrow-left"></i>
         </button>
 
+        <div class="search-mode-input-wrap">
+          <i class="fa-solid fa-magnifying-glass"></i>
 
-        <div class="profile-cover"></div>
+          <input
+            id="globalSearchInput"
+            type="text"
+            placeholder="Search username, groups, channels..."
+            autocomplete="off"
+          />
 
-
-        <div class="profile-body">
-
-            <div
-                class="profile-avatar"
-                data-my-avatar
-            >
-                U
-            </div>
-
-
-            <div class="profile-main">
-
-                <h2 id="profileName">
-                    username
-                </h2>
-
-                <div class="profile-username">
-
-                    <span id="profileUsername">
-                        @username
-                    </span>
-
-                    <span data-my-verified></span>
-
-                </div>
-
-
-                <div
-                    class="profile-role"
-                    id="profileRole"
-                >
-                    USER
-                </div>
-
-
-                <p id="profileBio">
-                    No bio yet.
-                </p>
-
-            </div>
-
-
-            <div class="profile-actions">
-
-                <button class="secondary-button">
-                    <i class="fa-solid fa-pen"></i>
-                    Edit Profile
-                </button>
-
-            </div>
-
+          <button
+            class="icon-btn tiny"
+            id="clearGlobalSearch"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
         </div>
 
-    </div>
-
-</div>
+      </div>
 
 
-<!-- ================= GLOBAL SEARCH ================= -->
+      <div class="search-mode-body">
 
-<div
-    class="search-overlay"
-    id="globalSearch"
->
+        <div
+          class="search-history-header"
+          id="searchHistoryHeader"
+        >
+          <div>
+            <h3>Recent</h3>
+            <span>Your recent searches</span>
+          </div>
 
-    <div class="search-window">
-
-        <div class="search-header">
-
-            <div class="search-input-wrapper">
-
-                <i class="fa-solid fa-magnifying-glass"></i>
-
-                <input
-                    type="text"
-                    id="globalSearchInput"
-                    placeholder="Search username..."
-                    autocomplete="off"
-                >
-
-            </div>
+          <button
+            class="text-danger"
+            id="clearSearchHistory"
+          >
+            Clear
+          </button>
+        </div>
 
 
-            <button
-                class="icon-button"
-                id="closeGlobalSearch"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
+        <div
+          class="search-history"
+          id="searchHistory"
+        ></div>
+
+
+        <div
+          class="search-suggestions hidden"
+          id="searchSuggestions"
+        >
+
+          <div class="search-section-title">
+            Username suggestions
+          </div>
+
+          <div id="suggestionList"></div>
 
         </div>
 
 
         <div
-            class="search-results"
-            id="searchResults"
+          class="search-results hidden"
+          id="globalSearchResults"
         >
 
-            <div class="empty-state">
+          <div class="search-filter-bar">
 
-                <i class="fa-solid fa-magnifying-glass"></i>
+            <button
+              class="search-filter active"
+              data-search-type="all"
+            >
+              All
+            </button>
 
-                <h3>Search MegChatBox</h3>
+            <button
+              class="search-filter"
+              data-search-type="users"
+            >
+              Users
+            </button>
 
-                <p>
-                    Find people by username.
-                </p>
+            <button
+              class="search-filter"
+              data-search-type="contacts"
+            >
+              Contacts
+            </button>
 
-            </div>
+            <button
+              class="search-filter"
+              data-search-type="groups"
+            >
+              Groups
+            </button>
+
+            <button
+              class="search-filter"
+              data-search-type="channels"
+            >
+              Channels
+            </button>
+
+          </div>
+
+
+          <div
+            class="search-result-list"
+            id="searchResultList"
+          ></div>
 
         </div>
 
+      </div>
+
+    </section>
+
+
+    <!-- =========================
+         PROFILE DRAWER
+    ========================== -->
+    <div
+      class="overlay hidden"
+      id="profileOverlay"
+    ></div>
+
+    <aside
+      class="profile-drawer"
+      id="profileDrawer"
+    >
+
+      <div class="drawer-header">
+
+        <button
+          class="icon-btn"
+          id="closeProfileDrawer"
+        >
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <strong>Profile</strong>
+
+        <button
+          class="icon-btn"
+          id="profileDrawerMenu"
+        >
+          <i class="fa-solid fa-ellipsis-vertical"></i>
+        </button>
+
+      </div>
+
+
+      <div class="profile-cover" id="drawerCover"></div>
+
+
+      <div class="drawer-profile-top">
+
+        <div
+          id="drawerAvatar"
+          class="avatar avatar-xxl"
+        >
+          <span>?</span>
+        </div>
+
+        <div class="drawer-profile-main">
+
+          <div class="drawer-name-row">
+            <h2 id="drawerName">User</h2>
+            <span id="drawerVerified"></span>
+          </div>
+
+          <div id="drawerUsername" class="drawer-username">
+            @username
+          </div>
+
+          <div
+            id="drawerOnline"
+            class="drawer-online"
+          >
+            Offline
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div
+        id="drawerDecoration"
+        class="profile-decoration-preview"
+      ></div>
+
+
+      <div class="drawer-bio" id="drawerBio">
+      </div>
+
+
+      <div class="profile-info-grid">
+
+        <div>
+          <span>Full name</span>
+          <strong id="drawerFullName">—</strong>
+        </div>
+
+        <div>
+          <span>Nickname</span>
+          <strong id="drawerNickname">—</strong>
+        </div>
+
+        <div>
+          <span>Last seen</span>
+          <strong id="drawerLastSeen">—</strong>
+        </div>
+
+      </div>
+
+
+      <div class="profile-media-tabs">
+
+        <button class="profile-media-tab active" data-media-tab="photos">
+          Photos
+        </button>
+
+        <button class="profile-media-tab" data-media-tab="videos">
+          Videos
+        </button>
+
+        <button class="profile-media-tab" data-media-tab="files">
+          Files
+        </button>
+
+        <button class="profile-media-tab" data-media-tab="other">
+          Other
+        </button>
+
+      </div>
+
+
+      <div
+        class="profile-media-content"
+        id="profileMediaContent"
+      >
+        <div class="empty-media">
+          No media yet.
+        </div>
+      </div>
+
+
+      <div class="drawer-actions" id="drawerActions">
+
+        <button class="primary-btn full-width" id="drawerMessageButton">
+          <i class="fa-solid fa-message"></i>
+          Message
+        </button>
+
+        <button class="secondary-btn full-width" id="drawerContactButton">
+          <i class="fa-solid fa-user-plus"></i>
+          Add Contact
+        </button>
+
+      </div>
+
+    </aside>
+
+
+    <!-- =========================
+         CONTEXT MENU
+    ========================== -->
+    <div
+      class="floating-menu hidden"
+      id="contextMenu"
+    ></div>
+
+
+    <!-- =========================
+         SETTINGS PROFILE QUICK MENU
+    ========================== -->
+    <div
+      class="floating-menu hidden"
+      id="miniProfileContext"
+    >
+      <button data-menu-action="profile">
+        <i class="fa-solid fa-user"></i>
+        Profile
+      </button>
+
+      <button data-menu-action="settings">
+        <i class="fa-solid fa-gear"></i>
+        Settings
+      </button>
     </div>
 
-</div>
+
+    <!-- =========================
+         CREATE COMMUNITY MODAL
+    ========================== -->
+    <div
+      class="modal-overlay hidden"
+      id="communityModal"
+    >
+
+      <div class="modal-card">
+
+        <div class="modal-header">
+          <div>
+            <h2 id="communityModalTitle">
+              Create Group
+            </h2>
+
+            <p>
+              Build your own MegChatBox community.
+            </p>
+          </div>
+
+          <button
+            class="icon-btn"
+            data-close-modal="communityModal"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
 
 
-<!-- ================= TOAST ================= -->
+        <form id="communityForm">
 
-<div
-    class="toast"
-    id="toast"
-></div>
+          <input
+            type="hidden"
+            id="communityType"
+            value="group"
+          />
+
+          <label class="field">
+            <span>Name</span>
+            <input
+              id="communityName"
+              type="text"
+              required
+              maxlength="100"
+              placeholder="Community name"
+            />
+          </label>
+
+          <label class="field">
+            <span>Username</span>
+
+            <div class="input-prefix">
+              <span>@</span>
+              <input
+                id="communityUsername"
+                type="text"
+                maxlength="40"
+                placeholder="communityusername"
+              />
+            </div>
+
+            <small>
+              Public communities use searchable usernames.
+              Private communities receive an automatic invite username.
+            </small>
+          </label>
+
+          <label class="field">
+            <span>Bio</span>
+
+            <textarea
+              id="communityBio"
+              rows="4"
+              maxlength="200"
+              placeholder="Community description"
+            ></textarea>
+          </label>
 
 
-<!-- ================= SCRIPTS ================= -->
+          <div class="community-privacy-options">
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+            <button
+              type="button"
+              class="privacy-card active"
+              data-community-privacy="public"
+            >
+              <i class="fa-solid fa-earth-americas"></i>
 
-<script src="supabase.js"></script>
+              <strong>Public</strong>
 
-<script src="dashboard.js"></script>
+              <span>
+                Searchable and joinable without invite code.
+              </span>
+            </button>
 
+
+            <button
+              type="button"
+              class="privacy-card"
+              data-community-privacy="private"
+            >
+              <i class="fa-solid fa-lock"></i>
+
+              <strong>Private</strong>
+
+              <span>
+                Join through invite and optional join request.
+              </span>
+            </button>
+
+          </div>
+
+
+          <div
+            class="private-username-preview hidden"
+            id="privateUsernamePreview"
+          >
+            <span>Automatic private username</span>
+            <strong id="privateUsernameText">—</strong>
+          </div>
+
+
+          <div class="modal-actions">
+
+            <button
+              type="button"
+              class="secondary-btn"
+              data-close-modal="communityModal"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              class="primary-btn"
+            >
+              Create
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+
+
+    <!-- =========================
+         DEVICES MODAL
+    ========================== -->
+    <div
+      class="modal-overlay hidden"
+      id="devicesModal"
+    >
+
+      <div class="modal-card">
+
+        <div class="modal-header">
+          <div>
+            <h2>Connected Devices</h2>
+            <p>Sessions connected to your account.</p>
+          </div>
+
+          <button
+            class="icon-btn"
+            data-close-modal="devicesModal"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+
+        <div id="devicesList" class="devices-list">
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- =========================
+         INVITE MODAL
+    ========================== -->
+    <div
+      class="modal-overlay hidden"
+      id="inviteModal"
+    >
+
+      <div class="modal-card invite-card">
+
+        <div class="modal-header">
+          <div>
+            <h2>Community Invite</h2>
+          </div>
+
+          <button
+            class="icon-btn"
+            data-close-modal="inviteModal"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+
+        <div class="invite-preview">
+
+          <div
+            class="community-avatar large"
+            id="inviteImage"
+          >
+            <i class="fa-solid fa-users"></i>
+          </div>
+
+          <h3 id="inviteName">Community Name</h3>
+
+          <div id="inviteUsername" class="invite-username">
+            @username
+          </div>
+
+          <p id="inviteBio">
+            Community bio
+          </p>
+
+        </div>
+
+
+        <div class="invite-actions">
+
+          <button
+            class="secondary-btn"
+            id="declineInviteButton"
+          >
+            NO
+          </button>
+
+          <button
+            class="primary-btn"
+            id="acceptInviteButton"
+          >
+            YES
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- =========================
+         OWNER / ADMIN MODAL
+    ========================== -->
+    <div
+      class="modal-overlay hidden"
+      id="ownerAdminModal"
+    >
+
+      <div class="modal-card wide-modal">
+
+        <div class="modal-header">
+
+          <div>
+            <h2 id="moderationTitle">Owner / Admin Panel</h2>
+            <p>Moderation and administration tools.</p>
+          </div>
+
+          <button
+            class="icon-btn"
+            data-close-modal="ownerAdminModal"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+
+        </div>
+
+
+        <div class="admin-layout">
+
+          <aside class="admin-sidebar">
+
+            <button
+              class="admin-nav active"
+              data-admin-section="overview"
+            >
+              <i class="fa-solid fa-chart-line"></i>
+              Overview
+            </button>
+
+            <button
+              class="admin-nav"
+              data-admin-section="users"
+            >
+              <i class="fa-solid fa-users"></i>
+              Users
+            </button>
+
+            <button
+              class="admin-nav"
+              data-admin-section="admins"
+            >
+              <i class="fa-solid fa-user-shield"></i>
+              Admins
+            </button>
+
+            <button
+              class="admin-nav"
+              data-admin-section="reports"
+            >
+              <i class="fa-solid fa-flag"></i>
+              Reports
+            </button>
+
+            <button
+              class="admin-nav"
+              data-admin-section="history"
+            >
+              <i class="fa-solid fa-clock-rotate-left"></i>
+              History
+            </button>
+
+            <button
+              class="admin-nav"
+              data-admin-section="bot"
+            >
+              <i class="fa-solid fa-robot"></i>
+              Admin Bot
+            </button>
+
+            <button
+              class="admin-nav owner-only"
+              data-admin-section="protection"
+            >
+              <i class="fa-solid fa-crown"></i>
+              Owner Protection
+            </button>
+
+          </aside>
+
+
+          <section class="admin-content">
+
+            <!-- overview -->
+            <div
+              class="admin-section active"
+              id="admin-overview"
+            >
+
+              <div class="stats-grid">
+
+                <div class="stat-card">
+                  <span>Users</span>
+                  <strong id="statUsers">0</strong>
+                </div>
+
+                <div class="stat-card">
+                  <span>Admins</span>
+                  <strong id="statAdmins">0</strong>
+                </div>
+
+                <div class="stat-card">
+                  <span>Verified</span>
+                  <strong id="statVerified">0</strong>
+                </div>
+
+                <div class="stat-card">
+                  <span>Reports</span>
+                  <strong id="statReports">0</strong>
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <!-- users -->
+            <div
+              class="admin-section"
+              id="admin-users"
+            >
+
+              <div class="admin-search-bar">
+
+                <i class="fa-solid fa-magnifying-glass"></i>
+
+                <input
+                  id="adminUserSearch"
+                  type="text"
+                  placeholder="Search users..."
+                />
+
+              </div>
+
+
+              <div
+                class="admin-results"
+                id="adminUserResults"
+              ></div>
+
+            </div>
+
+
+            <!-- admins -->
+            <div
+              class="admin-section"
+              id="admin-admins"
+            >
+
+              <div class="admin-section-top">
+
+                <div>
+                  <h3>Administrators</h3>
+                  <p id="adminCountLabel">0 admins</p>
+                </div>
+
+                <button
+                  class="primary-btn"
+                  id="addAdminButton"
+                >
+                  <i class="fa-solid fa-plus"></i>
+                  Add Admin
+                </button>
+
+              </div>
+
+
+              <div id="adminList" class="admin-list"></div>
+
+            </div>
+
+
+            <!-- reports -->
+            <div
+              class="admin-section"
+              id="admin-reports"
+            >
+
+              <div
+                class="admin-results"
+                id="reportsList"
+              ></div>
+
+            </div>
+
+
+            <!-- history -->
+            <div
+              class="admin-section"
+              id="admin-history"
+            >
+
+              <div class="history-controls">
+
+                <select id="historyTypeFilter">
+                  <option value="all">All</option>
+                  <option value="permanent">Permanent</option>
+                  <option value="temporary">Temporary</option>
+                </select>
+
+                <select id="historyActionFilter">
+                  <option value="all">All actions</option>
+                  <option value="ban">Ban</option>
+                  <option value="block">Block</option>
+                  <option value="verified">Verified</option>
+                  <option value="delete_message">Delete Message</option>
+                  <option value="group">Group</option>
+                  <option value="channel">Channel</option>
+                  <option value="settings">Settings</option>
+                </select>
+
+                <input
+                  id="historyAdminSearch"
+                  placeholder="Search admin"
+                />
+
+              </div>
+
+
+              <div
+                id="adminHistoryList"
+                class="history-list"
+              ></div>
+
+            </div>
+
+
+            <!-- bot -->
+            <div
+              class="admin-section"
+              id="admin-bot"
+            >
+
+              <div class="bot-card">
+
+                <div class="bot-icon">
+                  <i class="fa-solid fa-robot"></i>
+                </div>
+
+                <div>
+                  <h3>Admin Bot</h3>
+
+                  <p>
+                    Moderation assistant for reports,
+                    administration and platform actions.
+                  </p>
+                </div>
+
+              </div>
+
+
+              <div class="bot-chat" id="adminBotChat">
+
+                <div class="bot-message">
+                  Admin Bot online.
+                  Try commands like:
+                  <code>/help</code>
+                </div>
+
+              </div>
+
+
+              <div class="bot-input">
+
+                <input
+                  id="adminBotInput"
+                  placeholder="Type an admin command..."
+                />
+
+                <button
+                  class="primary-btn"
+                  id="adminBotSend"
+                >
+                  <i class="fa-solid fa-paper-plane"></i>
+                </button>
+
+              </div>
+
+            </div>
+
+
+            <!-- protection -->
+            <div
+              class="admin-section"
+              id="admin-protection"
+            >
+
+              <div class="settings-card">
+
+                <div class="settings-card-header">
+                  <h3>Owner Protection</h3>
+                  <p>
+                    Platform-level protection for the Owner.
+                  </p>
+                </div>
+
+
+                <div class="setting-row">
+                  <div>
+                    <strong>Owner protection</strong>
+                    <span>Prevent unauthorized owner actions.</span>
+                  </div>
+
+                  <button
+                    class="toggle-switch active"
+                    id="ownerProtectionToggle"
+                  >
+                    <span></span>
+                  </button>
+                </div>
+
+
+                <div class="setting-row">
+                  <div>
+                    <strong>Community protection</strong>
+                    <span>
+                      Prevent unauthorized owner removal from communities.
+                    </span>
+                  </div>
+
+                  <button
+                    class="toggle-switch active"
+                    id="communityProtectionToggle"
+                  >
+                    <span></span>
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+
+          </section>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- =========================
+         TOASTS
+    ========================== -->
+    <div
+      id="toastContainer"
+      class="toast-container"
+    ></div>
+
+  </div>
+
+  <!-- Your Supabase file must load first -->
+  <script src="supabase.js"></script>
+  <script src="dashboard.js"></script>
 </body>
 </html>
