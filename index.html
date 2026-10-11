@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>MegChatBox — Sign in</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js"></script>
+  <script src="script.js" defer></script>
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <h1>MegChatBox</h1>
+        <p>Your conversations, together.</p>
+      </div>
+    </section>
+    <section class="auth-card">
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab active" id="showLogin" type="button">Log in</button>
+        <button class="auth-tab" id="showSignup" type="button">Create account</button>
+      </div>
+      <form id="loginForm" class="auth-form">
+        <h2>Welcome back</h2>
+        <p class="muted">Log in to continue to MegChatBox.</p>
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com" required>
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Your password" required>
+        <button class="primary-btn" type="submit">Log in</button>
+      </form>
+      <form id="signupForm" class="auth-form hidden">
+        <h2>Create your account</h2>
+        <p class="muted">Choose your name and a unique username.</p>
+        <label for="signupName">Full name</label>
+        <input id="signupName" type="text" maxlength="60" placeholder="Your name" required>
+        <label for="signupUsername">Username</label>
+        <input id="signupUsername" type="text" minlength="5" maxlength="24" pattern="[A-Za-z0-9_]+" placeholder="username (5+ characters)" required>
+        <label for="signupEmail">Email</label>
+        <input id="signupEmail" type="email" autocomplete="email" placeholder="you@example.com" required>
+        <label for="signupPassword">Password</label>
+        <input id="signupPassword" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters" required>
+        <button class="primary-btn" type="submit">Create account</button>
+      </form>
+      <p id="authStatus" class="status-line" role="status"></p>
+      <p class="fine-print">By continuing, you agree to use MegChatBox respectfully.</p>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>MegChatBox</title>
+  <link rel="stylesheet" href="dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js"></script>
+  <script src="dashboard.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <header class="side-header">
+        <a class="brand" href="dashboard.html"><span class="brand-icon">M</span><span>MegChatBox</span></a>
+        <button class="icon-btn" id="settingsOpen" aria-label="Settings" title="Settings">⚙</button>
+      </header>
+      <button class="my-profile" id="myProfileBtn">
+        <span class="avatar avatar-lg" id="myAvatar">M</span>
+        <span class="profile-copy"><strong id="myName">Loading profile…</strong><small id="myUsername">@username</small></span>
+        <span class="more-dots">⋯</span>
+      </button>
+      <div class="search-wrap">
+        <span>⌕</span><input id="globalSearch" type="search" placeholder="Search people, groups, channels…" autocomplete="off">
+        <button id="clearSearch" class="clear-search hidden" aria-label="Clear search">×</button>
+      </div>
+      <section id="searchMode" class="search-mode hidden">
+        <div class="section-heading"><span id="searchHeading">Search results</span><button id="clearHistory" class="text-btn">Clear history</button></div>
+        <div id="searchResults" class="list-stack"></div>
+      </section>
+      <nav class="list-tabs" aria-label="Conversation type">
+        <button class="list-tab active" data-list="chats">Chats</button>
+        <button class="list-tab" data-list="groups">Groups</button>
+        <button class="list-tab" data-list="channels">Channels</button>
+        <button class="list-tab" data-list="contacts">Contacts</button>
+      </nav>
+      <div class="list-heading"><span id="listHeading">Recent chats</span><button id="newChatBtn" class="small-action" title="Find people">＋</button></div>
+      <div id="conversationList" class="conversation-list">
+        <div class="empty-note">Loading your conversations…</div>
+      </div>
+      <footer class="side-footer"><span class="online-dot"></span><span id="connectionState">Connecting</span><button id="savedBtn" class="footer-link">Saved</button></footer>
+    </aside>
+    <main class="main-panel">
+      <header class="chat-header hidden" id="chatHeader">
+        <span class="avatar" id="chatAvatar">M</span>
+        <div class="chat-title"><strong id="chatName">Chat</strong><small id="chatSubline"> </small></div>
+        <button class="icon-btn" id="chatSearchBtn" title="Search in chat">⌕</button>
+        <button class="icon-btn" id="chatInfoBtn" title="Profile / information">ⓘ</button>
+      </header>
+      <section class="welcome-screen" id="welcomeScreen">
+        <div class="welcome-art"><div class="welcome-bubble">✦</div><div class="welcome-orbit"></div></div>
+        <h1>Welcome to MegChatBox</h1>
+        <p>Choose a chat from the left, or search for a person to start connecting.</p>
+        <button class="primary-btn" id="welcomeSearchBtn">Find people</button>
+      </section>
+      <section class="message-area hidden" id="messageArea">
+        <div id="messageList" class="message-list"></div>
+        <form id="messageForm" class="composer">
+          <button type="button" class="composer-icon" id="emojiBtn" title="Emoji">☺</button>
+          <input id="messageInput" type="text" maxlength="5000" placeholder="Write a message…" autocomplete="off">
+          <button type="submit" class="send-btn" aria-label="Send message">➤</button>
+        </form>
+        <div id="chatNotice" class="chat-notice"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="modalBackdrop">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header class="modal-header"><h2 id="modalTitle">Settings</h2><button class="icon-btn" id="modalClose" aria-label="Close">×</button></header>
+      <div id="modalContent" class="modal-content"></div>
+    </section>
+  </div>
+  <div id="toast" class="toast" role="status"></div>
+</body>
+</html>
