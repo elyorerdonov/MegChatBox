@@ -16,7 +16,7 @@
     "https://gvabfjcmllglwqgnotxn.supabase.co";
 
   const SUPABASE_ANON_KEY =
-    "BU_YERGA_TOLIQ_sb_publishable_KALITINGIZNI_QOYING";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2YWJmamNtbGxnbHdxZ25vdHhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzNDkxNDYsImV4cCI6MjEwNTkyNTE0Nn0.DOSbEwD00b6VogpXGp-JO-IuoF23A9BDH8QIDON9LbE";
 
   // Prevent initialization twice
   if (window.supabaseClient) {
