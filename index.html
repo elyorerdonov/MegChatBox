@@ -1,54 +1,58 @@
 <!doctype html>
-<html lang="en">
+<html lang="uz">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#ffffff">
-  <title>MegChatBox — Sign in</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>MegChatBox V7</title>
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase.js"></script>
-  <script src="script.js" defer></script>
 </head>
-<body class="auth-page">
-  <main class="auth-shell">
-    <section class="auth-brand">
-      <div class="brand-mark">M</div>
-      <div>
-        <h1>MegChatBox</h1>
-        <p>Your conversations, together.</p>
-      </div>
-    </section>
+<body>
+  <main id="authView" class="auth-shell">
     <section class="auth-card">
-      <div class="auth-tabs" role="tablist">
-        <button class="auth-tab active" id="showLogin" type="button">Log in</button>
-        <button class="auth-tab" id="showSignup" type="button">Create account</button>
-      </div>
+      <div class="brand-mark">M</div>
+      <h1>MegChatBox <span>V7</span></h1>
+      <p class="muted center">Yaqinlaringiz bilan bog‘laning.</p>
+      <div class="auth-tabs"><button class="tab active" data-auth-tab="login">Kirish</button><button class="tab" data-auth-tab="signup">Ro‘yxatdan o‘tish</button></div>
       <form id="loginForm" class="auth-form">
-        <h2>Welcome back</h2>
-        <p class="muted">Log in to continue to MegChatBox.</p>
-        <label for="loginEmail">Email</label>
-        <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com" required>
-        <label for="loginPassword">Password</label>
-        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Your password" required>
-        <button class="primary-btn" type="submit">Log in</button>
+        <label>Email<input id="loginEmail" type="email" autocomplete="email" required placeholder="you@example.com"></label>
+        <label>Parol<input id="loginPassword" type="password" autocomplete="current-password" required minlength="6" placeholder="Kamida 6 belgi"></label>
+        <button class="primary wide" type="submit">Kirish</button>
+        <button id="forgotPasswordButton" type="button" class="text-button centered">Parolni unutdingizmi?</button>
       </form>
       <form id="signupForm" class="auth-form hidden">
-        <h2>Create your account</h2>
-        <p class="muted">Choose your name and a unique username.</p>
-        <label for="signupName">Full name</label>
-        <input id="signupName" type="text" maxlength="60" placeholder="Your name" required>
-        <label for="signupUsername">Username</label>
-        <input id="signupUsername" type="text" minlength="5" maxlength="24" pattern="[A-Za-z0-9_]+" placeholder="username (5+ characters)" required>
-        <label for="signupEmail">Email</label>
-        <input id="signupEmail" type="email" autocomplete="email" placeholder="you@example.com" required>
-        <label for="signupPassword">Password</label>
-        <input id="signupPassword" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters" required>
-        <button class="primary-btn" type="submit">Create account</button>
+        <label>To‘liq ism<input id="signupName" required maxlength="60" placeholder="Ismingiz"></label>
+        <label>Username<input id="signupUsername" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+" placeholder="username"></label>
+        <label>Email<input id="signupEmail" type="email" autocomplete="email" required placeholder="you@example.com"></label>
+        <label>Parol<input id="signupPassword" type="password" autocomplete="new-password" required minlength="6" placeholder="Kamida 6 belgi"></label>
+        <button class="primary wide" type="submit">Hisob yaratish</button>
       </form>
-      <p id="authStatus" class="status-line" role="status"></p>
-      <p class="fine-print">By continuing, you agree to use MegChatBox respectfully.</p>
+      <p id="authNotice" class="notice" role="status"></p>
+      <p class="tiny muted center">V7 boshlang‘ich versiyasi · Supabase ulanishi talab qilinadi</p>
     </section>
   </main>
+
+  <main id="appView" class="app-shell hidden">
+    <aside class="sidebar">
+      <header class="side-header"><a class="brand" href="#"><span class="brand-mark small">M</span><span>MegChatBox</span><sup>V7</sup></a><button id="settingsButton" class="icon-button" title="Sozlamalar" aria-label="Sozlamalar">⚙</button></header>
+      <button id="myProfileButton" class="profile-strip"><span id="myAvatar" class="avatar">M</span><span class="profile-text"><strong id="myName">Profil</strong><small id="myUsername">@username</small></span><span class="profile-arrow">›</span></button>
+      <div class="search-wrap"><span>⌕</span><input id="globalSearch" placeholder="Username yoki hamjamiyat..." autocomplete="off"><button id="clearSearch" class="clear-search hidden" title="Tozalash">×</button></div>
+      <nav class="main-tabs" aria-label="Asosiy bo‘limlar"><button class="main-tab active" data-section="chats">Chats</button><button class="main-tab" data-section="groups">Groups</button><button class="main-tab" data-section="channels">Channels</button></nav>
+      <div class="list-heading"><span id="listTitle">Xabarlar</span><button id="newCommunityButton" class="mini-add" title="Guruh yoki kanal yaratish">＋</button></div>
+      <div id="leftList" class="left-list"><div class="empty-list">Yuklanmoqda…</div></div>
+      <footer class="sidebar-footer"><span id="connectionDot" class="dot"></span><span id="connectionText">Ulanish tekshirilmoqda</span><button id="signOutButton" class="text-button">Chiqish</button></footer>
+    </aside>
+    <section class="conversation">
+      <header id="conversationHeader" class="conversation-header hidden"><button id="backToList" class="icon-button mobile-only" aria-label="Orqaga">‹</button><span id="chatAvatar" class="avatar">?</span><div class="conversation-person"><strong id="chatTitle">Suhbat</strong><small id="chatSubtitle">MegChatBox</small></div><button id="chatInfoButton" class="icon-button" title="Ma’lumot">ⓘ</button><button id="chatMoreButton" class="icon-button" title="Qo‘shimcha">⋯</button></header>
+      <div id="welcomePanel" class="welcome-panel"><div class="welcome-logo">M</div><h2>MegChatBox’ga xush kelibsiz!</h2><p>Chap tomondan suhbat tanlang yoki foydalanuvchini username orqali qidiring.</p><div class="welcome-chips"><span>🔒 Shaxsiy suhbatlar</span><span>👥 Guruhlar</span><span>📣 Kanallar</span></div></div>
+      <div id="messageList" class="message-list hidden"></div>
+      <form id="messageForm" class="message-composer hidden"><button id="attachButton" type="button" class="icon-button" title="Fayl yuklash">＋</button><button id="emojiButton" type="button" class="icon-button" title="Emoji">☺</button><input id="messageInput" maxlength="5000" placeholder="Xabar yozing…" autocomplete="off"><button class="send-button" type="submit" aria-label="Yuborish">➤</button></form>
+      <div id="conversationNotice" class="conversation-notice"></div>
+    </section>
+    <div id="modalRoot" class="modal-root hidden"></div><div id="toast" class="toast" role="status"></div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
