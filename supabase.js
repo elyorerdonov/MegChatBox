@@ -1,22 +1,67 @@
-/*
-  MegChatBox V5 configuration.
-  Paste your Supabase project URL and anon/public key below.
-  NEVER put a service_role key in browser code.
-*/
-(() => {
-  const SUPABASE_URL = "PASTE_YOUR_SUPABASE_PROJECT_URL_HERE";
-  const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_KEY_HERE";
 
-  if (!window.supabase) {
-    console.error("Supabase JS did not load. Check the CDN connection.");
+/*
+ * MegChatBox — Supabase Configuration
+ * V6: Safe client initialization
+ *
+ * IMPORTANT:
+ * 1. Use your Supabase Project URL.
+ * 2. Use your sb_publishable_ key.
+ * 3. NEVER put service_role or sb_secret keys in frontend code.
+ */
+
+(() => {
+  "use strict";
+
+  const SUPABASE_URL =
+    "https://gvabfjcmllglwqgnotxn.supabase.co";
+
+  const SUPABASE_ANON_KEY =
+    "BU_YERGA_TOLIQ_sb_publishable_KALITINGIZNI_QOYING";
+
+  // Prevent initialization twice
+  if (window.supabaseClient) {
+    console.info("MegChatBox: Supabase client already initialized.");
+    window.megSupabaseReady = true;
+    return;
+  }
+
+  // Check that Supabase JS loaded
+  if (!window.supabase || typeof window.supabase.createClient !== "function") {
+    console.error(
+      "MegChatBox: Supabase JS failed to load. Check the CDN script."
+    );
     window.megSupabaseReady = false;
     return;
   }
-  if (SUPABASE_URL.startsWith("PASTE_") || SUPABASE_ANON_KEY.startsWith("PASTE_")) {
-    console.warn("MegChatBox: add your Supabase URL and anon key in supabase.js.");
+
+  // Check configuration
+  if (
+    !SUPABASE_URL.startsWith("https://") ||
+    SUPABASE_ANON_KEY.startsWith("BU_YERGA_") ||
+    !SUPABASE_ANON_KEY.startsWith("sb_publishable_")
+  ) {
+    console.error(
+      "MegChatBox: Supabase URL or publishable key is missing or invalid."
+    );
     window.megSupabaseReady = false;
     return;
   }
-  window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  window.megSupabaseReady = true;
+
+  try {
+    window.supabaseClient = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
+
+    window.megSupabaseReady = true;
+
+    console.info("MegChatBox: Supabase connected successfully. 🦅");
+  } catch (error) {
+    window.megSupabaseReady = false;
+
+    console.error(
+      "MegChatBox: Supabase initialization failed:",
+      error.message
+    );
+  }
 })();
